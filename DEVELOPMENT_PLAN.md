@@ -1,9 +1,10 @@
 # ViralLab — Development Plan
 
-**Revision 3** — final safeguards added; Phases 0A/0B approved for execution (2026-10-23)
-Status: **PHASE 0A IN PROGRESS** — no application code; probe scripts only.
+**Revision 3** — Phases 0A and 0B executed; both gates passed (2026-10-24)
+Status: **0A GATE PASSED** (incl. ToS review) · **0B GATE PASSED** —
+no application code yet; probe scripts only. Phase 1 awaits owner approval.
 Owner: Gabriele Baldocci (private use initially; architecture kept niche-agnostic for future reuse)
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 > **Revision 3 changed:** added the fixed-age metric comparison requirement
 > (§5.4) and its consequences for discovery design; expanded the 0B cost
@@ -221,8 +222,12 @@ misses.
    **before** any commercialization that redistributes or resells collected
    third-party data — a materially different risk profile from using it to
    advise your own content.
-4. Prefer established vendors (who carry their own ToS exposure) over
-   bespoke scrapers — risk transfer and lower maintenance.
+4. Prefer established vendors over bespoke scrapers for **lower maintenance
+   and better reliability** — **not** for risk transfer. Apify's terms
+   explicitly push liability onto the customer ("you shall be responsible
+   for compensating any damages"), so legal exposure is the same as scraping
+   directly. Corrected in Rev 3 after reading the terms:
+   `docs/benchmarks/0A-tos-review.md` §1.
 5. Aggressive rate limiting; respect `robots.txt`.
 6. Re-review this section whenever platform ToS or case law shifts. This is
    the fastest-moving risk in the project.
@@ -269,7 +274,14 @@ ultimately read.
   below these. **No published RTX 2070 benchmark was found.** Nothing in
   §10 may be treated as fact until Phase 0B measures it.
   ([GPU RTF table](https://gigagpu.com/whisper-large-v3-rtf-by-gpu/))
-- **[DESIGN CONSTRAINT]** Qwen-VL and faster-whisper cannot be co-resident
+- **[MEASURED 0B]** The machine is an **RTX 2070 SUPER** (not a plain 2070),
+  8192 MiB, with **~1517 MiB already held by the desktop at idle**.
+  Qwen2.5-VL 7B Q4 peaks at **7634 MiB — 93% of the card, ~558 MiB spare**,
+  so the `[SECONDARY]` ~4.5 GiB INT4 estimate was too optimistic. Phase 1
+  must check free VRAM before leasing a vision batch.
+- **[MEASURED 0B]** Python 3.14 (the system default) has no usable ML wheels;
+  a **Python 3.12 venv is required**.
+- **[DESIGN CONSTRAINT — confirmed by measurement]** Qwen-VL and faster-whisper cannot be co-resident
   on 8 GB. The GPU worker processes **one modality at a time per job** and
   frees VRAM between stages. This is a hard pipeline rule.
 
@@ -820,33 +832,40 @@ ViralLab/
 
 ## 10. Cost & Throughput Projections — **UNVERIFIED**
 
-> **None of the numbers below are measured.** They are arithmetic
-> projections from **[SECONDARY]** third-party figures, stated so the Phase
-> 0A/0B probes have something to falsify. Per CLAUDE.md, they may not be
-> cited as facts, used to justify scaling, or quoted to anyone until the
-> probes replace them.
+> **Phase 0A/0B replaced these projections with measurements** (2026-10-23).
+> GPU time, per-stage cost, VRAM and provider cost are now **measured on the
+> real hardware and real provider runs** — see `docs/benchmarks/0A-data-access.md`
+> and `docs/benchmarks/0B-local-ai.md`.
 >
-> **They are also incomplete by construction.** The GPU column below counts
-> *inference only*. Per §7 Phase 0B it omits model cold-load, download,
-> decode, retry overhead and real storage — so the true figure is
-> **higher than shown, by an unknown factor**. Read this table as a floor,
-> not an estimate.
+> Two caveats remain. **Storage is `[PROVISIONAL]`**: measured across 14
+> files with a 9.6× spread in MB/s, from one niche and one platform pair —
+> provision against the p90 column. And the GPU figures assume the
+> **per-modality-batch** job design (§4.2); a per-video design would be
+> roughly 5× worse, because cold load dominates.
 
 Because analysis is tiered (§5.2), cost scales with **tier mix**, not corpus
 size. Illustrative mix: Tier 1 on 100%, Tier 2 on ~10%, Tier 3 on ~1%.
 
-| Corpus | Tier 1 (CPU) | Tier 2 count @10% | Tier 2 GPU time *(unverified: 5–15 s/video)* | Tier 3 count @1% | Discovery cost *(verified band $0.30–3.70/1k)* | Media storage *(unverified: ~10 MB/video, purgeable)* |
-|---|---|---|---|---|---|---|
-| 1,000 | minutes | 100 | ~8–25 min | 10 | $0.30–3.70 | ~10 GB |
-| 10,000 | ~1 hr | 1,000 | ~1.5–4 hrs | 100 | $3–37 | ~100 GB |
-| 100,000 | ~hours | 10,000 | **~14–42 hrs** | 1,000 | $30–370 | ~1 TB |
+**MEASURED in Phase 0B** (Tier 2 = 11.4 s/video, Tier 3 = 29.7 s/video,
+cold loads amortised over a 100-video batch; storage median 2.67 MB/file,
+p90 5.14 MB):
 
-**Tiering changes the feasibility picture materially.** Revision 1 projected
-*6–17 days* of continuous GPU runtime at 100k videos by assuming every video
-got full multimodal analysis. At a 10% Tier 2 rate the same corpus projects
-to **under two days** of GPU time — which is tractable for an
-occasionally-on machine. This is a projection resting on an unmeasured
-seconds/video figure; Phase 0B decides whether it survives.
+| Corpus | Tier 2 @10% | Tier 3 @1% | **Total GPU time** | Discovery cost *(measured $0.30–3.00/1k)* | Media storage *(median / p90)* |
+|---|---|---|---|---|---|
+| 1,000 | 100 | 10 | **~24 min** | $0.30–3.00 | 3 / 5 GB |
+| 10,000 | 1,000 | 100 | **~4.0 hrs** | $3–30 | 27 / 51 GB |
+| 100,000 | 10,000 | 1,000 | **~40 hrs (~1.7 days)** | $30–300 | **267 / 514 GB** |
+
+The VLM is **79% of Tier 2** and **91% of Tier 3** cost, so **frame count is
+the only real cost lever** in the pipeline.
+
+**Tiering changed the feasibility picture, and the measurement confirmed it.**
+Revision 1 projected *6–17 days* at 100k by assuming full multimodal analysis
+of every video. Revision 2's tiered estimate of "under two days" is now
+**measured at ~40 hrs** — tractable for an occasionally-on machine.
+
+Storage remains `[PROVISIONAL]`: 14 files, one niche, one platform pair, with
+a **9.6× spread** in MB/s. Provision against the p90 column, not the median.
 
 Other items:
 - Official TikTok Display API / Instagram Graph API: **$0** at this scale
@@ -897,20 +916,27 @@ Other items:
    broader niche.
 3. Do recommendations **causally** improve outcomes? → Phase 8, with the
    power caveat. Not claimed before then, under any phrasing.
-4. Real faster-whisper / Qwen2.5-VL throughput and output quality on an
-   RTX 2070? → Phase 0B. No published benchmark exists for this card.
+4. ~~Throughput and quality on this card?~~ **ANSWERED (0B).** Whisper
+   `small` int8 **258× realtime**; Qwen2.5-VL Q4 **2.25 s/frame** warm,
+   **44.7 s** cold load, **7634 MiB** peak (93% of the card). VLM quality
+   passes qualitative review; ASR does not — see 6.
 5. Is any provider's niche coverage complete and reliable enough, and does
    any return **media** as well as metadata? → Phase 0A gate.
-6. Does Whisper degrade unacceptably on piano-performance audio (music over
-   speech, or music-only)? → Phase 0B quality spot-check.
+6. ~~Does Whisper degrade on piano-performance audio?~~ **ANSWERED (0B):
+   yes, badly.** Non-trivial transcript on only **1–2 of 14** videos; on
+   music-only audio it **hallucinates** ("Thank you.", "Music", "Hello, I am
+   a" repeated) instead of returning empty. Required: gate ASR behind speech
+   detection and store NULL, never model output; treat **VLM-read on-screen
+   text as the primary text channel** for this niche.
 7. **By what age have views substantially stopped accumulating?** §5.4's
    Strategy A depends on it, and TikTok is known to resurface old content.
    Testable for free on your own account once Phase 2 has daily snapshots:
    plot the fraction of 90-day views reached by day 7 and day 30. Until
    then the anchor age is provisional.
-8. **Does model cold-load time dominate per-video cost?** → Phase 0B. If
-   yes, job granularity changes from per-video to per-modality-batch before
-   Phase 1 writes the schema.
+8. ~~Does cold-load time dominate per-video cost?~~ **ANSWERED (0B): yes,
+   5:1.** VLM cold load **44.7 s** vs **9.0 s** inference for a 4-frame
+   Tier 2 video. **Job granularity becomes per-modality-batch**, per-video
+   idempotency keys retained; ADR required before the Phase 1 schema.
 9. **Is any provider's `posted_at` trustworthy?** → Phase 0A blocking gate.
    A provider that returns a scrape time dressed as a post date makes
    fixed-age comparison impossible and is unusable at any price.

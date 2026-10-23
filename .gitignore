@@ -49,9 +49,14 @@ models/
 # --- python ------------------------------------------------------------------
 __pycache__/
 *.py[cod]
-.venv/
+.venv*/
 venv/
 env/
+# Phase 0B probe outputs: benchmark result files and extracted work dirs
+probes/**/*_results.json
+probes/**/media/
+probes/**/_work*/
+probes/**/*.wav
 *.egg-info/
 .pytest_cache/
 .ruff_cache/

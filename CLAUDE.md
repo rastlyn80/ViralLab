@@ -1,6 +1,6 @@
 # CLAUDE.md — Permanent Development Instructions for ViralLab
 
-**Revision 3** (2026-10-23). These rules apply to every session,
+**Revision 3** (2026-10-24, updated after Phases 0A/0B). These rules apply to every session,
 indefinitely, and override general habits and defaults.
 
 ## Project context
@@ -9,7 +9,7 @@ ViralLab is a local-first social-media intelligence and content-optimization
 platform, initially a private tool for a professional concert pianist, with
 an architecture that must stay niche-agnostic for possible future
 commercialization. Python-first, two machines (always-on Ubuntu server + an
-occasionally-on Windows RTX 2070 GPU box). Full detail lives in
+occasionally-on Windows **RTX 2070 SUPER** box, 8 GB VRAM). Full detail lives in
 `DEVELOPMENT_PLAN.md` — read it before proposing work.
 
 ---
@@ -88,8 +88,10 @@ that TikTok's Display API returns downloadable media (it does not). Hence:
    number has not been measured on the real hardware and the real corpus,
    label it `[ASSUMPTION]` and say so.
 2. **Never present an unverified projection as a fact**, in documentation,
-   commit messages, dashboard copy, or conversation. The §10 cost table is
-   explicitly unverified until the probes replace it.
+   commit messages, dashboard copy, or conversation. §10's cost table is now
+   measured (Phases 0A/0B), **except storage, which stays `[PROVISIONAL]`**
+   — 14 files, one niche, a 9.6× spread. A single-sample measurement is not
+   a measurement; benchmark a range before projecting from it.
 3. **Maintain the three-way distinction everywhere** — code comments, stored
    recommendation records, dashboard output:
    `verified capability` / `engineering assumption` / `open research
@@ -204,8 +206,23 @@ extras:
    metadata screening on everything → Tier 2 selective multimodal → Tier 3
    deep). Do not promote work to a more expensive tier without a reason
    recorded against the plan's sampling design.
-7. **Remember the hardware ceiling:** Qwen-VL and Whisper cannot be
-   co-resident in 8 GB VRAM. One modality in VRAM at a time, always.
+7. **Remember the hardware ceiling (measured, Phase 0B):** Qwen2.5-VL Q4
+   peaks at **7634 MiB of 8192** — 93% of the card, ~558 MiB spare against a
+   1517 MiB desktop baseline. Whisper and the VLM **cannot** be co-resident.
+   One modality in VRAM at a time, always; check free VRAM before leasing a
+   vision batch, and never run other GPU work during a batch.
+8. **Batch by modality, never per video (measured, Phase 0B).** VLM cold
+   load is **44.7 s** against **9.0 s** of inference for a 4-frame video —
+   5:1 against useful work. Lease a batch, run one modality across all of
+   it, unload, load the next. Per-video idempotency keys are still required.
+9. **Never store ASR output unchecked (measured, Phase 0B).** Whisper
+   *hallucinates* on music-only audio ("Thank you.", "Music", "Hello, I am
+   a" repeated) rather than returning empty, and only 1–2 of 14 niche videos
+   had real speech. Gate ASR behind a speech-presence check and store
+   **NULL** when none is detected. For this niche, **VLM-read on-screen text
+   is the primary text channel**, not speech.
+10. **Use Whisper `small`, not `medium`** — 258× vs 102× realtime, lower cold
+   load, and the output is near-worthless for music content either way.
 
 ---
 
