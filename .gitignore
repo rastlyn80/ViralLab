@@ -1,0 +1,65 @@
+# --- secrets -----------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.token
+credentials.json
+*.pem
+*.key
+
+# --- raw third-party data (DO NOT COMMIT) ------------------------------------
+# Provider samples contain other creators' data. Committing them would
+# redistribute personal data and breach the operating policy in
+# DEVELOPMENT_PLAN.md 2.3 ("no redistribution beyond research need; never
+# build a resellable creator database"). Synthetic fixture_*.json files are
+# safe and ARE tracked, because they contain no real data.
+probes/**/sample_*.json
+probes/**/*.run.json
+data/
+samples/
+
+# --- media -------------------------------------------------------------------
+media/
+masters/
+frames/
+*.mp4
+*.mov
+*.m4a
+*.wav
+*.webm
+*.jpg
+*.jpeg
+*.png
+!docs/**/*.png
+
+# --- model artifacts (large, re-downloadable) --------------------------------
+models/
+*.gguf
+*.safetensors
+*.onnx
+*.pt
+*.pkl
+*.joblib
+
+# --- python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- local state -------------------------------------------------------------
+*.sqlite3
+*.db
+logs/
+*.log
+
+# --- os / editor -------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
