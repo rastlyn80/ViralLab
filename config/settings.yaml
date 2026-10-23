@@ -1,0 +1,46 @@
+# ViralLab configuration. Values here are the expectation; startup discovers
+# actuals and fails loudly on mismatch.
+
+queue:
+  lease_seconds: 900          # lease lifetime without a heartbeat
+  heartbeat_seconds: 30
+  reaper_interval_seconds: 60
+  max_attempts: 3
+  backoff_base_seconds: 60    # exponential: base * 2**(attempt-1)
+  batch_size:
+    vision: 100               # amortises the 44.7s VLM cold load (ADR 0002)
+    transcription: 200
+    audio: 200
+    shots: 200
+  video_quarantine_after: 3   # per-video failures before quarantine
+
+gpu:
+  # Measured in Phase 0B on the RTX 2070 SUPER. See ADR 0004.
+  total_vram_mib: 8192
+  safety_margin_mib: 512
+  critical_floor_mib: 256
+  requirements_mib:
+    vision: 7634
+    transcription: 2038
+  on_insufficient: defer      # defer | fail. "proceed" is deliberately absent.
+  backoff_seconds: 300
+  poll_interval_seconds: 20
+
+analysis:
+  frames:
+    tier2: 4
+    tier3: 12
+  whisper_model: small        # not medium: 258x vs 102x RT (0B section 5)
+  vlm_model: qwen2.5vl:7b
+  # Whisper hallucinates on music-only audio, so ASR is gated behind a
+  # speech-presence check and NULL is stored when none is found (0B section 5).
+  require_speech_detection: true
+
+media:
+  signed_url_ttl_seconds: 900
+  retention_days: 90          # raw media purgeable once features are extracted
+
+spending:
+  # Never silently exceeded. Any overage requires explicit approval.
+  monthly_cap_usd: 0.0        # 0 = no paid services authorised
+  providers_authorised: []    # empty until the owner approves a provider

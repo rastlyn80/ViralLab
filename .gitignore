@@ -52,6 +52,8 @@ __pycache__/
 .venv*/
 venv/
 env/
+# Portable Postgres cluster used for local development (binaries + data dir)
+.pgsql/
 # Phase 0B probe outputs: benchmark result files and extracted work dirs
 probes/**/*_results.json
 probes/**/media/
