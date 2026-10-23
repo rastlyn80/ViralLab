@@ -1,0 +1,11 @@
+{
+  "startUrls": [
+    "https://www.tiktok.com/tag/classicalmusic",
+    "https://www.tiktok.com/tag/pianist",
+    "https://www.tiktok.com/tag/pianocover",
+    "https://www.tiktok.com/tag/classicalpiano"
+  ],
+  "keywords": ["classical piano", "pianist", "piano cover", "chopin", "liszt", "rachmaninoff"],
+  "maxItems": 400,
+  "sortType": "RELEVANCE"
+}

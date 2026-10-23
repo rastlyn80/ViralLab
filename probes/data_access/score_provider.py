@@ -206,6 +206,32 @@ def main() -> int:
         print("    [{}] {}".format("ok  " if ok else "FAIL", msg))
     ts_ok = all(ok for ok, _ in ts_results)
 
+    # Metric precision. Two providers can both score 100% on field presence
+    # while one reports exact counts and the other expands the abbreviated
+    # figure shown on screen ("54.9M" -> 54900000). Presence checks cannot
+    # see that, so check significant digits directly.
+    view_spec = next(s for s in REQUIREMENTS if s.name == "views")
+    vals = []
+    for rec in records:
+        v, _ = extract(rec, view_spec)
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            vals.append(int(v))
+    big = [v for v in vals if v >= 10000]
+    print("")
+    print("  METRIC PRECISION (views)")
+    if not big:
+        print("    [ -- ] no values >=10,000 in sample; cannot assess")
+    else:
+        rounded = sum(1 for v in big if len(str(v).rstrip("0")) <= 3)
+        share = rounded / len(big)
+        print("    [{}] {}/{} values >=10k carry <=3 significant digits ({:.0%})"
+              .format("warn" if share > 0.5 else "ok  ", rounded, len(big), share))
+        print("          {}".format(
+            "provider appears to expand displayed/abbreviated counts - "
+            "fine for a log-ratio target, but small within-creator "
+            "differences will be unresolvable" if share > 0.5 else
+            "counts look exact"))
+
     media = next((r for s, r in rows if s.name == "media_url"), 0.0)
     print("\n  TIER 2/3 FEASIBILITY (reported, not scored)")
     verdict = ("media-bearing: third-party multimodal analysis is possible"

@@ -15,6 +15,11 @@ credentials.json
 # safe and ARE tracked, because they contain no real data.
 probes/**/sample_*.json
 probes/**/*.run.json
+# Any file derived FROM scraped output - re-query id lists, inputs built
+# from harvested usernames or video URLs. These carry third-party
+# identifiers even when they are not the sample itself. Convention:
+# name anything derived from provider data *.local.json.
+*.local.json
 data/
 samples/
 

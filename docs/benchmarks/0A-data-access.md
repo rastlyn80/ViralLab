@@ -1,164 +1,244 @@
 # Phase 0A — Data-Access Feasibility Report
 
-**Status: IN PROGRESS — blocked on a credential decision (see §5).**
-Started 2026-10-23. Gate definition: `DEVELOPMENT_PLAN.md` §7 Phase 0A.
+**Status: 3 of 4 gate conditions PASSED. Awaiting (a) ToS review and (b) one
+provider decision from the owner.**
+Run 2026-10-23. Gate definition: `DEVELOPMENT_PLAN.md` §7 Phase 0A.
 
-No money has been spent. No accounts have been created. No provider has been
-called. Nothing in this report is a measurement of a live provider yet.
+**Total spent: $0.3056 of the $5.00 free credit.** 4 actors, 183 records.
+No paid plan was purchased. (Apify's account-level usage counter lags; the
+per-run `*.run.json` sidecars are authoritative, and two early runs settled
+to a non-zero figure after capture, so the true total is ≈$0.31.)
 
 ---
 
-## 1. What Phase 0A has to answer
+## 1. Gate verdict
 
-| # | Question | Status |
+| # | Condition | Result |
 |---|---|---|
-| 1 | Do official APIs cover own-account data, and exactly what do they return? | ✅ **Answered** (§2) |
-| 2 | Is the Research API / official discovery route genuinely closed? | ✅ **Answered** (§2) |
-| 3 | What does ViralLab actually need from a provider, measurably? | ✅ **Answered** (§3) |
-| 4 | Which providers return usable niche data, at what completeness? | ⛔ **Blocked** — needs a live sample (§5) |
-| 5 | Is `posted_at` trustworthy enough for fixed-age comparison? | ⛔ **Blocked** — harness ready, needs a sample |
-| 6 | Are media files obtainable from a provider at all? | ⛔ **Blocked** — needs a live sample |
-| 7 | Real cost per 1,000 results | ⛔ **Blocked** — needs a live run |
-| 8 | Provider ToS compatible with §2.3 policy? | 🟡 **Partial** (§4) |
+| 1 | ≥80% BLOCKING+IMPORTANT completeness, **100% on every BLOCKING field** | ✅ **PASS** — three of four actors reach 100% on all BLOCKING fields |
+| 2 | Timestamp quality cross-check | ✅ **PASS** — all four preserve time-of-day; none show scrape-time contamination |
+| 3 | Measured cost within §10's projected band | ✅ **PASS** — measured **$0.30–$3.00 / 1,000**, inside the $0.30–$3.70 secondary band |
+| 4 | Provider ToS reviewed against §2.3 | ⛔ **NOT DONE** — see §6 |
+| + | Media availability answered in writing | ✅ **YES — media is directly downloadable.** See §3 |
+
+**Phase 0A is not complete until condition 4 is discharged.** Nothing found
+so far blocks the project; the remaining work is a terms review and one
+cost/quality decision that is the owner's to make (§7).
 
 ---
 
-## 2. Official API capabilities — verified against primary sources
+## 2. Provider scorecards (measured)
 
-All claims below are **[PRIMARY]**: checked against platform-official
-documentation on 2026-10-23, not against third-party write-ups. Four claims
-were upgraded from secondary during this phase, and doing so surfaced three
-findings that change scope.
+| Actor | n | **$/1k measured** | BLOCKING | Completeness | Timestamps | Media | View precision | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| `apidojo/tiktok-scraper` | 10 | **$0.30** | 100% | **100%** | PASS — 825-day span | ✅ direct mp4 | **exact** | PASS\* |
+| `clockworks/free-tiktok-scraper` | 60 | **$3.00** | 100% | **100%** | PASS — 1,448-day span | ✗ paid extra | **rounded** | PASS |
+| `apify/instagram-hashtag-scraper` | 45 | ~$0 observed | 100% | 90.1% | **FAIL — 0/45 ≥35d** | ✅ | exact | discovery only |
+| `apify/instagram-reel-scraper` | 36 | **$2.56** | 100% | 81.6% | PASS — 1,452-day span | ✅ | exact | PASS |
 
-### Confirmed, and newly found
+\* `apidojo` passes on quality but is **hard-capped at 10 items per run on
+the free plan** — see §4.
 
-| Finding | Source | Consequence |
+Raw samples are deliberately **not committed** (gitignored per §2.3); the
+`*.run.json` provenance sidecars are also excluded. Re-run from
+`probes/data_access/inputs/*.json` to reproduce.
+
+---
+
+## 3. Media availability — answered: **YES**
+
+This was the decisive unknown for Tier 2/3, and the answer is positive.
+
+`apidojo` returns `video.url`, a direct TikTok CDN link. Verified by
+**actually downloading bytes**, not by inspecting the field:
+
+```
+HTTP 206 Partial Content
+content-type : video/mp4
+content-range: bytes 0-262143/2472817
+file magic   : b'ftypisom'  -> MP4/ISO-BMFF, genuine video
+```
+
+No auth headers, no referer, and **range requests are honoured** — which
+means partial fetches are possible (useful for cheap Tier 1 visual features
+without pulling whole files).
+
+The Instagram actors likewise return a working `videoUrl` at 100%.
+`clockworks` returns an empty `mediaUrls` unless `shouldDownloadVideos` is
+enabled, which bills a separate `video-download` event — so its media is
+available but not free.
+
+**Consequence:** third-party multimodal analysis is feasible, which
+Revision 2 had listed as an open risk. Niche videos are not restricted to
+metadata-only.
+
+### Measured storage — replaces an assumption that was 3.4× too high
+
+A 25.7-second video was **2,472,817 bytes → 0.096 MB/s**.
+
+| Corpus (30 s average) | Projection from measurement | Rev 2 `[ASSUMPTION]` (~10 MB/video) |
 |---|---|---|
-| Instagram deprecated `plays`, `clips_replays_count`, `ig_reels_aggregated_all_plays_count`, `impressions` on **21 Apr 2025**, replaced by unified **`views`** | [Graph API v22.0 changelog](https://developers.facebook.com/docs/graph-api/changelog/version22.0/) | Target metric set is `views`/`reach`/`saved`/`shares`/likes/comments |
-| `impressions` survives **only for media created before 2 Jul 2024** | same | Available for your older archive; **absent for all new media** → usable as historical context, never as a model feature |
-| **Insights retained ~2 years**; values delayed **up to 48 h** | [IG Media Insights reference](https://developers.facebook.com/documentation/instagram-platform/reference/instagram-media/insights) | **NEW — affects Phase 2 scope.** Own-account backfill is capped at ~2 years on a rolling window; anything older is permanently unrecoverable. Also forces 7-day anchors to be read at **day 9+** |
-| Two non-equivalent IG API paths; **Hashtag Search and Business Discovery are Facebook-Login-only** | [Instagram Platform overview](https://developers.facebook.com/docs/instagram-platform/overview/) | Commits the project to the Facebook Login path |
-| TikTok Display API returns **no media URL** and **no `collect_count`** | [TikTok Video Object](https://developers.tiktok.com/docs/en/tiktok-api-v2-video-object) | Own TikTok masters must come from your local archive |
-| TikTok Research API requires being **"independent of commercial interests"** on a **"not-for-profit or non-commercial basis"**, plus ethical review | [Research Tools: Access and Eligibility](https://developers.tiktok.com/products/research-api/) | Closed to ViralLab permanently, not merely inconvenient |
-| Apify **Free plan: $0, no credit card, $5 Store credit** (expires monthly, cannot be topped up on free) | [Apify pricing](https://apify.com/pricing) | **Makes a zero-cost 0A probe possible** — see §5 |
+| 1,000 | **~2.9 GB** | 10 GB |
+| 10,000 | **~29 GB** | 100 GB |
+| 100,000 | **~289 GB** | 1 TB |
 
-### Answer to questions 1 and 2
-
-**Own-account coverage is confirmed sufficient and free**, with the two-year
-retention caveat. **Official niche discovery is confirmed closed** — the
-non-commercial requirement in TikTok's own eligibility text is explicit, so
-this is settled rather than assumed. Instagram's Hashtag Search / Business
-Discovery remain a narrow official foothold, capped by the 200 req/hr budget.
+Storage is a non-issue at any plausible scale for this project. `§10` of the
+plan should be updated accordingly.
 
 ---
 
-## 3. Provider requirements — now measurable
+## 4. Findings that change the design
 
-Built and self-tested: `probes/data_access/` (stdlib only, no dependencies).
+**1. The free-tier constraint is per-actor, not the credit.**
+`apidojo` emits at most 10 items per run on the free plan regardless of
+`maxItems`, stated plainly in its own run log:
 
-`field_requirements.py` defines what the provider must deliver:
+> `Users with the Free Plan can retrieve a maximum of 10 items.`
 
-- **BLOCKING** (gate fails below 100%): `video_id`, `creator_id`,
-  **`posted_at`**, `views`, `duration_s`
-- **IMPORTANT** (≥80% weighted): `caption`, `likes`, `comments`, `shares`,
-  `follower_count`, `cover_image_url`
-- **NICE**: `saves`, `music_id`, `hashtags`, `region`
-- **CAPABILITY**, reported separately and never scored: `media_url`
+Its log also showed it had fetched 20 results internally before truncating
+to 10. So the $5 credit was never the limiting factor — $0.31 covered the
+whole probe. This would have been invisible without reading the run log.
 
-`score_provider.py` scores a raw sample and prints a gate verdict, including
-timestamp-plausibility checks that go beyond "does the field parse":
-no dominant value (scrape-time contamination), time-of-day preserved (date
-rounding destroys the posting-time features the brief asks for), sufficient
-date span for chronological validation, and at least some videos ≥35 days
-old for Strategy A (§5.4).
+**2. `clockworks` rounds view counts; `apidojo` and the Instagram actors do
+not.** 78% of `clockworks` values ≥10,000 carry ≤3 significant digits
+(54900000, 36000000, 28300000 …) — it is expanding the abbreviated figure
+shown on screen ("54.9M"). `apidojo` returns exact integers (2905713,
+1385329, 144292).
 
-**Harness self-test passes both ways**: the synthetic good fixture exits 0,
-the negative control exits 1. Writing the negative control caught two real
-gaps in the scorer's first version — partial scrape-date contamination and a
-sample with zero fixed-age-eligible videos both passed silently. Both are
-now hard failures. It also caught two alias gaps in the requirements file:
-real Apify output nests author and music fields, which the first draft
-missed.
+Both scored **100% on field presence**, so the completeness scorecard alone
+could never have distinguished them. A `views` precision check is now part
+of `score_provider.py`.
 
-**`media_url` deliberately excludes page links** (`share_url`,
-`webVideoUrl`, `embed_link`). A page link is not downloadable media;
-conflating them is the exact error corrected in plan §2.1.
+Impact: for a `log(views / creator_median)` target, 3 significant figures
+introduces <0.5% error and is tolerable. It does, however, blur
+outlier-detection boundaries and makes small within-creator differences
+unresolvable. Acceptable, but it should be recorded as a known limitation of
+any corpus built from `clockworks`.
+
+**3. Hashtag discovery returns only recent content; profile scraping returns
+the full back-catalogue.** The Instagram hashtag scraper returned videos
+aged **0–19 days, with 0 of 45 at ≥35 days** — so it cannot supply a
+fixed-age mature corpus (§5.4 Strategy A). The profile-based reel scraper on
+the same creators spanned **1,452 days**.
+
+This yields a concrete pipeline shape, which the plan did not previously
+specify:
+
+> **discover creators via hashtag → fetch each creator's back-catalogue by
+> profile → build the fixed-age corpus from the back-catalogues.**
+
+Hashtag feeds also skew toward currently-promoted content, so using them
+directly as a training corpus would have imported a selection bias on top of
+the age problem.
+
+**4. `follower_count` is absent from both the hashtag scraper and the IG reel
+scraper** (0% in both), though `clockworks` and `apidojo` supply it for
+TikTok. Since per-creator baseline normalisation depends on it, Instagram
+discovery needs an **additional profile-scraper call per creator**. That is a
+real cost line the §10 model does not yet carry — small (one call per
+creator, not per video) but it should be counted.
+
+**5. Re-query by stable ID works** — 10 of 10 TikTok URLs round-tripped to
+the same IDs on a second fetch, so §5.4's Strategy B (longitudinal
+re-querying for the trend cohort) is available. Metric deltas were zero over
+minutes, as expected; proving actual trajectory capture needs fetches days
+apart.
+
+**6. IG `shares` did not populate** despite `includeSharesCount: true` on the
+reel scraper (0% of 36), while the hashtag scraper returned `sharesCount` at
+100%. Possibly a paid extra or a per-route difference. **[OPEN]** — minor,
+since shares arrive via the hashtag route.
 
 ---
 
-## 4. Legal review — partial
+## 5. Honest note on the harness
 
-The §2.3 operating policy is written and binding. What remains is
-provider-specific: each candidate's own Terms must be read against it before
-use, in particular their stance on (a) what the customer may do with
-returned data, (b) whether they claim to access only logged-out public
-pages, and (c) any restriction on commercial or redistributive use.
+The scorecard produced **three false FAIL verdicts** during this probe, every
+one caused by my own alias list rather than a provider gap:
 
-**Not yet done**, because it should be done for the provider actually
-chosen, not speculatively for a shortlist. Blocked behind the same decision
-as §5.
+- `apidojo` initially failed on `creator_id`, `posted_at`, `duration_s` —
+  all three were present, nested under `channel.*`, `uploadedAtFormatted`
+  and `video.duration`.
+- `clockworks` initially failed on `duration_s` and `cover_image_url` —
+  present as `videoMeta.duration` and `videoMeta.coverUrl`.
+- The IG hashtag scraper initially failed on `views` — present as
+  `videoPlayCount`.
 
-Note for the record: both court-case summaries underpinning §2.3 are
-**[SECONDARY]** sources. They are adequate for setting an internal operating
-policy and are **not** legal advice.
+Had the verdict been trusted without inspecting the raw records, two
+perfectly good providers would have been wrongly rejected. **Inspect the raw
+structure before accepting any scorecard verdict** is now the standing rule
+for this harness, recorded in `probes/data_access/README.md`.
+
+Field presence proved to be the *easy* part. The findings that actually
+matter — the 10-item cap, the rounded counts, the recency ceiling on hashtag
+discovery — came from reading run logs and inspecting value distributions,
+not from the completeness score.
 
 ---
 
-## 5. ⛔ Blocked — decision needed
+## 6. ⛔ Outstanding: ToS review (gate condition 4)
 
-Questions 4–7 all require one live provider sample (~500 videos from your
-niche). I have not created an account or spent anything.
+**Not done.** No terms were read during this probe. Required before any
+production collection:
 
-**Recommended route — Apify free tier, $0:**
-- $0/month, **no credit card required**, $5 of Store credit **[PRIMARY]**
-- At the observed $0.30–$3.70 per 1,000 results **[SECONDARY]**, $5 buys
-  roughly **1,300–1,600 results** — enough for the ~500-video probe plus a
-  re-query test, with headroom
-- Credits expire monthly and cannot be topped up on the free plan, so the
-  probe should be run in one sitting
+1. **Apify's platform Terms** — what the customer may do with returned data.
+2. **Each chosen actor's own terms** — actors are third-party code under
+   their own conditions.
+3. Confirmation that the actors access **logged-out public pages without
+   circumventing technical controls**, which is the premise the §2.3 policy
+   rests on. The actors are opaque here; this may only be answerable from
+   their documentation and behaviour, and that limitation should be recorded
+   rather than glossed.
 
-**What I need from you:** either
+Reminder: §2.3's legal footing rests on **[SECONDARY]** case summaries. It is
+an internal operating policy, not legal advice.
 
-1. **Create a free Apify account and give me the API token** (no card, no
-   charge) — then I run the probe, score it, and complete §§4–7; or
-2. **Approve a small paid budget** (state the cap) if you would rather use a
-   provider with better coverage than the free tier allows; or
-3. **Name a provider you already have access to**, and I will adapt the
-   harness to its output format.
+---
 
-I will not create accounts, accept terms on your behalf, or spend anything
-without an explicit instruction.
+## 7. Decision needed — provider configuration
 
-### Candidate providers to sample (shortlist, unverified)
+Both routes clear the quality gate. They trade cost against data quality,
+and the choice is the owner's.
 
-Each needs its own ToS review per §4 before use. Listed by what they claim,
-not by what has been confirmed:
-
-| Candidate | Claimed relevance | Key unknown |
+| | **Option A — paid Starter** | **Option B — stay free-tier** |
 |---|---|---|
-| Apify TikTok actors (several, varying price/quality) | Pay-per-result, free-tier accessible; multiple actors to compare | Which actor returns `posted_at` with time-of-day, and whether any returns media |
-| Apify Instagram actors | Reels metadata | Reels coverage vs posts; `views` availability post-Apr-2025 |
-| Bright Data | Named in the Jan 2024 ruling; large scale | Minimum spend, likely above probe scale |
+| TikTok actor | `apidojo` | `clockworks/free-tiktok-scraper` |
+| Cost | **$0.30/1k** + $19/mo | **$3.00/1k**, no subscription |
+| View counts | **exact** | rounded to ~3 s.f. |
+| Media | **included in the record** | separate paid download event |
+| Item cap | lifted by the paid plan | none |
+| 5,000-video corpus | **$1.50** + $19 = $20.50 | **$15.00** |
+| 20,000-video corpus | **$6.00** + $19 = $25.00 | **$60.00** |
 
-Sampling **two or three** actors rather than one is worth the credit: the
-differences between them on `posted_at` quality and media availability are
-exactly what the gate turns on, and the free credit covers it.
+The $19/mo subscription breaks even at roughly **7,000 videos**, and Option A
+is better data (exact counts, free media) above that point. Below it,
+Option B is cheaper and needs no payment at all.
+
+**My recommendation: start on Option B.** The MVP corpus target is
+1,000–5,000 videos (§7 Phase 3), where free-tier `clockworks` costs ~$3–15
+against ~$20 for Option A, the rounding is tolerable for a log-ratio target,
+and no subscription is needed. Revisit if the corpus grows past ~7,000
+videos or if exact counts turn out to matter for outlier detection — both
+are observable later, and switching is cheap because the
+`DataSourceAdapter` seam exists precisely for this.
+
+Instagram needs no decision: hashtag scraper for discovery, reel scraper for
+back-catalogues, both already passing.
 
 ---
 
-## 6. Interim conclusion
+## 8. What Phase 0A established
 
-Nothing found so far blocks the project, and the own-account foundation is
-confirmed stronger than assumed in Revision 1 — free, officially supported,
-and sufficient for the Phase 8 experiment on its own.
+| # | Question | Answer |
+|---|---|---|
+| 1 | Official APIs cover own-account data? | ✅ Yes, free, with a ~2-year insights retention cap |
+| 2 | Official niche discovery closed? | ✅ Confirmed closed (TikTok's own non-commercial requirement) |
+| 3 | What does ViralLab need, measurably? | ✅ Scorecard built and self-tested |
+| 4 | Providers with usable completeness? | ✅ Three of four at 100% on BLOCKING fields |
+| 5 | Is `posted_at` trustworthy? | ✅ Yes — all four preserve time-of-day, no contamination |
+| 6 | Is media obtainable? | ✅ **Yes — verified by downloading real MP4 bytes** |
+| 7 | Real cost per 1,000? | ✅ **$0.30–$3.00 measured** |
+| 8 | ToS compatible with §2.3? | ⛔ Outstanding (§6) |
 
-Two scope reductions are now established fact rather than risk:
-Instagram's **~2-year insights retention** caps historical backfill, and
-**own TikTok media must come from your local archive**.
-
-The open question is entirely about third-party niche data, and it is now
-*measurable* rather than arguable: the harness exists, the thresholds are
-written down, and the gate verdict will be mechanical once a sample is in
-hand.
-
-**Next action: your decision in §5.**
+**Next:** discharge §6, take the §7 decision, then Phase 0B (local AI
+benchmarking on the RTX 2070), which needs no credentials and no spend.

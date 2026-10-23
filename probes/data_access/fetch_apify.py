@@ -99,11 +99,16 @@ def main() -> int:
         raise SystemExit("cannot read --input {}: {}".format(args.input, exc))
 
     # Enforce the cap actor-side too, under every key name we know of.
+    found_limit = False
     for key in LIMIT_KEYS:
         if key in actor_input:
             actor_input[key] = min(int(actor_input[key] or args.max_items),
                                    args.max_items)
-    actor_input.setdefault("resultsLimit", args.max_items)
+            found_limit = True
+    # Only invent a limit key if the input declares none: actors validate
+    # against their own input schema and may reject unknown properties.
+    if not found_limit:
+        actor_input["resultsLimit"] = args.max_items
 
     actor_path = args.actor.replace("/", "~")
     out = args.out or Path("sample_{}.json".format(
