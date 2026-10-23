@@ -6,6 +6,7 @@
 credentials.json
 *.pem
 *.key
+.ssh/
 
 # --- raw third-party data (DO NOT COMMIT) ------------------------------------
 # Provider samples contain other creators' data. Committing them would

@@ -1,0 +1,225 @@
+"""FastAPI application — the only network surface between the two machines.
+
+Security posture (DEVELOPMENT_PLAN.md 4.2, ADR 0004):
+  * binds to the LAN/tailnet interface only, never the public internet
+  * every worker call carries a per-worker bearer token
+  * media is served through HMAC-signed, short-lived, single-video URLs
+  * a stale lease token is rejected with 409, so a reaped zombie worker
+    cannot overwrite fresher results
+
+The worker always initiates. If the Windows machine is off, nothing here
+blocks or times out waiting for it — batches simply accumulate as rows.
+"""
+
+from __future__ import annotations
+
+import os
+import secrets
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi.responses import FileResponse, JSONResponse
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from server.db.models import Video
+from server.queue.queue import (
+    LeaseError, fail_batch, heartbeat, lease_batch, queue_depth, reap_expired,
+    record_worker_status, submit_results,
+)
+from shared.schemas.jobs import (
+    BatchLease, Heartbeat, LeaseRequest, Modality, ResultSubmission,
+    WorkerStatus,
+)
+from shared.utils.signing import sign_media_url, verify_media_signature
+
+DB_URL = os.environ.get("VIRALLAB_DB_URL", "")
+MEDIA_SECRET = os.environ.get("VIRALLAB_MEDIA_SECRET", "")
+#: "name:token,name:token" — one token per worker so a single worker's
+#: credential can be revoked without disturbing the others.
+WORKER_TOKENS = os.environ.get("VIRALLAB_WORKER_TOKENS", "")
+PUBLIC_BASE_URL = os.environ.get("VIRALLAB_PUBLIC_BASE_URL",
+                                 "https://127.0.0.1:8443")
+MEDIA_ROOT = Path(os.environ.get("VIRALLAB_MEDIA_ROOT", "./media")).resolve()
+MEDIA_TTL = int(os.environ.get("VIRALLAB_MEDIA_TTL", "900"))
+
+_engine = None
+_Session: sessionmaker | None = None
+
+
+def _parse_tokens(raw: str) -> dict[str, str]:
+    out = {}
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        name, _, token = part.partition(":")
+        if name and token:
+            out[token] = name
+    return out
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _engine, _Session
+    if not DB_URL:
+        raise RuntimeError("VIRALLAB_DB_URL is not set")
+    if not MEDIA_SECRET:
+        raise RuntimeError("VIRALLAB_MEDIA_SECRET is not set")
+    _engine = create_engine(DB_URL, future=True, pool_pre_ping=True)
+    _Session = sessionmaker(_engine, expire_on_commit=False, future=True)
+    app.state.tokens = _parse_tokens(WORKER_TOKENS)
+    yield
+    if _engine is not None:
+        _engine.dispose()
+
+
+app = FastAPI(title="ViralLab", version="0.1.0", lifespan=lifespan)
+
+
+def get_session() -> Session:
+    if _Session is None:
+        raise HTTPException(503, "database not initialised")
+    with _Session() as session:
+        yield session
+
+
+def require_worker(request: Request,
+                   authorization: str = Header(default="")) -> str:
+    """Per-worker bearer token. Returns the worker's configured name."""
+    scheme, _, token = authorization.partition(" ")
+    tokens: dict[str, str] = getattr(request.app.state, "tokens", {})
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(401, "missing bearer token")
+    # Constant-time comparison against each known token.
+    for known, name in tokens.items():
+        if secrets.compare_digest(known, token):
+            return name
+    raise HTTPException(403, "unknown worker token")
+
+
+@app.exception_handler(LeaseError)
+async def _lease_error(_: Request, exc: LeaseError):
+    # 409 Conflict: the caller's lease is no longer current. This is the
+    # zombie-worker guard, and it must be distinguishable from a 500.
+    return JSONResponse(status_code=409, content={"detail": str(exc)})
+
+
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# job queue
+# ---------------------------------------------------------------------------
+
+@app.post("/jobs/lease", response_model=BatchLease | None)
+def lease(req: LeaseRequest, session: Session = Depends(get_session),
+          worker: str = Depends(require_worker)):
+    """Worker asks for work it can actually run right now.
+
+    The worker filters by its own free VRAM before calling (ADR 0004), so the
+    server never has to model the client's memory state.
+    """
+    def build_url(video: Video | None) -> str:
+        if video is None or not video.media_path:
+            return ""
+        return sign_media_url(PUBLIC_BASE_URL, video.id, MEDIA_SECRET,
+                              ttl_seconds=MEDIA_TTL)
+
+    result = lease_batch(session, worker_id=req.worker_id,
+                         capabilities=[Modality(c) for c in req.capabilities],
+                         max_videos=req.max_videos,
+                         media_url_builder=build_url)
+    session.commit()
+    return result
+
+
+@app.post("/jobs/heartbeat")
+def post_heartbeat(hb: Heartbeat, session: Session = Depends(get_session),
+                   worker: str = Depends(require_worker)):
+    expires = heartbeat(session, hb)
+    session.commit()
+    return {"lease_expires_at": expires}
+
+
+@app.post("/jobs/results")
+def post_results(sub: ResultSubmission,
+                 session: Session = Depends(get_session),
+                 worker: str = Depends(require_worker)):
+    try:
+        out = submit_results(session, sub)
+    except ValueError as exc:            # malformed idempotency key
+        session.rollback()
+        raise HTTPException(422, str(exc)) from exc
+    session.commit()
+    return out
+
+
+@app.post("/jobs/fail")
+def post_fail(batch_id: int, lease_token: str, error: str,
+              session: Session = Depends(get_session),
+              worker: str = Depends(require_worker)):
+    status = fail_batch(session, batch_id, lease_token, error)
+    session.commit()
+    return {"batch_status": status}
+
+
+@app.post("/worker/status")
+def post_worker_status(status: WorkerStatus,
+                       session: Session = Depends(get_session),
+                       worker: str = Depends(require_worker)):
+    """Why a worker is not taking work, so a deferred GPU reads as
+    'deferred: insufficient VRAM' rather than an unexplained stall."""
+    record_worker_status(session, status)
+    session.commit()
+    return {"recorded": True}
+
+
+@app.get("/status/queue")
+def get_queue_depth(session: Session = Depends(get_session)):
+    """Queue visibility: a GPU backlog must be observable, not silent."""
+    return {"depth": queue_depth(session)}
+
+
+@app.post("/admin/reap")
+def admin_reap(session: Session = Depends(get_session)):
+    """Requeue batches whose lease expired without a heartbeat. Normally the
+    scheduler calls this; exposed so it is directly testable."""
+    reaped = reap_expired(session)
+    session.commit()
+    return {"reaped": reaped}
+
+
+# ---------------------------------------------------------------------------
+# media
+# ---------------------------------------------------------------------------
+
+@app.get("/media/{video_id}")
+def get_media(video_id: int, expires: int = Query(...), sig: str = Query(...),
+              session: Session = Depends(get_session)):
+    """Serve one video to a holder of a valid, unexpired signature.
+
+    Deliberately NOT behind the worker bearer token: the signature is the
+    capability, scoped to this one video and this one time window.
+    """
+    try:
+        verify_media_signature(video_id, expires, sig, MEDIA_SECRET)
+    except ValueError as exc:
+        raise HTTPException(403, str(exc)) from exc
+
+    video = session.get(Video, video_id)
+    if video is None or not video.media_path:
+        raise HTTPException(404, "no media for this video")
+
+    path = Path(video.media_path)
+    if not path.is_absolute():
+        path = (MEDIA_ROOT / path).resolve()
+    # Containment check: a crafted media_path must not escape MEDIA_ROOT.
+    if not str(path).startswith(str(MEDIA_ROOT)):
+        raise HTTPException(403, "media path outside media root")
+    if not path.is_file():
+        raise HTTPException(404, "media file missing")
+    return FileResponse(path, media_type="video/mp4")
