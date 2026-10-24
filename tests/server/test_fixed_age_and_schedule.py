@@ -253,3 +253,71 @@ def test_due_is_tracked_per_platform(session):
     session.commit()
     assert due(session, "tiktok", "acct1") is False
     assert due(session, "instagram", "ig1") is True
+
+
+# ---------------------------------------------------------------------------
+# snapshot policy (review finding 1)
+# ---------------------------------------------------------------------------
+
+def test_policy_prioritises_never_seen_and_young_posts(session):
+    """Young posts are the only ones whose views@7d/@30d anchors can still be
+    captured; missing a day there is permanent."""
+    from server.collectors.snapshot_policy import select_for_refresh
+    never = make_video(session, posted_days_ago=400)          # no snapshot
+    young = make_video(session, posted_days_ago=3)
+    snap(session, young, days_after_post=1, views=10)
+    old = make_video(session, posted_days_ago=500)
+    snap(session, old, days_after_post=400, views=99)
+    session.commit()
+
+    picked = select_for_refresh(session, "tiktok", run_index=0)
+    assert never.external_id in picked, "a never-observed post was skipped"
+    assert young.external_id in picked, "a young post was skipped"
+    assert picked.index(never.external_id) < picked.index(young.external_id)
+
+
+def test_policy_respects_a_call_budget(session):
+    from server.collectors.snapshot_policy import select_for_refresh
+    for i in range(10):
+        v = make_video(session, posted_days_ago=1 + i * 0.1)
+        snap(session, v, days_after_post=0.5, views=i)
+    session.commit()
+    assert len(select_for_refresh(session, "tiktok", max_calls=4,
+                                  run_index=0)) == 4
+
+
+def test_archive_rotates_so_old_posts_are_not_abandoned(session):
+    """Old posts must still be refreshed eventually - the policy reduces
+    frequency, it does not silently stop collecting history."""
+    from server.collectors.snapshot_policy import (
+        ARCHIVE_CYCLE_DAYS, select_for_refresh)
+    made = []
+    for i in range(8):
+        v = make_video(session, posted_days_ago=300 + i)
+        snap(session, v, days_after_post=200, views=i)
+        made.append(v.external_id)
+    session.commit()
+
+    seen = set()
+    for run in range(ARCHIVE_CYCLE_DAYS):
+        seen.update(select_for_refresh(session, "tiktok", run_index=run))
+    assert set(made) <= seen, "some archive posts were never scheduled"
+
+
+def test_buc_usage_parsing_and_stop_threshold():
+    """Instagram's quota is 4800 x impressions over 24h, so it must be read
+    from the response header rather than assumed."""
+    from server.collectors.snapshot_policy import BUC_SOFT_LIMIT_PCT, BucUsage
+    u = BucUsage.parse(
+        '{"123":[{"type":"instagram","call_count":10,"total_cputime":5,'
+        '"total_time":7,"estimated_time_to_regain_access":0}]}')
+    assert u.worst == 10 and u.should_stop is False
+    hot = BucUsage.parse(
+        '{"123":[{"type":"instagram","call_count":%d,"total_cputime":1,'
+        '"total_time":1,"estimated_time_to_regain_access":0}]}'
+        % (BUC_SOFT_LIMIT_PCT + 5))
+    assert hot.should_stop is True
+    throttled = BucUsage.parse(
+        '{"123":[{"call_count":1,"estimated_time_to_regain_access":12}]}')
+    assert throttled.should_stop is True
+    assert BucUsage.parse(None) is None and BucUsage.parse("not json") is None

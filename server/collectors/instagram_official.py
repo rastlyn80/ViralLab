@@ -24,6 +24,7 @@ import httpx
 from server.collectors.base import (
     DataSourceAdapter, NormalizedMetrics, NormalizedVideo,
 )
+from server.collectors.snapshot_policy import BucUsage
 from server.collectors.tokens import ReauthRequired, TokenStore
 
 logger = logging.getLogger("virallab.collectors.instagram")
@@ -51,6 +52,13 @@ REEL_INSIGHT_METRICS = ["views", "reach", "saved", "shares", "likes",
 #: Meta's 190-series errors mean the credential is invalid, not busy:
 #: retrying cannot fix it.
 REAUTH_ERROR_CODES = {190, 102, 463, 467}
+#: Business Use Case throttle. Transient: the window rolls.
+RATE_LIMIT_ERROR_CODE = 80002
+
+
+class RateLimited(RuntimeError):
+    """Instagram's BUC quota is exhausted for now. Retry after the window."""
+
 
 
 class InstagramAuth:
@@ -101,6 +109,10 @@ class InstagramOfficialAdapter(DataSourceAdapter):
         self.store = store
         self.version = version
         self.http = client or httpx.Client(timeout=60.0)
+        #: Last parsed X-Business-Use-Case-Usage. Instagram's quota is
+        #: 4800 x impressions over a rolling 24h, so it moves with account
+        #: activity and must be measured rather than assumed.
+        self.buc: BucUsage | None = None
 
     def _token(self, account_ref: str) -> str:
         # No refresher: the Page token does not expire. If it stops working,
@@ -114,6 +126,14 @@ class InstagramOfficialAdapter(DataSourceAdapter):
         headers = {"Authorization": f"Bearer {self._token(account_ref)}"}
         r = self.http.get(f"{GRAPH}/{self.version}/{path.lstrip('/')}",
                           params=params, headers=headers)
+        usage = BucUsage.parse(r.headers.get("X-Business-Use-Case-Usage"))
+        if usage is not None:
+            self.buc = usage
+            if usage.worst >= 50:
+                logger.warning("instagram BUC usage at %d%% "
+                               "(calls=%d cpu=%d time=%d)", usage.worst,
+                               usage.call_count, usage.total_cputime,
+                               usage.total_time)
         payload = r.json() if r.content else {}
         err = payload.get("error") or {}
         if err:
@@ -123,6 +143,10 @@ class InstagramOfficialAdapter(DataSourceAdapter):
                 self.store.mark_reauth_required(
                     self.platform, account_ref, f"Meta error {code}: {msg}")
                 raise ReauthRequired(f"Meta error {code}: {msg}")
+            if code == RATE_LIMIT_ERROR_CODE:
+                # Quota exhausted. Transient by definition - retrying later
+                # works, and treating it as a credential fault would be wrong.
+                raise RateLimited(f"Instagram BUC limit reached: {msg}")
             raise RuntimeError(f"Meta error {code}: {msg}")
         r.raise_for_status()
         return payload
@@ -206,9 +230,21 @@ class InstagramOfficialAdapter(DataSourceAdapter):
                       ) -> Iterator[NormalizedMetrics]:
         now = datetime.now(timezone.utc)
         for ext in external_ids:
+            # Stop before the quota bites rather than after: a partial pass
+            # that keeps its snapshots is far better than a throttled one
+            # that loses them.
+            if self.buc is not None and self.buc.should_stop:
+                logger.warning("stopping insight fetch at %d%% BUC usage; "
+                               "%d id(s) left for the next run",
+                               self.buc.worst,
+                               len(external_ids) - external_ids.index(ext))
+                return
             try:
                 payload = self._get(account_ref, f"{ext}/insights",
                                     metric=",".join(REEL_INSIGHT_METRICS))
+            except RateLimited:
+                logger.warning("instagram rate limit hit; ending this pass")
+                return
             except RuntimeError as exc:
                 # Insights are unavailable for some media types; a single
                 # unsupported item must not abort the whole collection.

@@ -35,6 +35,7 @@ from server.collectors.base import (
     finish_run, record_snapshot, start_run, upsert_creator, upsert_video,
 )
 from server.collectors.instagram_official import InstagramOfficialAdapter
+from server.collectors.snapshot_policy import select_for_refresh
 from server.collectors.tiktok_official import TikTokAuth, TikTokOfficialAdapter
 from server.collectors.tokens import ReauthRequired, TokenStore, TransientAuthError
 from server.db.models import (
@@ -48,6 +49,10 @@ BACKOFF_BASE_SECONDS = 30
 #: Don't start another pass if one already succeeded within this window.
 #: Survives process restarts because it is a database check, not a timer.
 MIN_INTERVAL = timedelta(hours=20)
+#: Per-run ceiling on Instagram insight calls. The real quota is
+#: 4800 x impressions over 24h and is monitored live from the
+#: response header; this is a second, static belt.
+IG_MAX_CALLS_PER_RUN = 300
 
 
 def _env() -> dict[str, str]:
@@ -181,8 +186,13 @@ def collect_instagram_once(session: Session, *, kind: str = "daily"
 
         by_ext = {v.external_id: v for v in session.scalars(
             select(Video).where(Video.platform == "instagram")).all()}
+        # Not every stored post: the policy prioritises never-seen and young
+        # posts (where fixed-age anchors are still capturable) and rotates
+        # the archive, so quota is spent where it buys something.
+        targets = select_for_refresh(session, "instagram",
+                                     max_calls=IG_MAX_CALLS_PER_RUN)
         snaps = 0
-        for m in adapter.fetch_metrics(account, list(by_ext)):
+        for m in adapter.fetch_metrics(account, targets):
             target = by_ext.get(m.external_id)
             if target is not None:
                 record_snapshot(session, target, m)
