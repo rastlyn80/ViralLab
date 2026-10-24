@@ -232,6 +232,76 @@ class AnalysisResult(Base):
     )
 
 
+class OAuthToken(Base):
+    """Platform credentials that rotate at runtime.
+
+    Kept in the database rather than .env because they change: TikTok rotates
+    the refresh token on every refresh (ADR 0005), so a static file would go
+    stale. .env holds only the app credentials, which do not rotate.
+    """
+
+    __tablename__ = "oauth_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    platform: Mapped[str] = mapped_column(String(32))
+    #: Which account these belong to, e.g. the handle or the IG user id.
+    account_ref: Mapped[str] = mapped_column(String(128))
+
+    access_token: Mapped[str] = mapped_column(Text)
+    #: TikTok only. Rotates on refresh and must be written together with the
+    #: access token, or auth breaks permanently one cycle later.
+    refresh_token: Mapped[str | None] = mapped_column(Text)
+    #: NULL means "does not expire" — true of Instagram Page tokens on the
+    #: Facebook Login path.
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    refresh_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    scope: Mapped[str | None] = mapped_column(Text)
+    #: Facebook Page id backing an Instagram Business account.
+    page_id: Mapped[str | None] = mapped_column(String(128))
+    #: Set when the platform says re-authorisation is required (e.g. a
+    #: 190-series Meta error). Collectors defer instead of retrying forever.
+    needs_reauth: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_error: Mapped[str | None] = mapped_column(Text)
+    last_refreshed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("platform", "account_ref", name="uq_token_account"),
+    )
+
+
+class CollectionRun(Base):
+    """One collector execution. Gives the 7-day unattended-run acceptance
+    criterion something to be measured against, and makes a silent stall
+    visible."""
+
+    __tablename__ = "collection_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    platform: Mapped[str] = mapped_column(String(32))
+    account_ref: Mapped[str] = mapped_column(String(128))
+    kind: Mapped[str] = mapped_column(String(32))     # backfill | daily
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(16), default="running")
+    videos_seen: Mapped[int] = mapped_column(Integer, default=0)
+    videos_new: Mapped[int] = mapped_column(Integer, default=0)
+    snapshots_written: Mapped[int] = mapped_column(Integer, default=0)
+    media_downloaded: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        CheckConstraint("status in ('running','ok','failed','deferred')",
+                        name="ck_run_status"),
+        Index("ix_runs_platform_started", "platform", "started_at"),
+    )
+
+
 class WorkerHeartbeat(Base):
     """Last known worker state, so the dashboard can show 'deferred:
     insufficient VRAM' rather than an unexplained stall (ADR 0004)."""

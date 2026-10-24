@@ -22,6 +22,7 @@ REMOTE_ROOT = "/home/rastlyn/virallab"
 
 #: Server-side only. The GPU worker's own deps and the probes stay local.
 INCLUDE_DIRS = ["server", "shared", "config", "tests"]
+#: gpu_worker is NOT synced: it runs on Windows only.
 INCLUDE_FILES = ["alembic.ini", "pytest.ini", "requirements-server.txt"]
 EXCLUDE_PARTS = {"__pycache__", ".pytest_cache", "node_modules"}
 
