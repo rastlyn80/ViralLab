@@ -671,11 +671,18 @@ manual re-auth, no crash, and no missed IG media download.
 0 validity problems, completeness confirmed against API pagination
 (`docs/benchmarks/2-tiktok-live-validation.md`). Daily schedule implemented
 with bounded retries, 429 backoff, run logging and a restart-safe due check.
+**Migrated to the authoritative server (2026-10-24).** Ubuntu now holds the
+data and runs the only collector; Windows is GPU-worker-only and refuses to
+collect. Original video ids and snapshot `captured_at` values were preserved
+verbatim — observations were copied, not re-collected, so the trajectory that
+fixed-age anchoring depends on survives. All counts and metric sums verified
+identical, 0 orphans.
+
 **Outstanding:** the 7-day unattended run has NOT elapsed and will not be
-claimed before it has; the live data currently sits on the Windows
-workstation rather than the always-on server (report §9, needs an owner
-decision); Instagram is registered but not authorized; the media-ingest
-watcher is not built.
+claimed before it has; the TikTok client secret is prepared for rotation but
+NOT rotated (owner approval); Instagram is registered but not authorized; the
+media-ingest watcher is not built; Windows source records and backups are
+retained pending approval for cleanup.
 
 ### Phase 3 — Niche Discovery Ingestion
 Build the discovery adapter against whichever provider won Phase 0A, plus

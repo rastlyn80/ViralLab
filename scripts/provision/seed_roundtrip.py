@@ -8,7 +8,12 @@ from server.db.models import Creator, Video
 from server.queue.queue import enqueue_batch, queue_depth
 from shared.schemas.jobs import Modality, Tier
 
-eng = create_engine(os.environ["VIRALLAB_DB_URL"], future=True)
+# Seed the DISPOSABLE test database, never the application one:
+# this script truncates, and it previously wrote to the live DB.
+url = os.environ.get("VIRALLAB_TEST_DB_URL")
+if not url:
+    raise SystemExit("VIRALLAB_TEST_DB_URL not set; refusing to seed the application database")
+eng = create_engine(url, future=True)
 S = sessionmaker(eng, expire_on_commit=False, future=True)
 with S() as s:
     for t in ("analysis_results","batch_videos","analysis_batches",

@@ -225,3 +225,13 @@ def test_min_interval_is_under_a_day_so_a_daily_slot_is_never_missed():
     """20h, not 24h: a pass that runs slightly later each day would otherwise
     drift past its own window and skip a day."""
     assert timedelta(hours=12) < MIN_INTERVAL < timedelta(hours=24)
+
+
+def test_collection_refuses_on_a_host_where_it_is_disabled(session, monkeypatch):
+    """Ubuntu is the authoritative collector. If Windows also collected, the
+    dataset would fork into two partial histories — worse than not collecting.
+    """
+    from server.scheduler.collect import CollectionDisabled, collect_tiktok_once
+    monkeypatch.setenv("VIRALLAB_COLLECTION_ENABLED", "0")
+    with pytest.raises(CollectionDisabled, match="authoritative collector"):
+        collect_tiktok_once(session)

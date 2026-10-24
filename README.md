@@ -10,7 +10,7 @@ registered but not yet authorized. Last verified 2026-10-24.
 
 | | |
 |---|---|
-| Automated tests | **78 passing** — on Windows (PG 17 / py3.12) *and* Ubuntu (PG 18 / py3.14) |
+| Automated tests | **79 passing** — on Windows (PG 17 / py3.12) *and* Ubuntu (PG 18 / py3.14) |
 | Cross-machine acceptance | **11/11** — Windows worker → Ubuntu server over TLS |
 | Infrastructure | live on both machines |
 
@@ -43,7 +43,7 @@ supports otherwise, and the distinction is enforced throughout.
 | **0A** Data-access feasibility | ✅ passed — media *is* downloadable, cost $0.30–3.00/1k measured, ToS reviewed |
 | **0B** Local AI benchmark | ✅ passed — Whisper 258× RT, VLM 2.25 s/frame, 7634 MiB peak |
 | **1** Infrastructure scaffold | ✅ **complete** — schema, queue, API, worker, real two-machine round trip |
-| **2** Own-account collection | 🟡 **TikTok live** — authorized via sandbox, 234 videos + 234 snapshots imported, 0 validity problems, collection complete vs API pagination. Daily schedule implemented. **Not** complete: 7-day unattended run not yet elapsed; data currently on the wrong machine (see validation report §9); Instagram not authorized |
+| **2** Own-account collection | 🟡 **TikTok live on the authoritative server** — 234 videos migrated to Ubuntu with original ids and timestamps preserved, verified field by field; daily collector running and restart-safe. **Not** complete: 7-day unattended run not yet elapsed; Instagram not authorized; media-ingest watcher not built |
 | 3–8 | not started (MVP ends at Phase 8, the live experiment) |
 
 ## Architecture
@@ -52,8 +52,8 @@ Three long-running processes, deliberately:
 
 | Where | What |
 |---|---|
-| **Ubuntu** (`gabry-ubuntu`, always on) | PostgreSQL 18 + pgvector (data **and** job queue **and** vectors), FastAPI on `:8443` over TLS, in-process reaper |
-| **Windows** (`Gabriele-Studio`, RTX 2070 SUPER, intermittent) | GPU worker — polls, leases, analyses, submits |
+| **Ubuntu** (`gabry-ubuntu`, always on) | **Authoritative database.** PostgreSQL 18 + pgvector (data, job queue, vectors), FastAPI on `:8443` over TLS, in-process reaper **and daily collector** |
+| **Windows** (`Gabriele-Studio`, RTX 2070 SUPER, intermittent) | GPU worker only — polls, leases, analyses, submits. Collection is disabled here (`VIRALLAB_COLLECTION_ENABLED=0`) so the dataset cannot fork |
 
 The worker always initiates. When the Windows machine is off nothing blocks:
 batches accumulate as rows. Communication is over Tailscale; the API binds to
@@ -97,7 +97,7 @@ explicitly disposable database (`tests/conftest.py`):
 ```bash
 # must end in _test, and must differ from VIRALLAB_DB_URL
 export VIRALLAB_TEST_DB_URL="postgresql+psycopg://virallab:...@127.0.0.1:5433/virallab_test"
-.venv312/Scripts/python -m pytest tests/        # 78 tests
+.venv312/Scripts/python -m pytest tests/        # 79 tests
 
 python scripts/acceptance_phase1.py             # 11 cross-machine checks
 python scripts/deploy.py --test                 # sync to Ubuntu + run there

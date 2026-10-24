@@ -186,3 +186,95 @@ not a detail, so it is not being done unilaterally. The options:
    architecture is built on.
 
 Option 1 is the only one consistent with the design. It needs approval.
+
+---
+
+# Addendum: migration to the authoritative server (2026-10-24)
+
+The blocker in §9 is resolved. **Ubuntu is now the system of record and the
+only collector.** Windows keeps its copy untouched as a fallback, pending
+owner approval for cleanup.
+
+## Pre-flight
+
+| Check | Result |
+|---|---|
+| Alembic head, both machines | `a699541a796f` — identical |
+| Schema fingerprint (99 columns incl. types and nullability) | **identical**, 0 differences either way |
+| Valuable data on the target? | **No.** Only acceptance-test residue (`roundtrip_creator`, `rt0`–`rt4`, source `provider`, no dates) |
+| Backups taken before any change | Windows `pg_dump -Fc` (59 KB) and Ubuntu `pg_dump -Fc` (30 KB), both retained |
+
+A second source of residue was found and fixed: `seed_roundtrip.py` wrote to
+the **application** database via `VIRALLAB_DB_URL`. It now requires
+`VIRALLAB_TEST_DB_URL` and refuses to run otherwise — the same class of
+problem as the pre-guard test pollution.
+
+## Migration method
+
+One transaction, all-or-nothing: a partial migration would leave plausible
+looking but wrong counts. Original primary keys and `captured_at` timestamps
+were inserted **verbatim**.
+
+> **This copied observations; it did not re-collect them.** A fresh backfill
+> would have stamped every snapshot with the migration time and destroyed the
+> observation history — the very thing fixed-age anchors depend on
+> (plan §5.4). The migrated snapshots still carry their original 12:08:14
+> capture time.
+
+The payload travelled by SFTP as a `0600` file and was deleted from both ends
+afterwards, so the credential never appeared on a command line, in a process
+list or in shell history. A guard aborts the migration if any non-test
+creator already exists on the target, so real data could not be overwritten.
+
+## Verification (post-commit, fresh connection)
+
+| | Source (Windows) | Target (Ubuntu) | |
+|---|---|---|---|
+| creators | 1 | 1 | ✅ |
+| videos | 234 | 234 | ✅ |
+| distinct `external_id` | 234 | 234 | ✅ |
+| snapshots | 234 | 234 | ✅ |
+| Σ views | 696,182 | 696,182 | ✅ |
+| Σ likes | 37,222 | 37,222 | ✅ |
+| Σ comments | 1,304 | 1,304 | ✅ |
+| Σ shares | 1,061 | 1,061 | ✅ |
+| `captured_at` range | 12:08:14.771079 | **12:08:14.771079** | ✅ preserved |
+| credentials | 1 | 1 | ✅ |
+| orphan videos / snapshots | — | **0 / 0** | ✅ |
+
+## Live collection on the server
+
+A real pass was then run on Ubuntu: **234 seen, 0 new, 234 snapshots**. Zero
+new videos is the correct result — the collector recognised every existing
+row and appended a second observation rather than duplicating. The database
+now holds **702 snapshots across three distinct capture times**, which is the
+beginning of a genuine trajectory.
+
+Restart behaviour was verified directly: after restarting the API, `due()`
+returns **False** and the scheduler resumes without re-running the completed
+pass. The check reads `collection_runs`, so it is durable across restarts
+rather than depending on an in-memory timer.
+
+## Split-brain prevention
+
+Collecting from both machines would fork the dataset into two partial
+histories — worse than not collecting at all. Three measures:
+
+1. Windows `.env` sets `VIRALLAB_COLLECTION_ENABLED=0`.
+2. `collect_tiktok_once()` raises `CollectionDisabled` on any host where that
+   flag is off, covering manual invocation as well as the scheduled loop.
+   **Verified live: Windows refuses.**
+3. A regression test asserts the refusal.
+
+Windows continues as the GPU worker, which never touches the database
+directly — it reaches the server over TLS.
+
+## Credential handling
+
+Server `.env` is `-rw------- rastlyn:rastlyn` and carries the app
+credentials. The `/status/collection` endpoint exposes run history and
+credential **health** (`needs_reauth`, `expires_at`) but never token values.
+
+**Client-secret rotation is prepared but NOT performed** — it needs owner
+approval, and the sequencing in §7 applies: rotate, update the server `.env`
+within the 24-hour access-token window, then force a refresh to confirm.

@@ -76,3 +76,8 @@ logs/
 Thumbs.db
 .idea/
 .vscode/
+
+# Migration payload: carries a credential, never committed
+.migration_payload.json
+backups/
+*.dump

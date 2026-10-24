@@ -93,6 +93,14 @@ def main() -> int:
             f"VIRALLAB_PUBLIC_BASE_URL=https://{e['UBUNTU_HOST']}:8443",
             f"VIRALLAB_MEDIA_ROOT={REMOTE_ROOT}/media",
             "VIRALLAB_MEDIA_TTL=900",
+            # Ubuntu is the authoritative collector: it needs the app
+            # credentials to refresh the rotating TikTok token (ADR 0005).
+            # Written via SFTP, so no secret ever reaches a shell command
+            # line, a process list or shell history.
+            f"TIKTOK_CLIENT_KEY={e.get('TIKTOK_CLIENT_KEY','')}",
+            f"TIKTOK_CLIENT_SECRET={e.get('TIKTOK_CLIENT_SECRET','')}",
+            f"TIKTOK_REDIRECT_URI={e.get('TIKTOK_REDIRECT_URI','')}",
+            "VIRALLAB_COLLECTION_ENABLED=1",
             "",
         ])
         with sftp.open(f"{REMOTE_ROOT}/.env", "w") as fh:

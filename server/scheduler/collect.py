@@ -74,9 +74,22 @@ def due(session: Session, platform: str, account_ref: str, *,
     return last is None or (utcnow() - last) >= interval
 
 
+class CollectionDisabled(RuntimeError):
+    """This host is not the designated collector.
+
+    Ubuntu is the authoritative database and collector; Windows is the
+    intermittent GPU worker. Collecting from both would fork the dataset into
+    two partial histories, which is far worse than not collecting at all.
+    """
+
+
 def collect_tiktok_once(session: Session, *, kind: str = "daily") -> CollectionRun:
     """One collection pass for the stored TikTok account."""
     env = _env()
+    if env.get("VIRALLAB_COLLECTION_ENABLED", "1") in ("0", "false", ""):
+        raise CollectionDisabled(
+            "collection is disabled on this host; Ubuntu is the authoritative "
+            "collector (set VIRALLAB_COLLECTION_ENABLED=1 only there)")
     token_row = session.scalar(
         select(OAuthToken).where(OAuthToken.platform == "tiktok"))
     if token_row is None:
