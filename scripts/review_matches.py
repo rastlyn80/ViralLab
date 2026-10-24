@@ -5,6 +5,10 @@ linked and weak ones were discarded. The owner never sorts the archive by
 hand — they answer a short series of yes/no questions about pairs the
 matcher could not settle, and can stop at any point.
 
+Superseded for everyday use by `scripts/review_ui.py`, which plays the local
+master and the published clip side by side - the thing that actually settles
+a doubtful pair. This stays as the terminal fallback and for bulk actions.
+
     python scripts/review_matches.py --list           # see the queue
     python scripts/review_matches.py --interactive    # work through it
     python scripts/review_matches.py --accept-above 0.7
@@ -82,11 +86,20 @@ def main() -> int:
                          "(ties are still left for a human)")
     ap.add_argument("--export", type=Path,
                     help="write the queue to JSON for offline review")
+    ap.add_argument("--only-ids",
+                    help="comma-separated link ids; restricts the queue to "
+                         "those, which is how validate_matches.py hands over "
+                         "a stratified spot-check sample")
     args = ap.parse_args()
 
     c = connect()
     try:
         rows = remote_query(c, " ".join(PENDING_SQL.split()))
+        if args.only_ids:
+            wanted = {int(x) for x in args.only_ids.split(",") if x.strip()}
+            rows = [r for r in rows if r[0] in wanted]
+            print(f"  restricted to {len(rows)} of the requested "
+                  f"{len(wanted)} id(s)")
         if not rows:
             print("  nothing pending - the queue is empty")
             return 0

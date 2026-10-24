@@ -299,20 +299,34 @@ def test_instagram_normalises_and_flags_expiring_media(session):
 
 
 def test_instagram_requests_post_april_2025_metrics(session):
-    """`plays` and `impressions` were retired on 21 April 2025 (ADR 0001)."""
-    captured = {}
+    """`plays` and `impressions` were retired on 21 April 2025 (ADR 0001).
+
+    Retention is fetched in a SECOND call, so every requested metric across
+    both calls is checked - asserting on one call would have missed a retired
+    name in the other.
+    """
+    requested: list[list[str]] = []
 
     def handler(req):
         if "insights" in str(req.url):
-            captured["metric"] = req.url.params.get("metric", "").split(",")
+            requested.append(req.url.params.get("metric", "").split(","))
             return httpx.Response(200, json=IG_INSIGHTS)
         return httpx.Response(200, json=IG_MEDIA)
 
     list(ig_adapter(session, handler).fetch_metrics("17841400000000000",
                                                    ["ig1"]))
-    assert "views" in captured["metric"]
-    assert "plays" not in captured["metric"]
-    assert "impressions" not in captured["metric"]
+    assert len(requested) == 2, (
+        f"expected a core call and a retention call, got {len(requested)}")
+    every = [m for call in requested for m in call]
+    assert "views" in every
+    assert "plays" not in every
+    assert "impressions" not in every
+    assert "clips_replays_count" not in every
+    # The retention names must NOT be mixed into the core request: an
+    # "in development" metric being withdrawn would then take the core
+    # metrics down with it.
+    assert "reels_skip_rate" not in requested[0]
+    assert "reels_skip_rate" in requested[1]
 
 
 def test_instagram_metrics_mapped(session):
@@ -380,3 +394,82 @@ def test_snapshots_are_append_only(session):
         MetricsSnapshot.video_id == vids["7001"].id)).all()
     assert len(rows) == 2, "snapshots must append, never overwrite"
     assert all(r.views == 144292 for r in rows)
+
+
+# ---------------------------------------------------------------------------
+# Instagram retention metrics (watch time, skip rate)
+# ---------------------------------------------------------------------------
+
+def _ig_adapter_with(handler, session):
+    """An Instagram adapter wired to a mock transport and a stored token."""
+    session.add(OAuthToken(
+        platform="instagram", account_ref="ig-1", access_token="t",
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+        needs_reauth=False))
+    session.commit()
+    ad = InstagramOfficialAdapter(TokenStore(session),
+                                  client=mock_client(handler))
+    ad._ig_user_id = lambda ref: "ig-1"                     # skip discovery
+    return ad
+
+
+def test_retention_metrics_are_collected_and_floats_survive(session):
+    """`reels_skip_rate` arrives as a float; an int-only filter dropped it."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        metric = request.url.params.get("metric", "")
+        if "ig_reels_avg_watch_time" in metric:
+            return httpx.Response(200, json={"data": [
+                {"name": "ig_reels_avg_watch_time",
+                 "values": [{"value": 6006}]},
+                {"name": "ig_reels_video_view_total_time",
+                 "values": [{"value": 3411578}]},
+                {"name": "reels_skip_rate", "values": [{"value": 57.7}]},
+            ]})
+        return httpx.Response(200, json={"data": [
+            {"name": "views", "values": [{"value": 1000}]},
+            {"name": "saved", "values": [{"value": 12}]},
+        ]})
+
+    ad = _ig_adapter_with(handler, session)
+    m = list(ad.fetch_metrics("ig-1", ["m1"]))[0]
+    assert m.views == 1000
+    assert m.saves == 12
+    assert m.raw["reels_skip_rate"] == pytest.approx(57.7)
+    assert m.raw["ig_reels_avg_watch_time"] == 6006
+    assert m.raw["retention_status"] == "ok"
+    assert m.raw["retention_units"]["ig_reels_avg_watch_time"] == "ms"
+
+
+def test_retention_failure_does_not_lose_the_core_snapshot(session):
+    """The retention call is separate precisely so this cannot cost metrics."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        metric = request.url.params.get("metric", "")
+        if "reels_skip_rate" in metric:
+            return httpx.Response(400, json={"error": {
+                "code": 100, "message": "metric[0] must be one of..."}})
+        return httpx.Response(200, json={"data": [
+            {"name": "views", "values": [{"value": 777}]},
+        ]})
+
+    ad = _ig_adapter_with(handler, session)
+    out = list(ad.fetch_metrics("ig-1", ["m1"]))
+    assert len(out) == 1, "a retention failure lost the whole snapshot"
+    assert out[0].views == 777
+    assert out[0].raw["retention_status"] == "unavailable"
+    assert "reels_skip_rate" not in out[0].raw
+
+
+def test_absent_retention_is_unknown_not_zero(session):
+    """A missing watch time is not a watch time of zero."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        metric = request.url.params.get("metric", "")
+        if "reels_skip_rate" in metric:
+            return httpx.Response(200, json={"data": []})
+        return httpx.Response(200, json={"data": [
+            {"name": "views", "values": [{"value": 5}]}]})
+
+    ad = _ig_adapter_with(handler, session)
+    raw = list(ad.fetch_metrics("ig-1", ["m1"]))[0].raw
+    assert raw["retention_status"] == "empty"
+    for k in ("ig_reels_avg_watch_time", "reels_skip_rate"):
+        assert k not in raw, f"{k} was invented as a value"

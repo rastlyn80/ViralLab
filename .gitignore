@@ -91,3 +91,7 @@ Thumbs.db
 .migration_payload.json
 backups/
 *.dump
+
+# Matching payload: carries the whole local fingerprint set, never committed
+.matching_payload.json
+probes/local_library/_bench/

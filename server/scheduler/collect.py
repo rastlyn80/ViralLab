@@ -35,6 +35,9 @@ from server.collectors.base import (
     finish_run, record_snapshot, start_run, upsert_creator, upsert_video,
 )
 from server.collectors.instagram_official import InstagramOfficialAdapter
+from server.collectors.media_preservation import (
+    MAX_ATTEMPTS as MEDIA_MAX_ATTEMPTS,
+    preserve_instagram_media)
 from server.collectors.snapshot_policy import select_for_refresh
 from server.collectors.tiktok_official import TikTokAuth, TikTokOfficialAdapter
 from server.collectors.tokens import ReauthRequired, TokenStore, TransientAuthError
@@ -152,7 +155,14 @@ def collect_instagram_once(session: Session, *, kind: str = "daily"
     """One collection pass for the stored Instagram account.
 
     Unlike TikTok, Instagram exposes `saves` and returns an expiring
-    `media_url`. Media download is a separate Phase 2 step, not done here.
+    `media_url`, so media preservation runs at the END of this pass rather
+    than as a separate chore: a Reel collected today cannot be preserved
+    next week, because the signed CDN link will be dead.
+
+    Preservation is deliberately the last step and is wrapped so that it can
+    fail without touching anything above it. Metrics are the irreplaceable
+    record - a snapshot missed today is gone - while media is best-effort and
+    retried on the next pass.
     """
     env = _env()
     if env.get("VIRALLAB_COLLECTION_ENABLED", "1") in ("0", "false", ""):
@@ -198,10 +208,15 @@ def collect_instagram_once(session: Session, *, kind: str = "daily"
                 record_snapshot(session, target, m)
                 snaps += 1
 
+        # Commit the metrics before touching media, so a media problem
+        # cannot roll back the snapshots this pass just collected.
         finish_run(session, run, status="ok", videos_seen=seen,
                    videos_new=new, snapshots_written=snaps)
+        session.commit()
         logger.info("instagram daily pass ok: %d seen, %d new, %d snapshots",
                     seen, new, snaps)
+
+        _preserve_media_quietly(session, adapter, account)
         return run
     except Exception as exc:
         session.rollback()
@@ -211,6 +226,41 @@ def collect_instagram_once(session: Session, *, kind: str = "daily"
         finish_run(session, failed, status=status,
                    error=f"{type(exc).__name__}: {exc}")
         raise
+
+
+def _preserve_media_quietly(session: Session, adapter, account: str) -> None:
+    """Preserve newly collected Instagram media; never raise.
+
+    Isolated on purpose. Media preservation touches the filesystem, the
+    network and a CDN whose links expire - three things that fail for
+    reasons unrelated to collection. None of them is allowed to turn a
+    successful metrics pass into a failed one.
+    """
+    if _env().get("VIRALLAB_PRESERVE_MEDIA", "1") in ("0", "false", ""):
+        logger.info("instagram media preservation disabled by configuration")
+        return
+    try:
+        root = Path(_env().get("VIRALLAB_MEDIA_ROOT")
+                    or "/home/rastlyn/virallab/media")
+        res = preserve_instagram_media(session, adapter, account,
+                                       media_root=root)
+        logger.info(
+            "instagram media: %d saved, %d unsupported, %d api-restricted, "
+            "%d failed, %d deduplicated, %.1f MB added%s",
+            res.saved, res.unsupported, res.api_restricted, res.failed,
+            res.deduplicated, res.bytes_added / 1e6,
+            f" ({res.stopped_reason})" if res.stopped_reason else "")
+        if res.failed or res.skipped_attempts:
+            logger.warning(
+                "instagram media needs attention: %d failed this pass, "
+                "%d have exhausted their %d attempts; reasons=%s",
+                res.failed, res.skipped_attempts, MEDIA_MAX_ATTEMPTS, res.reasons)
+    except Exception:
+        # Deliberately swallowed: see the docstring. The next pass retries.
+        logger.exception("instagram media preservation failed; metrics for "
+                         "this pass are unaffected and media will be "
+                         "retried on the next pass")
+        session.rollback()
 
 
 #: Every platform the daily loop should collect.

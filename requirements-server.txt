@@ -10,3 +10,7 @@ psycopg[binary]
 pyyaml
 httpx
 pytest
+# Audio fingerprinting runs on the server so Instagram media never has to be
+# transferred to the Windows side to be matched. numpy is a numeric base, not
+# an ML dependency - no model files, no training, no GPU (ADR 0003 stands).
+numpy>=2.0

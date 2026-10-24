@@ -678,11 +678,82 @@ verbatim — observations were copied, not re-collected, so the trajectory that
 fixed-age anchoring depends on survives. All counts and metric sums verified
 identical, 0 orphans.
 
-**Outstanding:** the 7-day unattended run has NOT elapsed and will not be
-claimed before it has; the TikTok client secret is prepared for rotation but
-NOT rotated (owner approval); Instagram is registered but not authorized; the
-media-ingest watcher is not built; Windows source records and backups are
-retained pending approval for cleanup.
+**Progress (2026-10-24, matching and cross-platform integration).**
+Instagram: ✅ authorized (Facebook Login path), 289 publications, 289
+snapshots, **258 media files preserved (736 MB)** at 90.2% of what is
+preservable. Media preservation is now a **deployed, scheduled module**
+(`server/collectors/media_preservation.py`) that runs at the end of every
+Instagram collection pass, isolated so a media failure can never cost a
+metrics snapshot. Previously it was a hand-run script, so any Reel collected
+on a day nobody ran it lost its media permanently once the CDN link expired.
+
+**Content relationship model.** Three layers now distinct (migration
+`c7a1d4e9b082`): **performance** (one reading of one work) → **variant**
+(`local_masters`, one export with its own hook/overlays/trim) →
+**publication** (`videos`, one platform at one time with independent
+metrics). 156 performances across 250 masters, 63 with more than one variant.
+Plus `publication_links` for cross-platform pairs, which deliberately has no
+`auto` status. Existing tables were extended, not replaced.
+
+**Audio fingerprinting replaced, after measurement.** The 32-bin loudness
+envelope was measured against 24 known positives and 10 known negatives and
+**failed**: on a different opening hook it scored genuine matches 0.563–0.781,
+*below* what it scored on true negatives (0.799) — gap **−0.236**. Replaced
+by a spectral band-difference fingerprint (numpy only, no ML): same
+transforms score 0.862–1.000 against negatives ≤0.425 — gap **+0.437**.
+`docs/benchmarks/2-audio-fingerprint.md`. Audio is now the **gate** and
+visuals the corroboration, because ~99% cross-posting means the normal case
+is *same recording, visibly different edit*.
+
+**Matching validated.** The 93 earlier auto-links were re-scored: **92
+identical, 1 corrected to a better variant of the same performance, 0
+contradicted**, plus 36 pairs the envelope had missed. Now 129 auto-linked
+(50% of preserved Instagram publications), 27 pending review, 102 unmatched
+for archival reasons. `[ESTIMATE]` 100% method agreement is **not** measured
+precision — both methods share the same frame hashing — so a stratified
+12-link human sample is queued for ground truth.
+
+**Cross-platform.** TikTok cover images were implemented and hashed
+(234/234, 0 failures) and then **measured and rejected**: median
+cover-vs-master Hamming 16/64, distinctive on 1 of 234, and 2 fps re-sampling
+did not help. So TikTok↔Instagram rests on duration + date + caption, scored
+per-signal with mutual-best pairing: **201 proposals (136 strong)**, none
+confirmed. `docs/benchmarks/2-cross-platform-matching.md`.
+
+**Review UI.** `scripts/review_ui.py` — side-by-side playback of local master
+and published clip with range-request seeking, the full evidence behind each
+proposal, and four answers including *"same performance, different edit"*.
+Decisions are written immediately and attributed to `human`; the queue
+resumes where it was and **never blocks other work**.
+
+**Defects found and fixed this phase** (each now has a regression test):
+a sub-frame alignment bug that made a correct 1 s offset score 0.448 instead
+of 0.999; a coverage bug letting two unrelated files score **1.000 on 22
+aligned frames** and chain 33 unrelated performances into one group; **three
+image posts stored as `.mp4` and counted as preserved video** because ffprobe
+succeeds on a JPEG; a `repr`+`literal_eval` database transport that silently
+truncated every caption over ~250 characters; and `reels_skip_rate` being
+discarded because the insight parser kept only `int` values.
+
+**Outstanding for Phase 2 closure:** the 7-day unattended run has **NOT**
+elapsed and will not be claimed before it has (started 2026-10-24; earliest
+honest claim 2026-10-31). Owner decisions pending: 27 master links, 201
+cross-platform proposals, 156 inferred performance groupings — none blocking.
+The TikTok client secret is **not** rotated, per the owner's explicit
+decision. Windows source records and backups are retained pending approval
+for cleanup.
+
+**Phase 3 readiness.** `docs/phase3-data-readiness.md` records what the data
+can and cannot support. The blocking fact: **every snapshot was captured on a
+single day**, at ages from 1 to 1357 days, so **no genuine `views@7d` or
+`views@30d` exists for any current publication** and none may be
+reconstructed. Instagram retention is now collected
+(`ig_reels_avg_watch_time`, `ig_reels_video_view_total_time`,
+`reels_skip_rate` — all verified live) in a separate call so an
+"in development" metric cannot take down a pass; TikTok exposes **no**
+retention and **no** saves, which stay NULL and must never be coalesced to
+zero (verified: 702 TikTok snapshots, `saves` NULL in all 702, value 0 in
+none).
 
 ### Phase 3 — Niche Discovery Ingestion
 Build the discovery adapter against whichever provider won Phase 0A, plus
@@ -1011,6 +1082,28 @@ Other items:
   both; worth keeping in mind for migrations.
 
 **Open questions**
+0. **How are TikTok publications tied to their Instagram counterparts with
+   content-level evidence?** Currently they are not: TikTok returns no media,
+   and the cover image was implemented, hashed for all 234 publications, and
+   then measured and rejected (median Hamming 16/64; distinctive on 1 of 234;
+   2 fps re-sampling improved 3 of 14). The 201 cross-platform pairs rest on
+   duration + date + caption and are stored as `proposed`, never confirmed.
+   → What would settle it: the owner's own export logs or editing project
+   files, or publishing one test video and logging the field set returned for
+   it. Not blocking — a `proposed` pair already lets both platforms' metrics
+   sit side by side without asserting they describe the same content.
+0a. **Why does Instagram withhold `media_url` for exactly 28 Reels?** All 28
+   report `media_type=VIDEO`, `media_product_type=REELS` and a
+   `thumbnail_url`, while `media_url` is absent from the response entirely
+   `[PRIMARY, empirical]`. Licensed audio is the common explanation but is
+   `[SECONDARY]` and is not asserted. → Settled by comparing those
+   publications' audio attribution against the rest of the corpus. Changes
+   nothing operationally: the media is unavailable either way.
+0b. **Can two different takes of the same work be distinguished?** The
+   fingerprint benchmark's negatives are all unrelated performances. No
+   labelled example exists of two separate performances *of the same piece*
+   by this performer, which is the most plausible remaining confusion.
+   → Needs examples the owner identifies.
 1. Does a model trained largely on *other* creators' videos transfer to
    predicting *your* relative performance? → §12.3 test V4, Phase 6.
 2. Does classical-piano content carry enough niche-specific structure

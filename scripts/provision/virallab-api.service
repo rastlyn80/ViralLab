@@ -1,0 +1,45 @@
+[Unit]
+# The API process also hosts the daily collection loop and the batch reaper
+# (plan 4.1: no second service). Until this unit existed the API ran as a
+# bare nohup'd uvicorn, which meant a reboot silently ended collection - and
+# a collector that does not survive a reboot cannot complete a 7-day
+# unattended run, which is Phase 2's acceptance criterion.
+Description=ViralLab API, daily collector and reaper
+Documentation=file:///home/rastlyn/virallab/DEVELOPMENT_PLAN.md
+After=network-online.target postgresql.service tailscaled.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=rastlyn
+Group=rastlyn
+WorkingDirectory=/home/rastlyn/virallab
+# Secrets stay in the 0600 .env rather than in this unit file, which is
+# world-readable under /etc/systemd/system.
+EnvironmentFile=/home/rastlyn/virallab/.env
+ExecStart=/home/rastlyn/virallab/.venv/bin/python -m uvicorn \
+    server.api.app:app \
+    --host ${VIRALLAB_BIND_IP} --port 8443 \
+    --ssl-keyfile certs/server.key --ssl-certfile certs/server.crt
+Restart=always
+RestartSec=10
+# Collection is idempotent and the due() check is database-backed, so a
+# restart at any moment resumes correctly: no missed day, no double pass.
+# That is what makes Restart=always safe here.
+TimeoutStopSec=30
+KillSignal=SIGINT
+StandardOutput=append:/home/rastlyn/virallab/logs/api.log
+StandardError=append:/home/rastlyn/virallab/logs/api.log
+
+# Modest hardening. Not a sandbox - the process needs to write media/ and
+# logs/ under its own home.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+
+[Install]
+WantedBy=multi-user.target

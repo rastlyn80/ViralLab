@@ -72,9 +72,29 @@ class Video(Base):
     duration_s: Mapped[float | None] = mapped_column(Float)
     #: official_api | provider | local_master
     source: Mapped[str] = mapped_column(String(32))
-    #: absent | available | purged  (retention policy, plan section 10)
+    #: absent | available | unsupported | purged (retention policy, plan 10).
+    #: `unsupported` means the publication is not a video - an image or a
+    #: carousel - so there is nothing to preserve. Keeping it distinct from
+    #: `absent` stops the preserver retrying it forever and stops it being
+    #: reported as a coverage gap.
     media_status: Mapped[str] = mapped_column(String(16), default="absent")
     media_path: Mapped[str | None] = mapped_column(Text)
+    #: Why media is not stored, as `<class>:<detail>`. The class separates a
+    #: genuine API restriction from a processing failure from a type that was
+    #: never a video; only the middle one is worth retrying.
+    media_reason: Mapped[str | None] = mapped_column(String(64))
+    media_checked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    #: Bounded, so a permanently failing item cannot be retried forever.
+    media_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    #: Platform-hosted cover image. The URL expires, so the dHash is what is
+    #: actually relied on; the URL is kept for provenance. For TikTok this is
+    #: the ONLY content signal available - the API returns no media file - so
+    #: without it cross-platform matching has no visual evidence at all.
+    cover_url: Mapped[str | None] = mapped_column(Text)
+    cover_hash: Mapped[str | None] = mapped_column(String(32))
+    cover_fetched_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now())
 
@@ -232,6 +252,53 @@ class AnalysisResult(Base):
     )
 
 
+class Performance(Base):
+    """The underlying thing that was performed - one layer above any file.
+
+    Three layers are deliberately distinct, because conflating them is what
+    makes cross-platform analysis wrong:
+
+      1. **Performance** (this table) - the musical performance itself. One
+         sitting at the piano, one reading of one work.
+      2. **Variant** (`local_masters`) - one *edit* of a performance: a
+         specific export, with its own hook, overlays and trim. A performance
+         may have several, and typically does when the owner tailors a cut
+         per platform.
+      3. **Publication** (`videos`) - one variant posted to one platform at
+         one time. The same variant published to TikTok and to Instagram is
+         two publications with independent metrics.
+
+    Collapsing 2 into 3 would make a TikTok/Instagram pair look like two
+    different videos; collapsing 1 into 2 would make a re-edit look like a
+    different performance. Both are errors this project exists to avoid.
+    """
+
+    __tablename__ = "performances"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    #: Free text, owner-facing: "Chopin Ballade No. 1, studio, Oct 2026".
+    title: Mapped[str] = mapped_column(Text)
+    #: Composer / piece, kept separate so several performances of one work
+    #: can be grouped later without re-parsing titles.
+    work: Mapped[str | None] = mapped_column(Text)
+    recorded_on: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    notes: Mapped[str | None] = mapped_column(Text)
+    #: inferred | confirmed - a performance grouped automatically is not the
+    #: same claim as one the owner has confirmed.
+    status: Mapped[str] = mapped_column(String(16), default="inferred")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+
+    masters: Mapped[list["LocalMaster"]] = relationship(
+        back_populates="performance")
+
+    __table_args__ = (
+        CheckConstraint("status in ('inferred','confirmed')",
+                        name="ck_performance_status"),
+    )
+
+
 class LocalMaster(Base):
     """A source video on the owner's machine.
 
@@ -254,11 +321,20 @@ class LocalMaster(Base):
     fingerprint: Mapped[dict | None] = mapped_column(JSONB)
     #: Set only once a copy has been transferred to the server.
     server_path: Mapped[str | None] = mapped_column(Text)
+    #: Which performance this file is an edit of. Nullable: a master whose
+    #: performance has not been established is a known unknown, not a
+    #: performance of its own.
+    performance_id: Mapped[int | None] = mapped_column(
+        ForeignKey("performances.id"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now())
 
+    performance: Mapped[Performance | None] = relationship(
+        back_populates="masters")
+
     __table_args__ = (
         UniqueConstraint("quick_id", name="uq_local_master_quick_id"),
+        Index("ix_local_masters_performance", "performance_id"),
     )
 
 
@@ -285,15 +361,94 @@ class VideoMasterLink(Base):
     method: Mapped[str] = mapped_column(String(32), default="dhash-seq-v1")
     #: Runner-up score: a near-tie means the top pick was not clearly right.
     runner_up: Mapped[float | None] = mapped_column(Float)
+    #: Audio agreement and which descriptor produced it. Stored separately
+    #: from `score` so a link can never be read as better evidenced than it
+    #: was: "envelope" and "none" are materially weaker than "spectral", and
+    #: the combined score alone does not reveal which was used.
+    audio_similarity: Mapped[float | None] = mapped_column(Float)
+    #: spectral | envelope | none
+    audio_method: Mapped[str | None] = mapped_column(String(16))
+    #: Seconds the publication starts after the master. Nonzero is itself
+    #: evidence: it means a trimmed head or a different opening hook.
+    audio_offset_s: Mapped[float | None] = mapped_column(Float)
+    #: Full per-signal detail, for the review UI and for auditing a decision
+    #: after the fact.
+    evidence: Mapped[dict | None] = mapped_column(JSONB)
+    #: human | matcher - which agent set the current status. A human decision
+    #: is never overwritten by a re-run; see scripts/validate_matches.py.
+    decided_by: Mapped[str | None] = mapped_column(String(16))
+    decided_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
         UniqueConstraint("video_id", "master_id", name="uq_video_master"),
-        CheckConstraint("status in ('auto','confirmed','rejected','pending')",
-                        name="ck_link_status"),
+        # 'variant' records a human saying "same performance, different edit"
+        # - a real relationship that is neither a match nor a rejection, and
+        # which previously had nowhere to go.
+        CheckConstraint(
+            "status in ('auto','confirmed','rejected','pending','variant')",
+            name="ck_link_status"),
+        CheckConstraint("audio_method is null or "
+                        "audio_method in ('spectral','envelope','none')",
+                        name="ck_link_audio_method"),
+        CheckConstraint("decided_by is null or decided_by in "
+                        "('human','matcher')", name="ck_link_decided_by"),
         Index("ix_links_status", "status"),
+    )
+
+
+class PublicationLink(Base):
+    """Two publications that are the same content on different platforms.
+
+    This is the cross-posting table. It exists separately from
+    `video_master_links` because a TikTok/Instagram pair can be established
+    *without* a local master: the owner has 234 TikTok and 286 Instagram
+    publications but local files for only part of the archive, and a pair
+    evidenced by audio, date and caption is still a pair.
+
+    Ordered by `video_a_id < video_b_id` so a pair has exactly one row
+    regardless of which side is discovered first.
+    """
+
+    __tablename__ = "publication_links"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_a_id: Mapped[int] = mapped_column(ForeignKey("videos.id"))
+    video_b_id: Mapped[int] = mapped_column(ForeignKey("videos.id"))
+    #: same_variant  - the same edit posted to both platforms
+    #: platform_edit - same performance, deliberately different edit
+    #: repost        - the same content published again, same platform
+    relationship_type: Mapped[str] = mapped_column(String(24))
+    #: proposed | confirmed | rejected. There is no 'auto': a cross-platform
+    #: pair is never promoted to verified without a human, because unlike a
+    #: local master there is no file to fall back on as proof.
+    status: Mapped[str] = mapped_column(String(16), default="proposed")
+    score: Mapped[float | None] = mapped_column(Float)
+    #: Which independent signals agreed, and what each one said.
+    evidence: Mapped[dict | None] = mapped_column(JSONB)
+    method: Mapped[str | None] = mapped_column(String(32))
+    decided_by: Mapped[str | None] = mapped_column(String(16))
+    decided_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("video_a_id", "video_b_id",
+                         name="uq_publication_pair"),
+        CheckConstraint("video_a_id < video_b_id", name="ck_pub_link_order"),
+        CheckConstraint(
+            "relationship_type in ('same_variant','platform_edit','repost')",
+            name="ck_pub_link_type"),
+        CheckConstraint("status in ('proposed','confirmed','rejected')",
+                        name="ck_pub_link_status"),
+        CheckConstraint("decided_by is null or decided_by in "
+                        "('human','matcher')", name="ck_pub_link_decided_by"),
+        Index("ix_pub_links_status", "status"),
     )
 
 

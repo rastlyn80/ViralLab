@@ -63,6 +63,16 @@ def dhash_frame(img: Image.Image) -> int:
     return bits
 
 
+# The spectral fingerprint lives in shared/ because it is core to
+# matching and runs on BOTH machines - the server fingerprints Instagram
+# media in place rather than shipping 736 MB to Windows.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+try:
+    from shared import audiofp
+except ImportError:                                   # pragma: no cover
+    audiofp = None
+
+
 def fingerprint(path: Path, workdir: Path, frames: int = FRAMES
                 ) -> dict | None:
     """Sampled dHash sequence for one video."""
@@ -97,7 +107,12 @@ def fingerprint(path: Path, workdir: Path, frames: int = FRAMES
         return None
     return {"duration_s": dur, "frames": len(hashes),
             "hashes": [f"{h:016x}" for h in hashes],
-            "audio": audio_envelope(path)}
+            # Both audio descriptors are stored. `audiofp` is the one that
+            # decides matches; `audio` is kept so fingerprints written before
+            # the spectral method existed remain comparable rather than
+            # silently becoming unverifiable.
+            "audio": audio_envelope(path),
+            "audiofp": audiofp.fingerprint(path) if audiofp else None}
 
 
 def audio_envelope(path: Path, bins: int = 32) -> list[int] | None:

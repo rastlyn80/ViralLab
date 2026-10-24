@@ -43,11 +43,31 @@ MEDIA_FIELDS = [
 REEL_INSIGHT_METRICS = ["views", "reach", "saved", "shares", "likes",
                         "comments", "total_interactions"]
 
-#: Also available on reels for the account owner, and directly relevant to
-#: the retention questions in plan section 3:
-#: `ig_reels_avg_watch_time`, `ig_reels_video_view_total_time`,
-#: `reels_skip_rate`. Not requested yet — adding them is a Phase 3 decision,
-#: not a collector fix.
+#: Retention metrics, requested SEPARATELY from the core set above.
+#:
+#: Verified [PRIMARY] against Meta's own reference (Instagram Media Insights,
+#: checked 2026-10-24) and then confirmed empirically against this account on
+#: media 18114141676850150:
+#:
+#:   ig_reels_avg_watch_time        -> 6006        (milliseconds)
+#:   ig_reels_video_view_total_time -> 3411578     (milliseconds)
+#:   reels_skip_rate                -> 57.7        (percent)
+#:
+#: The same probe confirmed `plays` and `clips_replays_count` now return
+#: Meta error 100, consistent with their April 2025 deprecation.
+#:
+#: Two of the three are documented as "in development" and `reels_skip_rate`
+#: is additionally "estimated", so they are requested in their own call: an
+#: unsupported or withdrawn name here must never take down the core metrics,
+#: which are the irreplaceable part of a pass.
+RETENTION_METRICS = ["ig_reels_avg_watch_time",
+                     "ig_reels_video_view_total_time",
+                     "reels_skip_rate"]
+#: Milliseconds, per the values observed above. Recorded so no later reader
+#: has to guess the unit from the magnitude.
+RETENTION_UNITS = {"ig_reels_avg_watch_time": "ms",
+                   "ig_reels_video_view_total_time": "ms",
+                   "reels_skip_rate": "percent"}
 
 #: Meta's 190-series errors mean the credential is invalid, not busy:
 #: retrying cannot fix it.
@@ -252,29 +272,68 @@ class InstagramOfficialAdapter(DataSourceAdapter):
                                ext, str(exc)[:160])
                 continue
             vals = _flatten_insights(payload)
-            yield NormalizedMetrics(
-                external_id=ext, captured_at=now,
-                views=vals.get("views"),
-                likes=vals.get("likes"),
-                comments=vals.get("comments"),
-                shares=vals.get("shares"),
-                saves=vals.get("saved"),
-                is_rounded=False,
-                raw=vals,
-            )
+
+            # Retention, in its own call. A failure here degrades the
+            # snapshot rather than losing it: the core metrics above are
+            # already in hand and are what must not be dropped.
+            try:
+                extra = _flatten_insights(self._get(
+                    account_ref, f"{ext}/insights",
+                    metric=",".join(RETENTION_METRICS)))
+            except RateLimited:
+                # Quota is shared, so stop the whole pass rather than
+                # continuing to burn it on retention.
+                logger.warning("instagram rate limit hit fetching retention; "
+                               "ending this pass")
+                vals["retention_status"] = "rate_limited"
+                yield _snapshot(ext, now, vals)
+                return
+            except RuntimeError as exc:
+                logger.info("instagram retention metrics unavailable for "
+                            "%s: %s", ext, str(exc)[:160])
+                vals["retention_status"] = "unavailable"
+            else:
+                vals.update(extra)
+                # Absent is recorded as absent. A missing watch time is not a
+                # watch time of zero, and Phase 3 must be able to tell the
+                # difference.
+                vals["retention_status"] = (
+                    "ok" if any(k in extra for k in RETENTION_METRICS)
+                    else "empty")
+                vals["retention_units"] = RETENTION_UNITS
+
+            yield _snapshot(ext, now, vals)
 
 
 # ---------------------------------------------------------------------------
 
+def _snapshot(ext: str, now, vals: dict) -> NormalizedMetrics:
+    """One reading. Typed columns for the metrics every platform has;
+    everything else stays in `raw`, losslessly and without a migration."""
+    return NormalizedMetrics(
+        external_id=ext, captured_at=now,
+        views=vals.get("views"),
+        likes=vals.get("likes"),
+        comments=vals.get("comments"),
+        shares=vals.get("shares"),
+        saves=vals.get("saved"),
+        is_rounded=False,
+        raw=vals,
+    )
+
+
 def _flatten_insights(payload: dict) -> dict:
-    out: dict[str, int] = {}
+    out: dict[str, int | float] = {}
     for item in payload.get("data", []):
         name = item.get("name")
         values = item.get("values") or []
         if not name or not values:
             continue
         val = values[0].get("value")
-        if isinstance(val, int):
+        # Floats matter: `reels_skip_rate` comes back as e.g. 57.7, and an
+        # int-only check silently discarded it. `bool` is excluded because it
+        # is an int subclass and is never a metric.
+        if isinstance(val, (int, float)) and not isinstance(val, bool):
             out[name] = val
     return out
 

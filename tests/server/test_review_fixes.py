@@ -74,10 +74,13 @@ def test_instagram_requests_and_persists_likes_and_comments(session):
     """`likes` and `comments` ARE valid reel insight metrics (verified against
     Meta's metric list). They were mapped from the response but never asked
     for, so both were silently always None."""
-    captured = {}
+    requested: list[list[str]] = []
 
     def handler(req):
-        captured["metric"] = req.url.params.get("metric", "").split(",")
+        metric = req.url.params.get("metric", "").split(",")
+        requested.append(metric)
+        if "reels_skip_rate" in metric:          # the separate retention call
+            return httpx.Response(200, json={"data": []})
         return httpx.Response(200, json={"data": [
             {"name": "views", "values": [{"value": 45111}]},
             {"name": "likes", "values": [{"value": 3195}]},
@@ -88,8 +91,9 @@ def test_instagram_requests_and_persists_likes_and_comments(session):
 
     adapter = ig_adapter(session, handler)
     m = list(adapter.fetch_metrics("17841400000000000", ["ig1"]))[0]
-    assert "likes" in captured["metric"], "likes was never requested"
-    assert "comments" in captured["metric"], "comments was never requested"
+    core = requested[0]
+    assert "likes" in core, "likes was never requested"
+    assert "comments" in core, "comments was never requested"
     assert (m.likes, m.comments) == (3195, 57)
 
     # They must survive persistence, not merely normalisation.
