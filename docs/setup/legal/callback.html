@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ViralLab — Authorization</title><link rel="stylesheet" href="_shared.css">
+<style>
+  code.block { display:block; background:#0b0d14; border:1px solid #222736;
+    border-radius:8px; padding:14px 16px; margin:.5em 0 1em;
+    font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+    word-break:break-all; color:#e8ecf4; }
+  button { background:var(--accent); color:#0e1018; border:0; border-radius:8px;
+    padding:11px 20px; font-size:.95rem; font-weight:600; cursor:pointer; }
+  button:hover { filter:brightness(1.08); }
+  .ok { color:#7fd4a8; } .warn { color:#e8b864; }
+  .hint { color:var(--muted); font-size:.92rem; }
+</style>
+</head><body><main>
+<h1>Authorization callback</h1>
+<p class="sub" id="status">Reading the response…</p>
+<div id="out"></div>
+<footer>
+  <a href="index.html">ViralLab</a> ·
+  <a href="privacy.html">Privacy</a> ·
+  <a href="terms.html">Terms</a>
+</footer>
+
+<script>
+// The OAuth provider redirects here with ?code=... in the query string. This
+// page exists so that step lands somewhere readable instead of a 404 — the
+// code still has to be carried back by hand, which is the point: nothing is
+// transmitted anywhere from here.
+(function () {
+  const q = new URLSearchParams(location.search);
+  const code = q.get("code");
+  const state = q.get("state");
+  const error = q.get("error") || q.get("error_description");
+  const status = document.getElementById("status");
+  const out = document.getElementById("out");
+
+  if (error) {
+    status.innerHTML = '<span class="warn">Authorization did not complete.</span>';
+    out.innerHTML = '<div class="card"><p>The provider returned:</p>' +
+      '<code class="block">' + escapeHtml(error) + '</code>' +
+      '<p class="hint">Nothing was granted. You can safely try again.</p></div>';
+    return;
+  }
+
+  if (!code) {
+    status.textContent = "Nothing to show.";
+    out.innerHTML = '<div class="card"><p>This page only does something when a ' +
+      'provider redirects to it after you approve access. Opening it directly ' +
+      'shows this message.</p></div>';
+    return;
+  }
+
+  status.innerHTML = '<span class="ok">Authorized.</span> Copy the code below.';
+  out.innerHTML =
+    '<div class="card">' +
+    '<p><strong>Authorization code</strong></p>' +
+    '<code class="block" id="code">' + escapeHtml(code) + '</code>' +
+    (state ? '<p><strong>State</strong></p><code class="block">' +
+             escapeHtml(state) + '</code>' : '') +
+    '<button id="copy">Copy code</button> ' +
+    '<span class="hint" id="copied"></span>' +
+    '<p class="hint" style="margin-top:1.5em">This code is single-use and ' +
+    'expires within minutes. It is not sent anywhere by this page — it is ' +
+    'only displayed, so you can hand it back yourself.</p>' +
+    '</div>';
+
+  document.getElementById("copy").addEventListener("click", function () {
+    navigator.clipboard.writeText(code).then(function () {
+      document.getElementById("copied").textContent = "copied";
+    }, function () {
+      document.getElementById("copied").textContent =
+        "copy failed — select the text above";
+    });
+  });
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;",
+               '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+})();
+</script>
+</main></body></html>
