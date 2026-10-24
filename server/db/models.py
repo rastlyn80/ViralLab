@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     BigInteger, Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index,
-    Integer, String, Text, UniqueConstraint, func,
+    Integer, String, Text, UniqueConstraint, func, text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -289,10 +289,14 @@ class CollectionRun(Base):
     finished_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(16), default="running")
-    videos_seen: Mapped[int] = mapped_column(Integer, default=0)
-    videos_new: Mapped[int] = mapped_column(Integer, default=0)
-    snapshots_written: Mapped[int] = mapped_column(Integer, default=0)
-    media_downloaded: Mapped[int] = mapped_column(Integer, default=0)
+    videos_seen: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    videos_new: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    snapshots_written: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    media_downloaded: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
     error: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (

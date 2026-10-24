@@ -22,7 +22,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from server.db.models import Video
@@ -47,6 +47,11 @@ MEDIA_ROOT = Path(os.environ.get("VIRALLAB_MEDIA_ROOT", "./media")).resolve()
 MEDIA_TTL = int(os.environ.get("VIRALLAB_MEDIA_TTL", "900"))
 REAPER_INTERVAL = int(os.environ.get(
     "VIRALLAB_REAPER_INTERVAL", "60"))
+#: Daily own-account collection, in-process beside the reaper.
+COLLECTION_ENABLED = os.environ.get(
+    "VIRALLAB_COLLECTION_ENABLED", "1") not in ("0", "false", "")
+COLLECTION_INTERVAL = int(os.environ.get(
+    "VIRALLAB_COLLECTION_INTERVAL", "3600"))
 
 logger = logging.getLogger("virallab.api")
 
@@ -101,16 +106,25 @@ async def lifespan(app: FastAPI):
     _Session = sessionmaker(_engine, expire_on_commit=False, future=True)
     app.state.tokens = _parse_tokens(WORKER_TOKENS)
 
-    task = asyncio.create_task(_reaper_loop(REAPER_INTERVAL))
+    tasks = [asyncio.create_task(_reaper_loop(REAPER_INTERVAL))]
     logger.info("reaper started (every %ss)", REAPER_INTERVAL)
+    if COLLECTION_ENABLED:
+        from server.scheduler.collect import daily_collection_loop
+        tasks.append(asyncio.create_task(
+            daily_collection_loop(_Session,
+                                  check_interval_seconds=COLLECTION_INTERVAL)))
+        logger.info("daily collection started (checks every %ss)",
+                    COLLECTION_INTERVAL)
     try:
         yield
     finally:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+        for t in tasks:
+            t.cancel()
+        for t in tasks:
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
         if _engine is not None:
             _engine.dispose()
 
@@ -216,6 +230,32 @@ def post_worker_status(status: WorkerStatus,
     record_worker_status(session, status)
     session.commit()
     return {"recorded": True}
+
+
+@app.get("/status/collection")
+def get_collection_status(session: Session = Depends(get_session)):
+    """Recent collection runs and credential health.
+
+    A stall shows up as an old `last_ok`, and a dead credential as
+    needs_reauth - neither is silent.
+    """
+    from server.db.models import CollectionRun, OAuthToken
+    runs = session.execute(
+        select(CollectionRun).order_by(CollectionRun.started_at.desc()).limit(10)
+    ).scalars().all()
+    creds = session.execute(select(OAuthToken)).scalars().all()
+    return {
+        "runs": [{"platform": r.platform, "kind": r.kind, "status": r.status,
+                  "videos_seen": r.videos_seen, "videos_new": r.videos_new,
+                  "snapshots": r.snapshots_written,
+                  "started_at": r.started_at, "finished_at": r.finished_at,
+                  "error": r.error} for r in runs],
+        # Never the tokens themselves - only their health.
+        "credentials": [{"platform": c.platform, "needs_reauth": c.needs_reauth,
+                         "expires_at": c.expires_at,
+                         "last_refreshed_at": c.last_refreshed_at}
+                        for c in creds],
+    }
 
 
 @app.get("/status/queue")

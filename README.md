@@ -4,13 +4,13 @@ A local-first system for short-form video performance analysis and
 evidence-based content recommendations, built initially for one creator's
 TikTok and Instagram Reels accounts.
 
-**Status: Phase 1 complete. Phase 2 milestone 1 complete** (OAuth + TikTok
-and Instagram collectors). Awaiting app registration to go further.
-Last verified 2026-10-24.
+**Status: Phase 1 complete. Phase 2 TikTok collection is LIVE** — 234 videos
+backfilled from the owner's account via the Display API. Instagram app
+registered but not yet authorized. Last verified 2026-10-24.
 
 | | |
 |---|---|
-| Automated tests | **63 passing** — on Windows (PG 17 / py3.12) *and* Ubuntu (PG 18 / py3.14) |
+| Automated tests | **78 passing** — on Windows (PG 17 / py3.12) *and* Ubuntu (PG 18 / py3.14) |
 | Cross-machine acceptance | **11/11** — Windows worker → Ubuntu server over TLS |
 | Infrastructure | live on both machines |
 
@@ -43,7 +43,7 @@ supports otherwise, and the distinction is enforced throughout.
 | **0A** Data-access feasibility | ✅ passed — media *is* downloadable, cost $0.30–3.00/1k measured, ToS reviewed |
 | **0B** Local AI benchmark | ✅ passed — Whisper 258× RT, VLM 2.25 s/frame, 7634 MiB peak |
 | **1** Infrastructure scaffold | ✅ **complete** — schema, queue, API, worker, real two-machine round trip |
-| **2** Own-account collection | 🟡 **milestone 1 done** — OAuth token store, TikTok + Instagram adapters, 34 collector tests. Blocked on app registration for the live run |
+| **2** Own-account collection | 🟡 **TikTok live** — authorized via sandbox, 234 videos + 234 snapshots imported, 0 validity problems, collection complete vs API pagination. Daily schedule implemented. **Not** complete: 7-day unattended run not yet elapsed; data currently on the wrong machine (see validation report §9); Instagram not authorized |
 | 3–8 | not started (MVP ends at Phase 8, the live experiment) |
 
 ## Architecture
@@ -70,6 +70,10 @@ Key design decisions, each driven by a measurement:
 - **Rotation-aware OAuth storage** (ADR 0005) — TikTok rotates its refresh
   token on every refresh, so both tokens are written together under a row
   lock. Instagram's Page token, by contrast, does not expire.
+- **Fixed-age metrics are never faked** (`server/analytics/fixed_age.py`) —
+  a backfilled video's first snapshot is a lifetime total at an arbitrary
+  age (median 237 days here), so `views@7d` returns `None` with a reason
+  rather than the lifetime figure. No extrapolation, no "closest available".
 
 ## Repository layout
 
@@ -93,7 +97,7 @@ explicitly disposable database (`tests/conftest.py`):
 ```bash
 # must end in _test, and must differ from VIRALLAB_DB_URL
 export VIRALLAB_TEST_DB_URL="postgresql+psycopg://virallab:...@127.0.0.1:5433/virallab_test"
-.venv312/Scripts/python -m pytest tests/        # 63 tests
+.venv312/Scripts/python -m pytest tests/        # 78 tests
 
 python scripts/acceptance_phase1.py             # 11 cross-machine checks
 python scripts/deploy.py --test                 # sync to Ubuntu + run there

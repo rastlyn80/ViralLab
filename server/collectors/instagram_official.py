@@ -108,9 +108,12 @@ class InstagramOfficialAdapter(DataSourceAdapter):
         return self.store.access_token(self.platform, account_ref)
 
     def _get(self, account_ref: str, path: str, **params) -> dict:
-        params["access_token"] = self._token(account_ref)
+        # Bearer header, NOT ?access_token= . Meta accepts both, but a token
+        # in a query string can end up in proxy logs, browser history and
+        # Referer headers; a header does not.
+        headers = {"Authorization": f"Bearer {self._token(account_ref)}"}
         r = self.http.get(f"{GRAPH}/{self.version}/{path.lstrip('/')}",
-                          params=params)
+                          params=params, headers=headers)
         payload = r.json() if r.content else {}
         err = payload.get("error") or {}
         if err:

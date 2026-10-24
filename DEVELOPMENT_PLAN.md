@@ -662,10 +662,20 @@ masters, with fingerprint linking and manual-link fallback in the dashboard.
 Empirically confirm the actual returned field set against the docs (e.g.
 whether TikTok returns any saves field) and record the verification in an
 ADR.
-**Acceptance:** complete historical video list + metrics for both your
-accounts; your own masters linked to their metadata rows; scheduled
-collection runs unattended for **7 consecutive days** with no manual
-re-auth, no crash, and no missed IG media download.
+**Acceptance:** complete historical video list + metrics for your own TikTok and
+Instagram accounts stored; your own masters linked to their metadata rows;
+scheduled collection runs unattended for **7 consecutive days** with no
+manual re-auth, no crash, and no missed IG media download.
+
+**Progress (2026-10-24).** TikTok: ✅ authorized, 234 videos + 234 snapshots,
+0 validity problems, completeness confirmed against API pagination
+(`docs/benchmarks/2-tiktok-live-validation.md`). Daily schedule implemented
+with bounded retries, 429 backoff, run logging and a restart-safe due check.
+**Outstanding:** the 7-day unattended run has NOT elapsed and will not be
+claimed before it has; the live data currently sits on the Windows
+workstation rather than the always-on server (report §9, needs an owner
+decision); Instagram is registered but not authorized; the media-ingest
+watcher is not built.
 
 ### Phase 3 — Niche Discovery Ingestion
 Build the discovery adapter against whichever provider won Phase 0A, plus

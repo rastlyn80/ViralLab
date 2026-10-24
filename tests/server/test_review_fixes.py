@@ -271,3 +271,23 @@ def test_creator_without_external_id_still_matches_on_handle(session):
     b = upsert_creator(session, platform="tiktok", handle="only_handle")
     session.commit()
     assert a.id == b.id
+
+
+# ---------------------------------------------------------------------------
+# credential hygiene
+# ---------------------------------------------------------------------------
+
+def test_instagram_token_is_not_put_in_the_url(session):
+    """A token in a query string leaks into proxy logs, browser history and
+    Referer headers. It belongs in the Authorization header."""
+    seen = {}
+
+    def handler(req):
+        seen["url"] = str(req.url)
+        seen["auth"] = req.headers.get("Authorization", "")
+        return httpx.Response(200, json={"data": []})
+
+    list(ig_adapter(session, handler).fetch_account_videos("17841400000000000"))
+    assert "access_token" not in seen["url"], seen["url"]
+    assert "page-token" not in seen["url"]
+    assert seen["auth"] == "Bearer page-token"
