@@ -24,7 +24,9 @@ import httpx
 from server.collectors.base import (
     DataSourceAdapter, NormalizedMetrics, NormalizedVideo,
 )
-from server.collectors.tokens import ReauthRequired, TokenStore, apply_tiktok_refresh
+from server.collectors.tokens import (
+    ReauthRequired, TokenStore, TransientAuthError, apply_tiktok_refresh,
+)
 
 logger = logging.getLogger("virallab.collectors.tiktok")
 
@@ -65,19 +67,51 @@ class TikTokAuth:
         self.client_secret = client_secret
         self.http = client or httpx.Client(timeout=30.0)
 
+    #: TikTok error codes that mean the grant is dead. Anything else from the
+    #: token endpoint is treated as transient and retried later.
+    PERMANENT_ERRORS = {
+        "invalid_grant", "invalid_request", "invalid_client",
+        "unauthorized_client", "access_denied", "invalid_scope",
+    }
+
     def _post(self, data: dict) -> dict:
-        r = self.http.post(
-            TOKEN_URL, data=data,
-            headers={"Content-Type": "application/x-www-form-urlencoded"})
+        """POST to the token endpoint, separating transient from permanent.
+
+        A 503 or a dropped connection must NOT be reported as "needs
+        re-authorisation": that would demand a pointless manual re-consent
+        and halt collection over a blip.
+        """
+        try:
+            r = self.http.post(
+                TOKEN_URL, data=data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"})
+        except httpx.HTTPError as exc:
+            raise TransientAuthError(
+                f"tiktok token endpoint unreachable: {type(exc).__name__}"
+            ) from exc
+
+        # Log the status, never the body: it can echo the secret back.
+        if r.status_code >= 500 or r.status_code == 429:
+            logger.warning("tiktok token endpoint returned %s (transient)",
+                           r.status_code)
+            raise TransientAuthError(
+                f"tiktok token request failed with HTTP {r.status_code}")
         if r.status_code >= 400:
-            # Log the status, never the body: it can echo the secret back.
             logger.error("tiktok token endpoint returned %s", r.status_code)
             raise ReauthRequired(
                 f"tiktok token request failed with HTTP {r.status_code}")
-        payload = r.json()
-        if "error" in payload and payload.get("error"):
-            raise ReauthRequired(
-                f"tiktok token error: {payload.get('error')}")
+
+        try:
+            payload = r.json()
+        except ValueError as exc:
+            raise TransientAuthError("tiktok token response was not JSON") from exc
+
+        err = payload.get("error")
+        if err:
+            code = err.get("code") if isinstance(err, dict) else str(err)
+            if code in self.PERMANENT_ERRORS:
+                raise ReauthRequired(f"tiktok token error: {code}")
+            raise TransientAuthError(f"tiktok token error: {code}")
         return payload
 
     def exchange_code(self, code: str, redirect_uri: str) -> dict:
@@ -105,7 +139,9 @@ class TikTokAuth:
                 store.mark_reauth_required(
                     row.platform, row.account_ref, "no refresh token stored")
                 raise ReauthRequired("no refresh token stored")
-            apply_tiktok_refresh(store, row, self.refresh(row.refresh_token))
+            used = row.refresh_token
+            apply_tiktok_refresh(store, row, self.refresh(used),
+                                 used_refresh_token=used)
         return _refresh
 
 

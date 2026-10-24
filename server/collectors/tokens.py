@@ -35,6 +35,15 @@ class ReauthRequired(RuntimeError):
     """
 
 
+class TransientAuthError(RuntimeError):
+    """The auth endpoint was unreachable or returned a server error.
+
+    Retrying CAN fix this, so it must never be mistaken for ReauthRequired —
+    flagging a healthy credential as needing re-authorisation would demand a
+    pointless manual re-consent and stop collection until someone noticed.
+    """
+
+
 class TokenStore:
     def __init__(self, session: Session):
         self.session = session
@@ -102,8 +111,16 @@ class TokenStore:
     def access_token(self, platform: str, account_ref: str, *,
                      refresher=None) -> str:
         """Return a usable access token, refreshing first if it is close to
-        expiry. Raises ReauthRequired when no automated recovery exists."""
-        row = self.get(platform, account_ref)
+        expiry. Raises ReauthRequired when no automated recovery exists.
+
+        The row is locked BEFORE the refresh decision and re-checked under the
+        lock. Without that, two concurrent callers both read the stale token
+        and both refresh; since TikTok rotates, the second call carries an
+        already-invalidated refresh token and its response can overwrite the
+        newer one — permanently breaking the credential. With the lock, the
+        second caller blocks, then re-reads and finds the token already fresh.
+        """
+        row = self._locked(platform, account_ref)
         if row is None:
             raise ReauthRequired(
                 f"no stored credential for {platform}/{account_ref}")
@@ -124,22 +141,40 @@ class TokenStore:
                     "re-authorisation required")
                 raise ReauthRequired(
                     f"{platform}/{account_ref} refresh token expired")
-            refresher(self, row)
+            # Re-check under the lock: another caller may have refreshed
+            # while this one waited, in which case there is nothing to do.
+            if self.needs_refresh(row):
+                refresher(self, row)
             row = self.get(platform, account_ref)
         return row.access_token
 
 
 def apply_tiktok_refresh(store: TokenStore, row: OAuthToken,
-                         payload: dict) -> OAuthToken:
+                         payload: dict,
+                         used_refresh_token: str | None = None) -> OAuthToken:
     """Persist a TikTok refresh response.
 
     TikTok MAY return a different refresh_token and the docs require using the
     new one. Writing both together is what keeps the credential alive beyond
     a single cycle.
     """
-    new_refresh = payload.get("refresh_token") or row.refresh_token
+    # Guard against a stale response. `used_refresh_token` is the value the
+    # caller actually sent; comparing two ORM reads would not work, because
+    # SQLAlchemy's identity map hands back the same object and therefore the
+    # same (newest) value.
+    current = store.get(row.platform, row.account_ref)
+    if (used_refresh_token and current is not None
+            and current.refresh_token
+            and current.refresh_token != used_refresh_token):
+        logger.warning(
+            "discarding stale tiktok refresh response for %s: the stored "
+            "refresh token already rotated", row.account_ref)
+        return current
+
+    previous = used_refresh_token or row.refresh_token
+    new_refresh = payload.get("refresh_token") or previous
     rotated = bool(payload.get("refresh_token")
-                   and payload["refresh_token"] != row.refresh_token)
+                   and payload["refresh_token"] != previous)
     out = store.upsert(
         platform=row.platform, account_ref=row.account_ref,
         access_token=payload["access_token"],

@@ -4,12 +4,13 @@ A local-first system for short-form video performance analysis and
 evidence-based content recommendations, built initially for one creator's
 TikTok and Instagram Reels accounts.
 
-**Status: Phase 1 complete. Phase 2 (own-account collection) starting.**
+**Status: Phase 1 complete. Phase 2 milestone 1 complete** (OAuth + TikTok
+and Instagram collectors). Awaiting app registration to go further.
 Last verified 2026-10-24.
 
 | | |
 |---|---|
-| Automated tests | **28 passing** — on Windows (PG 17 / py3.12) *and* Ubuntu (PG 18 / py3.14) |
+| Automated tests | **63 passing** — on Windows (PG 17 / py3.12) *and* Ubuntu (PG 18 / py3.14) |
 | Cross-machine acceptance | **11/11** — Windows worker → Ubuntu server over TLS |
 | Infrastructure | live on both machines |
 
@@ -19,7 +20,7 @@ Last verified 2026-10-24.
 |---|---|
 | [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) | The plan of record: architecture, phases, gates, methodology, costs, open questions. |
 | [`CLAUDE.md`](CLAUDE.md) | Permanent development rules — API verification, scientific evidence, processing safeguards, benchmark-before-scale. |
-| [`docs/adr/`](docs/adr/) | Architecture and verification decision records (0001–0004). |
+| [`docs/adr/`](docs/adr/) | Architecture and verification decision records (0001–0005). |
 | [`docs/benchmarks/`](docs/benchmarks/) | Phase 0A/0B measurement reports and the provider ToS review. |
 
 ## What it does (planned)
@@ -42,7 +43,7 @@ supports otherwise, and the distinction is enforced throughout.
 | **0A** Data-access feasibility | ✅ passed — media *is* downloadable, cost $0.30–3.00/1k measured, ToS reviewed |
 | **0B** Local AI benchmark | ✅ passed — Whisper 258× RT, VLM 2.25 s/frame, 7634 MiB peak |
 | **1** Infrastructure scaffold | ✅ **complete** — schema, queue, API, worker, real two-machine round trip |
-| **2** Own-account collection | ⏳ next — needs TikTok/Instagram app registration |
+| **2** Own-account collection | 🟡 **milestone 1 done** — OAuth token store, TikTok + Instagram adapters, 34 collector tests. Blocked on app registration for the live run |
 | 3–8 | not started (MVP ends at Phase 8, the live experiment) |
 
 ## Architecture
@@ -66,11 +67,14 @@ Key design decisions, each driven by a measurement:
   do not exist for 3.14; the server has no ML dependencies.
 - **GPU memory gating** (ADR 0004) — the VLM peaks at 7634 of 8192 MiB, so the
   worker defers rather than risking silent CPU offload.
+- **Rotation-aware OAuth storage** (ADR 0005) — TikTok rotates its refresh
+  token on every refresh, so both tokens are written together under a row
+  lock. Instagram's Page token, by contrast, does not expire.
 
 ## Repository layout
 
 ```
-server/      Ubuntu: api/, db/ (+ migrations), queue/
+server/      Ubuntu: api/, db/ (+ migrations), queue/, collectors/
 gpu_worker/  Windows: worker.py, vram.py
 shared/      schemas/ and utils/ imported by BOTH halves
 scripts/     remote.py, deploy.py, acceptance_phase1.py, provision/
@@ -81,15 +85,22 @@ tests/       server/, gpu_worker/, shared/
 
 ## Running the tests
 
-Needs a PostgreSQL 16+ and `VIRALLAB_DB_URL`:
+
+
+The suite TRUNCATES tables, so it refuses to run against anything but an
+explicitly disposable database (`tests/conftest.py`):
 
 ```bash
-export VIRALLAB_DB_URL="postgresql+psycopg://virallab:...@127.0.0.1:5433/virallab"
-.venv312/Scripts/python -m pytest tests/        # 28 tests
+# must end in _test, and must differ from VIRALLAB_DB_URL
+export VIRALLAB_TEST_DB_URL="postgresql+psycopg://virallab:...@127.0.0.1:5433/virallab_test"
+.venv312/Scripts/python -m pytest tests/        # 63 tests
 
 python scripts/acceptance_phase1.py             # 11 cross-machine checks
 python scripts/deploy.py --test                 # sync to Ubuntu + run there
 ```
+
+Point `VIRALLAB_TEST_DB_URL` at the application database and the run aborts
+before touching a single table.
 
 `scripts/provision/verify_reaper.sh` proves the background reaper recovers a
 crashed worker's batch without any manual trigger (~40 s).

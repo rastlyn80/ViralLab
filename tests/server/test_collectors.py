@@ -27,8 +27,14 @@ from server.collectors.tokens import (
 )
 from server.db.models import Base, MetricsSnapshot, OAuthToken, Video, utcnow
 
-DB_URL = os.environ.get("VIRALLAB_DB_URL")
-pytestmark = pytest.mark.skipif(not DB_URL, reason="VIRALLAB_DB_URL not set")
+from tests.conftest import TEST_DB_URL, assert_disposable
+
+#: Guarded in tests/conftest.py: never the application database.
+DB_URL = TEST_DB_URL
+pytestmark = pytest.mark.skipif(
+    not DB_URL, reason="VIRALLAB_TEST_DB_URL not set")
+if DB_URL:
+    assert_disposable(DB_URL)
 
 
 @pytest.fixture(scope="module")

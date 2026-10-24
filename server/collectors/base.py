@@ -95,13 +95,27 @@ def upsert_creator(session: Session, *, platform: str, handle: str,
                    external_id: str | None = None,
                    follower_count: int | None = None,
                    is_own_account: bool = False) -> Creator:
-    row = session.scalar(select(Creator).where(
-        Creator.platform == platform, Creator.handle == handle))
+    # Handles are mutable: a creator who renames would otherwise be recorded
+    # as a second creator, splitting their history and corrupting the
+    # per-creator baseline that the whole relative-performance target rests
+    # on. Prefer the platform's stable id whenever we have one.
+    row = None
+    if external_id:
+        row = session.scalar(select(Creator).where(
+            Creator.platform == platform,
+            Creator.external_id == external_id))
+    if row is None:
+        row = session.scalar(select(Creator).where(
+            Creator.platform == platform, Creator.handle == handle))
     if row is None:
         row = Creator(platform=platform, handle=handle)
         session.add(row)
     if external_id:
         row.external_id = external_id
+    if row.handle != handle:
+        logger.info("creator %s renamed %s -> %s (matched on stable id)",
+                    platform, row.handle, handle)
+        row.handle = handle
     if follower_count is not None:
         row.follower_count = follower_count
     if is_own_account:

@@ -79,8 +79,15 @@ def main() -> int:
         # values the server half needs; the worker's own secrets stay local.
         db_url = (f"postgresql+psycopg://virallab:{e['SERVER_DB_PASSWORD']}"
                   f"@127.0.0.1:5432/virallab")
+        # Swap only the trailing database name. A naive replace would also hit
+        # the username in "://virallab:", which is exactly what it did once.
+        head, _, _name = db_url.rpartition("/")
+        test_db_url = f"{head}/virallab_test"
         envfile = "\n".join([
             f"VIRALLAB_DB_URL={db_url}",
+            # Separate disposable database: the suite truncates tables and
+            # must never be able to reach the application database.
+            f"VIRALLAB_TEST_DB_URL={test_db_url}",
             f"VIRALLAB_MEDIA_SECRET={e['SERVER_MEDIA_SECRET']}",
             f"VIRALLAB_WORKER_TOKENS=gpu-1:{e['SERVER_WORKER_TOKEN']}",
             f"VIRALLAB_PUBLIC_BASE_URL=https://{e['UBUNTU_HOST']}:8443",

@@ -19,8 +19,14 @@ from server.queue.queue import enqueue_batch
 from shared.schemas.jobs import Modality, Tier, make_idempotency_key
 from shared.utils.signing import sign_media_url, verify_media_signature
 
-DB_URL = os.environ.get("VIRALLAB_DB_URL")
-pytestmark = pytest.mark.skipif(not DB_URL, reason="VIRALLAB_DB_URL not set")
+from tests.conftest import TEST_DB_URL, assert_disposable
+
+#: Guarded in tests/conftest.py: never the application database.
+DB_URL = TEST_DB_URL
+pytestmark = pytest.mark.skipif(
+    not DB_URL, reason="VIRALLAB_TEST_DB_URL not set")
+if DB_URL:
+    assert_disposable(DB_URL)
 
 TOKEN = "test-worker-token-abc123"
 SECRET = "test-media-secret"
@@ -33,6 +39,10 @@ def client(tmp_path_factory):
     (media_root / "v1.mp4").write_bytes(b"\x00" * 2048)
 
     os.environ.update(
+        # The app reads VIRALLAB_DB_URL. Point it at the guarded disposable
+        # database for the duration of the test process, so the API under
+        # test never touches the application database either.
+        VIRALLAB_DB_URL=DB_URL,
         VIRALLAB_MEDIA_SECRET=SECRET,
         VIRALLAB_WORKER_TOKENS=f"gpu-1:{TOKEN}",
         VIRALLAB_MEDIA_ROOT=str(media_root),

@@ -36,8 +36,17 @@ MEDIA_FIELDS = [
     "permalink", "thumbnail_url", "timestamp", "like_count", "comments_count",
 ]
 #: Post-April-2025 metric set (ADR 0001). `plays`/`impressions` are retired.
-REEL_INSIGHT_METRICS = ["views", "reach", "saved", "shares",
-                        "total_interactions"]
+#: `likes` and `comments` ARE valid reel insight metrics and are requested
+#: here — an earlier version mapped them from the response but never asked
+#: for them, so both were silently always None.
+REEL_INSIGHT_METRICS = ["views", "reach", "saved", "shares", "likes",
+                        "comments", "total_interactions"]
+
+#: Also available on reels for the account owner, and directly relevant to
+#: the retention questions in plan section 3:
+#: `ig_reels_avg_watch_time`, `ig_reels_video_view_total_time`,
+#: `reels_skip_rate`. Not requested yet — adding them is a Phase 3 decision,
+#: not a collector fix.
 
 #: Meta's 190-series errors mean the credential is invalid, not busy:
 #: retrying cannot fix it.
@@ -130,12 +139,35 @@ class InstagramOfficialAdapter(DataSourceAdapter):
         path, params = f"{ig_id}/media", {"fields": ",".join(MEDIA_FIELDS),
                                           "limit": 50}
         seen = 0
+        # The media edge is *observed* to return newest-first, but Meta does
+        # not document that guarantee. Stopping at the first older post would
+        # therefore silently drop eligible posts if the order ever varied.
+        # Instead: verify the order as we go, and only take the early exit
+        # while it has actually held.
+        order_holds, previous = True, None
         while path:
             payload = self._get(account_ref, path, **params)
-            for raw in payload.get("data", []):
-                posted = _iso(raw.get("timestamp"))
+            items = payload.get("data", [])
+
+            # Decide about ordering across the WHOLE page before acting on
+            # it: a violation later in the page would otherwise be invisible
+            # until after an early exit had already dropped eligible posts.
+            stamps = [_iso(i.get("timestamp")) for i in items]
+            known = [t for t in stamps if t]
+            page_ordered = all(a >= b for a, b in zip(known, known[1:]))
+            if previous and known and known[0] > previous:
+                page_ordered = False
+            if not page_ordered and order_holds:
+                logger.warning(
+                    "instagram media for %s is not newest-first; disabling "
+                    "early stop and scanning every page", account_ref)
+            order_holds = order_holds and page_ordered
+            if known:
+                previous = known[-1]
+
+            for raw, posted in zip(items, stamps):
                 if since and posted and posted < since:
-                    return
+                    continue            # never drop the rest of the page
                 seen += 1
                 caption = raw.get("caption") or ""
                 yield NormalizedVideo(
@@ -148,6 +180,12 @@ class InstagramOfficialAdapter(DataSourceAdapter):
                     media_url_expires=bool(raw.get("media_url")),
                     raw=raw,
                 )
+            # Safe to stop only when this page was ordered, every earlier
+            # page was too, and the page's OLDEST item is already past the
+            # cutoff - so nothing newer can appear later.
+            if (since and order_holds and known and known[-1] < since):
+                return
+
             nxt = (payload.get("paging") or {}).get("next")
             if not nxt:
                 break
