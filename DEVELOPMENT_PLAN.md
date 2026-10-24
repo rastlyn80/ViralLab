@@ -651,8 +651,12 @@ and is dead-lettered, not retried forever.
 
 ### Phase 2 — Own-Account Collection
 TikTok Display API + Instagram Graph API (**Facebook Login path**)
-collectors: OAuth, token refresh (IG's 60-day token must be refreshed before
-expiry), scheduled daily pulls into `metrics_snapshots`. Prompt download of
+collectors: OAuth, token refresh. **[PRIMARY, ADR 0005]** TikTok's access
+token lasts 24 h and its **refresh token rotates on every refresh** — both
+must be persisted together or auth dies one cycle later. On the Facebook
+Login path the Instagram credential is a **Page token, which does not
+expire**; the 60-day lifetime belongs to the *User* token it is derived
+from, and `ig_refresh_token` is the Instagram-Login path we do not use.
 IG `media_url` before expiry. **Media-ingest watcher** for your own TikTok
 masters, with fingerprint linking and manual-link fallback in the dashboard.
 Empirically confirm the actual returned field set against the docs (e.g.
