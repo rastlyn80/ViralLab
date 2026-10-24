@@ -47,6 +47,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--token-stdin", action="store_true",
                     help="read the short-lived token from stdin (preferred)")
+    ap.add_argument("--ig-username",
+                    help="pick this Instagram account when several are linked; "
+                         "avoids an interactive prompt when the token arrived "
+                         "on stdin")
     args = ap.parse_args()
 
     e = env()
@@ -103,12 +107,22 @@ def main() -> int:
     if not linked:
         return fail("no Page has a linked Instagram Business account. "
                     "Link it in Instagram > Settings > Linked accounts.")
+    for i, p in enumerate(linked):
+        ig = p["instagram_business_account"]
+        print(f"    [{i}] Page {p['name']!r} -> @{ig.get('username')}")
     if len(linked) > 1:
-        print("  multiple candidates:")
-        for i, p in enumerate(linked):
-            ig = p["instagram_business_account"]
-            print(f"    [{i}] Page {p['name']!r} -> @{ig.get('username')}")
-        idx = int(input("  choose index: ").strip())
+        if args.ig_username:
+            wanted = args.ig_username.lstrip("@").lower()
+            match = [i for i, p in enumerate(linked)
+                     if (p["instagram_business_account"].get("username") or "")
+                     .lower() == wanted]
+            if not match:
+                return fail(f"no linked account matches @{wanted}")
+            idx = match[0]
+        elif sys.stdin.isatty():
+            idx = int(input("  choose index: ").strip())
+        else:
+            return fail("several linked accounts; re-run with --ig-username")
     else:
         idx = 0
 

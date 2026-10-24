@@ -235,3 +235,21 @@ def test_collection_refuses_on_a_host_where_it_is_disabled(session, monkeypatch)
     monkeypatch.setenv("VIRALLAB_COLLECTION_ENABLED", "0")
     with pytest.raises(CollectionDisabled, match="authoritative collector"):
         collect_tiktok_once(session)
+
+
+def test_both_platforms_are_scheduled():
+    """Instagram must be collected alongside TikTok, not instead of it."""
+    from server.scheduler.collect import COLLECTORS
+    assert set(COLLECTORS) == {"tiktok", "instagram"}
+
+
+def test_due_is_tracked_per_platform(session):
+    """A TikTok pass must not suppress Instagram's, or one platform would
+    silently stop collecting."""
+    session.execute(text("""
+        insert into collection_runs
+          (platform, account_ref, kind, status, started_at, finished_at)
+        values ('tiktok','acct1','daily','ok', now(), now())"""))
+    session.commit()
+    assert due(session, "tiktok", "acct1") is False
+    assert due(session, "instagram", "ig1") is True
