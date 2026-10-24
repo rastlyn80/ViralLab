@@ -47,16 +47,22 @@ long-lived Page token from there (it does not expire — ADR 0005).
 
 1. Go to **developers.tiktok.com** → log in with your TikTok account →
    **Manage apps** → **Create an app**.
-2. Add these products to the app:
-   - **Login Kit** (the OAuth flow)
-   - **TikTok API**
+2. Add **Login Kit** — and nothing else.
 
-   **There is no product called "Display API"** — an earlier version of this
-   guide said there was, which was wrong. TikTok's own Display API
-   documentation requires *"approval for both a Login Kit and TikTok API
-   products"*; the Display API endpoints (`/v2/video/list/`,
-   `/v2/user/info/`) are reached through those two plus the right scopes
-   `[PRIMARY]`.
+   **Corrected twice, from what the portal actually shows.** This guide first
+   said to add a "Display API" product, then a "TikTok API" product. Neither
+   exists. The Add products dialog offers exactly: Login Kit, Share Kit,
+   Content Posting API, Webhooks, Data Portability API, Local Service API.
+
+   TikTok's Display API docs speak of *"approval for both a Login Kit and
+   TikTok API products"*, but no such tile is offered — so the Display API
+   endpoints (`/v2/video/list/`, `/v2/user/info/`) are reached through
+   **Login Kit plus the scopes**, which are what actually grant the access.
+   Trust the portal over the prose here.
+
+   **Do not add the others.** Content Posting API is for publishing
+   (Phase 11, out of MVP scope) and pulls in the app audit we are avoiding;
+   the rest are irrelevant.
 
    **Do not add the Content Posting API.** That one is for *publishing*,
    which belongs to Phase 11 and is explicitly out of MVP scope. It also
@@ -65,15 +71,20 @@ long-lived Page token from there (it does not expire — ADR 0005).
 3. Request these scopes:
    `user.info.basic`, `video.list` (both required by the Display API docs),
    plus `user.info.stats` for follower counts.
-4. **Register a redirect URI.** See the note below if you want to avoid
+4. **Stay on the Sandbox tab.** The portal opens on **Production**, whose
+   form demands an app icon, category, Terms of Service URL, Privacy Policy
+   URL and a **demo video** — all of which exist only to satisfy human
+   reviewers. None of it is needed to read your own account. Never press
+   **Submit for review**; **Save** is harmless.
+5. **Register a redirect URI.** See the note below if you want to avoid
    hosting anything — the short version is that any URI works, because the
    authorization code is readable from your browser's address bar.
-5. **Add a sandbox** (Sandbox settings → Add account under *Target users*),
+6. **Add a sandbox** (Sandbox settings → Add account under *Target users*),
    and add your own TikTok account. Up to 10 accounts; results appear within
    an hour. A sandbox is explicitly *"a restricted environment that allows
    you to try out integrations without having to submit your app for
    review."*
-6. Copy the **Client key** and **Client secret**.
+7. Copy the **Client key** and **Client secret**.
 
 That is all I need from TikTok: **Client key + Client secret**, plus the
 redirect URI you registered.
