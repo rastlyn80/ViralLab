@@ -49,9 +49,22 @@ long-lived Page token from there (it does not expire — ADR 0005).
    **Manage apps** → **Create an app**.
 2. Add these products to the app:
    - **Login Kit** (the OAuth flow)
-   - **Display API** (reading your video list and its metrics)
+   - **TikTok API**
+
+   **There is no product called "Display API"** — an earlier version of this
+   guide said there was, which was wrong. TikTok's own Display API
+   documentation requires *"approval for both a Login Kit and TikTok API
+   products"*; the Display API endpoints (`/v2/video/list/`,
+   `/v2/user/info/`) are reached through those two plus the right scopes
+   `[PRIMARY]`.
+
+   **Do not add the Content Posting API.** That one is for *publishing*,
+   which belongs to Phase 11 and is explicitly out of MVP scope. It also
+   drags in the app audit we are currently avoiding, so adding it now would
+   create work for no benefit.
 3. Request these scopes:
-   `user.info.basic`, `user.info.stats`, `video.list`
+   `user.info.basic`, `video.list` (both required by the Display API docs),
+   plus `user.info.stats` for follower counts.
 4. **Register a redirect URI.** See the note below if you want to avoid
    hosting anything — the short version is that any URI works, because the
    authorization code is readable from your browser's address bar.
