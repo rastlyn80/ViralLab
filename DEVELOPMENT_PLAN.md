@@ -940,6 +940,12 @@ Other items:
    passes qualitative review; ASR does not — see 6.
 5. Is any provider's niche coverage complete and reliable enough, and does
    any return **media** as well as metadata? → Phase 0A gate.
+5a. ~~Does the TikTok Display API work in a sandbox, or is a production
+   audit required?~~ **ANSWERED (2026-10-24): sandbox works.** A sandbox app
+   with `user.info.basic`/`user.info.stats`/`video.list` returned the
+   owner's full 234-video catalogue with metrics. No audit, no demo video.
+   Sandboxes also issue their own `sb…`-prefixed credentials, which TikTok
+   does not document.
 6. ~~Does Whisper degrade on piano-performance audio?~~ **ANSWERED (0B):
    yes, badly.** Non-trivial transcript on only **1–2 of 14** videos; on
    music-only audio it **hallucinates** ("Thank you.", "Music", "Hello, I am

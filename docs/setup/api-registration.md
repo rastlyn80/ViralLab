@@ -89,19 +89,29 @@ long-lived Page token from there (it does not expire — ADR 0005).
 That is all I need from TikTok: **Client key + Client secret**, plus the
 redirect URI you registered.
 
-### One honest uncertainty
+### Resolved: the Display API DOES work in a sandbox
 
-TikTok documents that sandbox mode excludes the **Content Posting API** (for
-public videos) and the **Data Portability API**. It does **not** state
-whether the **Display API** works in a sandbox — the exclusion list simply
-does not mention it `[PRIMARY, by omission]`.
+This was the project's main open question about TikTok access, and it is now
+answered empirically `[MEASURED 2026-10-24]`.
 
-So: the sandbox path probably works for reading your own video list, but it
-is not documented either way and we will find out on the first real call. If
-it turns out production access is required, the fallback is TikTok's app
-audit — a demo video, a privacy policy URL, a terms URL and a specific
-use-case description, typically 1–3 weeks with one rejection round
-`[SECONDARY]`. I would tell you before starting that, not after.
+TikTok's docs say sandbox mode excludes the Content Posting API and the Data
+Portability API, but say nothing about the Display API. **It works.** A
+sandbox app with `user.info.basic`, `user.info.stats` and `video.list`
+returned the owner's full catalogue — 234 videos spanning 2023-02-04 to
+2026-10-22, with view, like, comment and share counts.
+
+**No app audit, no demo video, no production review is needed** to read your
+own account. Two further facts confirmed in the same run:
+
+- **A sandbox issues its own client key and secret**, distinct from the
+  production app's. Sandbox keys are prefixed `sb…`. TikTok's documentation
+  does not state this either way.
+- Token lifetimes match ADR 0005 exactly: access token 86,400 s (24 h),
+  refresh token 31,536,000 s (365 days).
+
+The sandbox *does* still require the full app-details form — icon, category,
+description, Terms of Service URL, Privacy Policy URL, platform and a
+redirect URI. Only the review submission and its demo video are skipped.
 
 ### The redirect URI, without hosting anything
 
