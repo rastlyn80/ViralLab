@@ -1,0 +1,12 @@
+# Ubuntu server half. No ML dependencies - those live on the GPU worker.
+# Runs on Python 3.14 (Ubuntu 26.04 default); see ADR 0003.
+sqlalchemy>=2.0
+alembic
+fastapi
+uvicorn[standard]
+pydantic>=2
+pydantic-settings
+psycopg[binary]
+pyyaml
+httpx
+pytest

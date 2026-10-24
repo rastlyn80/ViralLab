@@ -261,6 +261,9 @@ def submit_results(session: Session, sub: ResultSubmission) -> dict:
         if res.peak_vram_mib:
             row.peak_vram_mib = max(row.peak_vram_mib or 0, res.peak_vram_mib)
 
+    if sub.batch_peak_vram_mib:
+        row.peak_vram_mib = max(row.peak_vram_mib or 0, sub.batch_peak_vram_mib)
+
     row.last_heartbeat_at = utcnow()
     session.flush()
 

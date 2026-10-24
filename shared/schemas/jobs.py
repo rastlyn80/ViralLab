@@ -149,6 +149,11 @@ class ResultSubmission(BaseModel):
     #: batch on purpose (e.g. VRAM fell below the critical floor). The
     #: remainder is requeued without counting as a failure.
     partial_reason: str | None = None
+    #: Observed peak VRAM for the batch as a whole. Sent explicitly because
+    #: per-video peaks are None on batches that finish faster than the
+    #: sampler's interval, which would leave the batch peak NULL (ADR 0004
+    #: section 4 requires it recorded).
+    batch_peak_vram_mib: int | None = None
 
 
 class Heartbeat(BaseModel):

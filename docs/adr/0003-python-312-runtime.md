@@ -18,12 +18,24 @@ debugging time. Both are recorded here so Phase 1 does not rediscover them.
 
 ## Decision
 
-**Pin the runtime to Python 3.12 in a dedicated virtual environment on both
-machines.** The GPU worker runs under `.venv312`; the Ubuntu server targets
-the same minor version for contract parity (`shared/` is imported by both,
-so a version split there would be a silent source of divergence).
+**Pin the GPU worker to Python 3.12** in a dedicated virtual environment
+(`.venv312`). **The Ubuntu server runs the distribution Python (3.14).**
 
-Do **not** "upgrade" to the system 3.14 because it is newer. Revisit only
+*Revised 2026-10-24, after provisioning the server.* This ADR originally
+required 3.12 on both machines "for contract parity". Ubuntu 26.04 ships
+3.14 and carries no 3.12 package, and the server half has **no ML
+dependencies at all** — SQLAlchemy 2.1.6, FastAPI 0.162.0, pydantic 2.14.1
+and psycopg all install and pass the full 26-test suite on 3.14. Building
+CPython from source on the server would have added a maintenance burden for
+no benefit, so the parity requirement is dropped.
+
+The split is safe because `shared/` is pure Pydantic with no version-sensitive
+behaviour, and the contract is exercised from both sides by the Phase 1
+acceptance run. Should `shared/` ever need a version-specific feature, that
+is the signal to revisit — not before.
+
+**On the GPU worker specifically**, do not "upgrade" to the system 3.14
+because it is newer — that is where the ML wheels are missing. Revisit only
 when `ctranslate2` and the rest publish 3.14 wheels, and re-run the Phase 0B
 benchmark before and after any such move.
 
