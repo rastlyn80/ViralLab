@@ -773,10 +773,79 @@ already-saturated trends.
 **Acceptance:** a historical backtest shows ≥1 real trend flagged before an
 operationally-defined saturation point.
 
-### Phase 11 — Creation & Publishing *(explicitly future)*
-AI-assisted clip selection, caption/subtitle generation, content calendar,
-TikTok Content Posting API integration (needs the §2.1 audit),
-post-publish auto-tracking. Not designed in detail here.
+### Phase 11 — Creation, Publishing & Repurposing *(explicitly future)*
+
+Everything in this phase is **out of MVP scope and must not be built early**.
+It is recorded here so the architecture does not foreclose it — the
+`DataSourceAdapter` seam, the per-video feature store and the evidence-tagged
+recommendation records all exist partly to make this reachable later.
+
+Each item carries the same discipline as the rest of the plan: a
+recommendation is only ever as strong as the evidence behind it, and anything
+generative must label itself as a hypothesis until measured.
+
+**11.1 Generative assistance**
+- AI-generated **hooks, captions, hashtags and content ideas**, grounded in
+  the features that actually correlated with performance in the owner's own
+  corpus — not generic LLM advice, which is explicitly the baseline the
+  models must beat (§12.4).
+- Every generated suggestion carries its evidence class (`established
+  finding` / `hypothesis`) like any other recommendation.
+
+**11.2 Timing and audience targeting**
+- Evidence-based **publishing times**, derived from the posting-time features
+  already collected, at fixed metric ages so the comparison is valid (§5.4).
+- **Geographic targeting** where a platform actually supports it. Note the
+  known ceiling: geographic data is sparse in the collected fields, so this
+  may remain unanswerable — it is a research question, not a commitment.
+
+**11.3 Calendar and scheduling**
+- A **visual content calendar** across platforms.
+- **Cross-platform scheduling** with platform-specific variants of the same
+  underlying idea.
+
+**11.4 Automated publishing**
+- **TikTok** via the Content Posting API — requires the app audit deliberately
+  avoided during Phase 2 (demo video, privacy policy, ToS, use-case review;
+  1–3 weeks).
+- **Instagram** via the Content Publishing API on the Facebook Login path.
+- Publishing is the point at which this system stops observing and starts
+  acting, so it needs a hard confirmation step and a spending/rate guard
+  before anything goes live.
+
+**11.5 AI-assisted editing and optimisation**
+- Automatic clip selection, caption/subtitle burn-in, multiple variants of a
+  cut, and optimisation against the features that predicted performance.
+- Constrained by the measured GPU reality (ADR 0004): generation is far more
+  expensive than analysis, so this likely needs batching or rented compute.
+
+**11.6 Intelligent repurposing engine**
+
+The most distinctive item, and the one the data model is already shaped for:
+
+- Identify **successful older videos** worth reposting, and
+  **underperforming hidden gems** — content whose features resemble known
+  winners but which underperformed, suggesting distribution rather than
+  quality was the limiting factor.
+- Suggest **specific improvements** tied to the features that differ from
+  comparable winners.
+- Produce **alternative versions** (recut, rehooked, recaptioned).
+- **Measure the result of reposting** against the original, as a paired
+  comparison at matched metric ages.
+
+This is a natural experiment: the same underlying content, published twice
+with a deliberate change between them. It is the closest this project can get
+to a controlled trial without a large sample, and it reuses the Phase 8
+pre-registration machinery rather than needing new methodology.
+
+**11.7 Continuous learning loop**
+- Close the circuit: analysis → creation → publishing → measured performance
+  → model update → better analysis.
+- Phase 9's feedback loop is the foundation; this extends it to cover content
+  the system itself generated, which is where the causal question gets
+  sharpest and where self-confirmation bias is most dangerous. Generated
+  content must be tagged as such so its performance can be analysed
+  separately rather than quietly inflating the model's apparent accuracy.
 
 ---
 

@@ -19,8 +19,14 @@ probes/**/*.run.json
 # Any file derived FROM scraped output - re-query id lists, inputs built
 # from harvested usernames or video URLs. These carry third-party
 # identifiers even when they are not the sample itself. Convention:
-# name anything derived from provider data *.local.json.
+# name anything derived from provider data *.local.json
+# Local library inventory: full paths into the owner's private
+# archive. Aggregates go in the report; the paths do not.
+probes/local_library/.
 *.local.json
+# Local library inventory: full paths into the owner's private
+# archive. Aggregates go in the report; the paths do not.
+probes/local_library/
 data/
 samples/
 
