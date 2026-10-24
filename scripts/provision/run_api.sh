@@ -17,6 +17,6 @@ sleep 4
 echo "--- listening? ---"
 ss -ltnp 2>/dev/null | grep 8443 || echo "NOT listening"
 echo "--- local TLS health check ---"
-curl -sk --max-time 10 https://127.0.0.1:8443/health || echo "health check failed"
+curl -sk --max-time 10 "https://$BIND_IP:8443/health" || echo "health check failed"
 echo
 tail -3 logs/api.log

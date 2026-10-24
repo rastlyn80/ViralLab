@@ -25,7 +25,7 @@ def env() -> dict[str, str]:
     for line in (ROOT / ".env").read_text(encoding="utf-8").splitlines():
         if "=" in line and not line.lstrip().startswith("#"):
             k, _, v = line.partition("=")
-            out[k.strip()] = v
+            out[k.strip()] = v.strip()
     return out
 
 

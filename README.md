@@ -4,9 +4,14 @@ A local-first system for short-form video performance analysis and
 evidence-based content recommendations, built initially for one creator's
 TikTok and Instagram Reels accounts.
 
-**Status: pre-MVP. Phase 0A (data-access feasibility) in progress.**
-No application code exists yet — only feasibility probes. Infrastructure
-work does not begin until the Phase 0A and 0B gates pass.
+**Status: Phase 1 complete. Phase 2 (own-account collection) starting.**
+Last verified 2026-10-24.
+
+| | |
+|---|---|
+| Automated tests | **28 passing** — on Windows (PG 17 / py3.12) *and* Ubuntu (PG 18 / py3.14) |
+| Cross-machine acceptance | **11/11** — Windows worker → Ubuntu server over TLS |
+| Infrastructure | live on both machines |
 
 ## Read these first
 
@@ -14,8 +19,8 @@ work does not begin until the Phase 0A and 0B gates pass.
 |---|---|
 | [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) | The plan of record: architecture, phases, gates, methodology, costs, open questions. |
 | [`CLAUDE.md`](CLAUDE.md) | Permanent development rules — API verification, scientific evidence, processing safeguards, benchmark-before-scale. |
-| [`docs/benchmarks/0A-data-access.md`](docs/benchmarks/0A-data-access.md) | Live Phase 0A report. |
-| [`docs/adr/`](docs/adr/) | Architecture and verification decision records. |
+| [`docs/adr/`](docs/adr/) | Architecture and verification decision records (0001–0004). |
+| [`docs/benchmarks/`](docs/benchmarks/) | Phase 0A/0B measurement reports and the provider ToS review. |
 
 ## What it does (planned)
 
@@ -30,37 +35,90 @@ It does **not** attempt to reconstruct platform ranking algorithms and does
 not promise virality. Findings are correlational unless the live experiment
 supports otherwise, and the distinction is enforced throughout.
 
-## Architecture in one line
+## Phase status
 
-Three long-running processes: PostgreSQL (data + job queue + pgvector), a
-FastAPI app on an always-on Ubuntu server, and a GPU worker on an
-occasionally-on Windows machine that pulls jobs when it is awake.
+| Phase | State |
+|---|---|
+| **0A** Data-access feasibility | ✅ passed — media *is* downloadable, cost $0.30–3.00/1k measured, ToS reviewed |
+| **0B** Local AI benchmark | ✅ passed — Whisper 258× RT, VLM 2.25 s/frame, 7634 MiB peak |
+| **1** Infrastructure scaffold | ✅ **complete** — schema, queue, API, worker, real two-machine round trip |
+| **2** Own-account collection | ⏳ next — needs TikTok/Instagram app registration |
+| 3–8 | not started (MVP ends at Phase 8, the live experiment) |
+
+## Architecture
+
+Three long-running processes, deliberately:
+
+| Where | What |
+|---|---|
+| **Ubuntu** (`gabry-ubuntu`, always on) | PostgreSQL 18 + pgvector (data **and** job queue **and** vectors), FastAPI on `:8443` over TLS, in-process reaper |
+| **Windows** (`Gabriele-Studio`, RTX 2070 SUPER, intermittent) | GPU worker — polls, leases, analyses, submits |
+
+The worker always initiates. When the Windows machine is off nothing blocks:
+batches accumulate as rows. Communication is over Tailscale; the API binds to
+the **tailnet address only**, never `0.0.0.0`.
+
+Key design decisions, each driven by a measurement:
+
+- **Batch by modality, not per video** (ADR 0002) — the VLM's 44.7 s cold load
+  against 9.0 s of inference is 5:1 against useful work.
+- **Python 3.12 on the worker, 3.14 on the server** (ADR 0003) — the ML wheels
+  do not exist for 3.14; the server has no ML dependencies.
+- **GPU memory gating** (ADR 0004) — the VLM peaks at 7634 of 8192 MiB, so the
+  worker defers rather than risking silent CPU offload.
 
 ## Repository layout
 
 ```
+server/      Ubuntu: api/, db/ (+ migrations), queue/
+gpu_worker/  Windows: worker.py, vram.py
+shared/      schemas/ and utils/ imported by BOTH halves
+scripts/     remote.py, deploy.py, acceptance_phase1.py, provision/
 probes/      Phase 0A/0B feasibility probes (throwaway, stdlib only)
-docs/        plan artefacts: ADRs, benchmark reports
-server/      (not yet created) Ubuntu services
-gpu_worker/  (not yet created) Windows GPU worker
-shared/      (not yet created) schemas shared by both
+docs/        adr/, benchmarks/
+tests/       server/, gpu_worker/, shared/
 ```
 
-## Running the Phase 0A probe
+## Running the tests
+
+Needs a PostgreSQL 16+ and `VIRALLAB_DB_URL`:
 
 ```bash
-cd probes/data_access
-python score_provider.py fixture_good.json   # self-test, expect exit 0
-python score_provider.py fixture_bad.json    # negative control, expect exit 1
+export VIRALLAB_DB_URL="postgresql+psycopg://virallab:...@127.0.0.1:5433/virallab"
+.venv312/Scripts/python -m pytest tests/        # 28 tests
+
+python scripts/acceptance_phase1.py             # 11 cross-machine checks
+python scripts/deploy.py --test                 # sync to Ubuntu + run there
 ```
 
-See [`probes/data_access/README.md`](probes/data_access/README.md).
+`scripts/provision/verify_reaper.sh` proves the background reaper recovers a
+crashed worker's batch without any manual trigger (~40 s).
+
+## Known minor issues
+
+Recorded rather than fixed, so scope stays where the plan puts it:
+
+- `GET /status/queue` needs no auth. Read-only, tailnet-only; it leaks queue
+  depth to anything already on the tailnet.
+- `config/settings.yaml` carries `spending.monthly_cap_usd` but nothing reads
+  it yet — correct for now, since nothing spends money. It must be wired in
+  before any paid provider is enabled.
+- The reaper logs through the `virallab.api` logger, which uvicorn does not
+  configure, so its lines do not appear in `logs/api.log`. The loop itself is
+  verified to run.
+- Local development uses portable PostgreSQL 17 under `.pgsql/` because the
+  winget installer needs UAC elevation. pgvector is unavailable in those
+  Windows binaries — fine until Phase 5, and Ubuntu has it from apt.
 
 ## Data handling
 
-Raw provider samples and media are **gitignored on purpose**. Committing
-other creators' data would redistribute personal data and breach the
-operating policy in `DEVELOPMENT_PLAN.md` §2.3. Only synthetic fixtures are
-tracked.
+Raw provider samples, media and anything derived from scraped output
+(`*.local.json`) are **gitignored on purpose**: committing other creators'
+data would redistribute personal data and breach the operating policy in
+`DEVELOPMENT_PLAN.md` §2.3. Only synthetic fixtures are tracked.
+
+The server's TLS **certificate** is committed because the worker pins it; the
+private key never leaves the Ubuntu machine. All secrets live in a gitignored
+`.env`.
 
 This repository is private.

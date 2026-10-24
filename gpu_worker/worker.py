@@ -44,7 +44,7 @@ def load_env() -> dict[str, str]:
         for line in envfile.read_text(encoding="utf-8").splitlines():
             if "=" in line and not line.lstrip().startswith("#"):
                 k, _, v = line.partition("=")
-                out[k.strip()] = v
+                out[k.strip()] = v.strip()
     out.update({k: v for k, v in os.environ.items() if k.startswith("VIRALLAB_")})
     return out
 

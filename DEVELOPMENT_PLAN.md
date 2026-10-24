@@ -1,8 +1,9 @@
 # ViralLab — Development Plan
 
-**Revision 3** — Phases 0A and 0B executed; both gates passed (2026-10-24)
-Status: **0A GATE PASSED** (incl. ToS review) · **0B GATE PASSED** —
-no application code yet; probe scripts only. Phase 1 awaits owner approval.
+**Revision 3** — Phases 0A, 0B and 1 complete (2026-10-24)
+Status: **0A GATE PASSED** (incl. ToS review) · **0B GATE PASSED** ·
+**PHASE 1 COMPLETE** — 28 automated tests passing on both machines, 11/11
+cross-machine acceptance checks. **Phase 2 in progress.**
 Owner: Gabriele Baldocci (private use initially; architecture kept niche-agnostic for future reuse)
 Last updated: 2026-10-24
 
@@ -906,6 +907,19 @@ Other items:
   masters (§2.1). Any gap in your archive is a permanent gap in Tier 2/3
   coverage of your own history.
 
+**Minor outstanding issues** (recorded, deliberately not fixed)
+- `GET /status/queue` requires no auth — read-only and tailnet-only, but it
+  discloses queue depth to anything already on the tailnet.
+- `spending.monthly_cap_usd` exists in config but nothing reads it yet.
+  **Must be wired in before any paid provider is enabled** (CLAUDE.md §7).
+- The reaper logs via the `virallab.api` logger, which uvicorn does not
+  configure, so its lines are absent from `logs/api.log`. The loop itself is
+  verified to run (`scripts/provision/verify_reaper.sh`).
+- Local dev uses portable PostgreSQL 17 (winget needs UAC); pgvector is
+  unavailable in those Windows binaries. Fine until Phase 5; Ubuntu has it.
+- Windows dev runs PG 17 while the server runs PG 18. The suite passes on
+  both; worth keeping in mind for migrations.
+
 **Open questions**
 1. Does a model trained largely on *other* creators' videos transfer to
    predicting *your* relative performance? → §12.3 test V4, Phase 6.
@@ -1008,7 +1022,7 @@ is enforced in code rather than left to discipline.
 |---|---|
 | **0A** | All four gate conditions met (completeness incl. 100% of BLOCKING fields, timestamp cross-check, cost, ToS); media availability answered in writing |
 | **0B** | Measured **total** cost (load/download/decode/inference/Tier 3/storage) + VLM usefulness pass; all `[ASSUMPTION]`s replaced; config and job-granularity ADRs recorded |
-| 1 | Round-trip over TLS + all four adversarial job tests pass |
+| 1 | ✅ **DONE 2026-10-24** — round-trip over TLS + all four adversarial tests, verified across the real two machines (11/11) |
 | 2 | 7 days unattended own-account collection; masters linked; IG media captured before URL expiry |
 | 3 | ≥1,000 niche videos ingested, real billed cost logged, re-runs idempotent |
 | 4 | ≥85% label agreement on 50-video sample; sampler produces all three strata with recorded weights |

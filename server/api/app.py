@@ -13,6 +13,8 @@ blocks or times out waiting for it — batches simply accumulate as rows.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
 import secrets
 from contextlib import asynccontextmanager
@@ -43,6 +45,10 @@ PUBLIC_BASE_URL = os.environ.get("VIRALLAB_PUBLIC_BASE_URL",
                                  "https://127.0.0.1:8443")
 MEDIA_ROOT = Path(os.environ.get("VIRALLAB_MEDIA_ROOT", "./media")).resolve()
 MEDIA_TTL = int(os.environ.get("VIRALLAB_MEDIA_TTL", "900"))
+REAPER_INTERVAL = int(os.environ.get(
+    "VIRALLAB_REAPER_INTERVAL", "60"))
+
+logger = logging.getLogger("virallab.api")
 
 _engine = None
 _Session: sessionmaker | None = None
@@ -60,6 +66,30 @@ def _parse_tokens(raw: str) -> dict[str, str]:
     return out
 
 
+async def _reaper_loop(interval: int) -> None:
+    """Requeue batches whose lease expired without a heartbeat.
+
+    Without this running, a crashed worker leaves its batch 'leased' forever
+    and the work silently stops — the reaper function alone is not a recovery
+    guarantee unless something calls it. Runs in-process (plan 4.1: no second
+    service); Phase 2 may move it onto APScheduler alongside the collection
+    schedules.
+    """
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            with _Session() as session:          # type: ignore[misc]
+                reaped = reap_expired(session)
+                session.commit()
+            if reaped:
+                logger.warning("reaped %d expired lease(s): %s",
+                               len(reaped), reaped)
+        except asyncio.CancelledError:
+            raise
+        except Exception:                         # never kill the loop
+            logger.exception("reaper pass failed; continuing")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _engine, _Session
@@ -70,9 +100,19 @@ async def lifespan(app: FastAPI):
     _engine = create_engine(DB_URL, future=True, pool_pre_ping=True)
     _Session = sessionmaker(_engine, expire_on_commit=False, future=True)
     app.state.tokens = _parse_tokens(WORKER_TOKENS)
-    yield
-    if _engine is not None:
-        _engine.dispose()
+
+    task = asyncio.create_task(_reaper_loop(REAPER_INTERVAL))
+    logger.info("reaper started (every %ss)", REAPER_INTERVAL)
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        if _engine is not None:
+            _engine.dispose()
 
 
 app = FastAPI(title="ViralLab", version="0.1.0", lifespan=lifespan)
@@ -185,9 +225,14 @@ def get_queue_depth(session: Session = Depends(get_session)):
 
 
 @app.post("/admin/reap")
-def admin_reap(session: Session = Depends(get_session)):
-    """Requeue batches whose lease expired without a heartbeat. Normally the
-    scheduler calls this; exposed so it is directly testable."""
+def admin_reap(session: Session = Depends(get_session),
+               worker: str = Depends(require_worker)):
+    """Requeue batches whose lease expired without a heartbeat.
+
+    The background reaper calls reap_expired() directly; this endpoint exists
+    so the behaviour is testable from outside. It mutates lease state, so it
+    requires a token like every other mutating route.
+    """
     reaped = reap_expired(session)
     session.commit()
     return {"reaped": reaped}

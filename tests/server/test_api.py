@@ -157,7 +157,8 @@ def test_stale_lease_token_returns_409_over_http(client, session):
     session.execute(text(
         "update analysis_batches set lease_expires_at = now() - interval '1 min'"))
     session.commit()
-    assert client.post("/admin/reap").json()["reaped"] == [zombie["batch_id"]]
+    assert client.post("/admin/reap", headers=AUTH).json()["reaped"] == [
+        zombie["batch_id"]]
     session.execute(text("update analysis_batches set not_before = null"))
     session.commit()
     fresh = client.post("/jobs/lease", json=lease_body(), headers=AUTH).json()
@@ -251,3 +252,24 @@ def test_signature_helpers_directly():
         .split("sig=")[1], SECRET, now=now)
     with pytest.raises(ValueError, match="expired"):
         verify_media_signature(5, now - 1, "x" * 64, SECRET, now=now)
+
+
+# ---------------------------------------------------------------------------
+# sanity-check fixes (Phase 1 review)
+# ---------------------------------------------------------------------------
+
+def test_admin_reap_requires_auth(client, session):
+    """It mutates lease state, so it must not be callable unauthenticated."""
+    assert client.post("/admin/reap").status_code == 401
+    assert client.post("/admin/reap",
+                       headers={"Authorization": "Bearer nope"}
+                       ).status_code == 403
+    assert client.post("/admin/reap", headers=AUTH).status_code == 200
+
+
+def test_background_reaper_is_started():
+    """The reaper function alone is not a recovery guarantee unless something
+    calls it; a crashed worker would otherwise wedge its batch forever."""
+    from server.api import app as app_module
+    assert hasattr(app_module, "_reaper_loop")
+    assert app_module.REAPER_INTERVAL > 0
