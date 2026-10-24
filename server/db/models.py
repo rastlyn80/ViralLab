@@ -232,6 +232,71 @@ class AnalysisResult(Base):
     )
 
 
+class LocalMaster(Base):
+    """A source video on the owner's machine.
+
+    The file itself stays where it is - this records its identity and
+    fingerprint so posts can be matched to it without moving anything.
+    """
+
+    __tablename__ = "local_masters"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    #: Content-derived id from the local scan; stable across re-scans.
+    quick_id: Mapped[str] = mapped_column(String(64))
+    path: Mapped[str] = mapped_column(Text)
+    filename: Mapped[str] = mapped_column(Text)
+    duration_s: Mapped[float | None] = mapped_column(Float)
+    bytes: Mapped[int | None] = mapped_column(BigInteger)
+    width: Mapped[int | None] = mapped_column(Integer)
+    height: Mapped[int | None] = mapped_column(Integer)
+    #: dHash sequence, hex strings. Stored so re-matching needs no re-scan.
+    fingerprint: Mapped[dict | None] = mapped_column(JSONB)
+    #: Set only once a copy has been transferred to the server.
+    server_path: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("quick_id", name="uq_local_master_quick_id"),
+    )
+
+
+class VideoMasterLink(Base):
+    """Which published post came from which local master.
+
+    Deliberately many-to-many: one master can produce several posts (a
+    repost, a re-edit), and a post could in principle draw on more than one
+    master. Forcing one-to-one would quietly discard exactly the cases this
+    project most wants to study.
+    """
+
+    __tablename__ = "video_master_links"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id"))
+    master_id: Mapped[int] = mapped_column(ForeignKey("local_masters.id"))
+    #: Combined frame-overlap and duration score, 0-1.
+    score: Mapped[float] = mapped_column(Float)
+    frame_overlap: Mapped[float | None] = mapped_column(Float)
+    duration_delta_s: Mapped[float | None] = mapped_column(Float)
+    #: auto | confirmed | rejected | pending
+    status: Mapped[str] = mapped_column(String(16), default="pending")
+    method: Mapped[str] = mapped_column(String(32), default="dhash-seq-v1")
+    #: Runner-up score: a near-tie means the top pick was not clearly right.
+    runner_up: Mapped[float | None] = mapped_column(Float)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("video_id", "master_id", name="uq_video_master"),
+        CheckConstraint("status in ('auto','confirmed','rejected','pending')",
+                        name="ck_link_status"),
+        Index("ix_links_status", "status"),
+    )
+
+
 class OAuthToken(Base):
     """Platform credentials that rotate at runtime.
 

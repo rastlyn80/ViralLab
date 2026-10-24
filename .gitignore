@@ -20,13 +20,17 @@ probes/**/*.run.json
 # from harvested usernames or video URLs. These carry third-party
 # identifiers even when they are not the sample itself. Convention:
 # name anything derived from provider data *.local.json
-# Local library inventory: full paths into the owner's private
-# archive. Aggregates go in the report; the paths do not.
-probes/local_library/.
+# Local library DATA holds full paths into the owner's private archive and
+# per-file fingerprints. Aggregates go in the report; the data does not.
+# The scanning/fingerprinting CODE in that directory IS tracked.
+probes/local_library/*.json
+probes/local_library/_frames/.
 *.local.json
-# Local library inventory: full paths into the owner's private
-# archive. Aggregates go in the report; the paths do not.
-probes/local_library/
+# Local library DATA holds full paths into the owner's private archive and
+# per-file fingerprints. Aggregates go in the report; the data does not.
+# The scanning/fingerprinting CODE in that directory IS tracked.
+probes/local_library/*.json
+probes/local_library/_frames/
 data/
 samples/
 
