@@ -18,10 +18,21 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "probes" / "local_library"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from fingerprint import (  # noqa: E402
-    best_overlap, dhash_frame, envelope_similarity, hamming,
-)
-from match_local_to_posts import AUDIO_MATCH_FLOOR, AUTO_LINK, score  # noqa: E402
+# The matching tools live on the Windows side (probes/ and scripts/ are not
+# deployed to the server), so skip cleanly there rather than failing to
+# collect.
+fingerprint = pytest.importorskip(
+    "fingerprint", reason="matching tools are Windows-side only")
+matcher = pytest.importorskip(
+    "match_local_to_posts", reason="matching tools are Windows-side only")
+
+best_overlap = fingerprint.best_overlap
+dhash_frame = fingerprint.dhash_frame
+envelope_similarity = fingerprint.envelope_similarity
+hamming = fingerprint.hamming
+AUDIO_MATCH_FLOOR = matcher.AUDIO_MATCH_FLOOR
+AUTO_LINK = matcher.AUTO_LINK
+score = matcher.score
 
 
 def fp(hashes: list[int], duration: float, audio: list[int] | None = None):
