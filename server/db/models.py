@@ -225,6 +225,12 @@ class MetricsSnapshot(Base):
     #: (Phase 0A section 4, finding 2).
     is_rounded: Mapped[bool] = mapped_column(Boolean, default=False)
     raw: Mapped[dict | None] = mapped_column(JSONB)
+    #: Which discovery search produced this observation. NULL means the
+    #: owner's own collector did. Needed because `videos.discovery_job_id`
+    #: records only the first job to see a publication, so it cannot answer
+    #: "what did this search return" for a repeated search.
+    discovery_job_id: Mapped[int | None] = mapped_column(
+        ForeignKey("discovery_jobs.id"))
 
     __table_args__ = (
         Index("ix_metrics_video_captured", "video_id", "captured_at"),
@@ -652,6 +658,11 @@ class DiscoveryJob(Base):
     query_value: Mapped[str] = mapped_column(Text)
     requested_limit: Mapped[int] = mapped_column(
         Integer, default=50, server_default=text("50"))
+    #: Exactly what was sent, so the search is reproducible from the row.
+    #: A keyword search carries a niche, a cursor and a limit; reconstructing
+    #: those by guesswork is how "repeat this search" silently runs a
+    #: different one.
+    params: Mapped[dict | None] = mapped_column(JSONB)
     provider: Mapped[str] = mapped_column(String(64))
     is_fixture: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("false"))
@@ -906,3 +917,71 @@ class WorkerHeartbeat(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(),
         onupdate=func.now())
+
+
+class CreatorCollection(Base):
+    """A named group of creators, revisitable and annotatable.
+
+    Not organisation for its own sake. `docs/SCHEMA_PLAN.md` 3 makes a
+    control cohort of non-breakthrough creators in the same niche a
+    prerequisite for promoting any pattern above `hypothesis`, and a cohort
+    has to be an explicit, stable set of accounts first. `purpose`
+    distinguishes a group assembled to copy formats from one assembled as a
+    statistical control, because a later analysis must be able to tell.
+
+    Carries no performance figures. Every number shown for a collection is
+    derived from the observations at read time, so changing an analytical
+    policy cannot corrupt a saved group.
+    """
+
+    __tablename__ = "creator_collections"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    #: research | control_cohort | watchlist | inspiration
+    purpose: Mapped[str] = mapped_column(
+        String(32), default="research", server_default="research")
+    niche: Mapped[str | None] = mapped_column(String(64))
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+
+    members: Mapped[list["CreatorCollectionMember"]] = relationship(
+        back_populates="collection", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("name", name="uq_collection_name"),
+        CheckConstraint(
+            "purpose in ('research','control_cohort','watchlist',"
+            "'inspiration')", name="ck_collection_purpose"),
+    )
+
+
+class CreatorCollectionMember(Base):
+    """One creator's membership of one collection."""
+
+    __tablename__ = "creator_collection_members"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    collection_id: Mapped[int] = mapped_column(
+        ForeignKey("creator_collections.id", ondelete="CASCADE"))
+    creator_id: Mapped[int] = mapped_column(
+        ForeignKey("creators.id", ondelete="CASCADE"))
+    notes: Mapped[str | None] = mapped_column(Text)
+    #: A one-line reason, kept separate from `notes` so it stays scannable.
+    reason: Mapped[str | None] = mapped_column(String(200))
+    added_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+    discovered_by_job_id: Mapped[int | None] = mapped_column(
+        ForeignKey("discovery_jobs.id"))
+
+    collection: Mapped[CreatorCollection] = relationship(
+        back_populates="members")
+
+    __table_args__ = (
+        UniqueConstraint("collection_id", "creator_id",
+                         name="uq_collection_member"),
+        Index("ix_collection_members_creator", "creator_id"),
+    )

@@ -29,7 +29,8 @@ from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from server.db.models import Creator, Video
+from server.db.models import (AnalysisBatch, BatchVideo, Creator,
+                              Video)
 from server.research import baseline as bl
 from server.research.service import observations_for
 
@@ -224,3 +225,257 @@ def enqueue(session: Session, plan: AnalysisPlan, *,
         f"{plan.by_stratum}, about {plan.estimated_gpu_seconds:.0f}s of GPU "
         f"time and {plan.estimated_transient_mb:.0f} MB of transient media. "
         f"See docs/MULTIMODAL_PIPELINE.md.")
+
+
+# ---------------------------------------------------------------------------
+# the feature contract
+#
+# What a future analysis pass will produce, declared NOW so that the storage
+# written in Phase 4.5 does not have to be redesigned when the extractors
+# arrive, and so that a caller can see what it is asking for before any GPU
+# time is spent.
+#
+# Every field is `None` until an extractor fills it. There is no default and
+# no placeholder: an absent feature must stay distinguishable from a feature
+# that was measured and came back empty, which is the same rule that governs
+# provider capabilities.
+#
+# `confidence` and `needs_human_review` are mandatory on every produced
+# item, because an AI classification is not ground truth (CLAUDE.md 3.3 and
+# docs/MULTIMODAL_PIPELINE.md 3). A label with no confidence and no review
+# path is indistinguishable from a fact, and will eventually be treated as
+# one.
+# ---------------------------------------------------------------------------
+
+FEATURE_CONTRACT_VERSION = "features-v1"
+
+#: modality -> what it will produce. Keys are stable; adding a field is a
+#: version bump, not an edit.
+FEATURE_CONTRACT: dict[str, dict] = {
+    "audio": {
+        "requires": "audio track",
+        "model": "[OPEN] not selected; Whisper small for speech only",
+        "fields": {
+            "musical_work": "str | None - the piece, where identifiable",
+            "composer": "str | None",
+            "work_identification_method": (
+                "audio_match | metadata_mention | human - never a guess "
+                "presented as a match"),
+            "passage": "str | None - which section of the work",
+            "tempo_bpm": "float | None",
+            "key_signature": "str | None",
+            "dynamic_range_db": "float | None",
+            "rubato_degree": "float | None - timing freedom, 0..1",
+            "articulation": "str | None - legato / staccato / mixed",
+            "performance_character": (
+                "str | None - the interpretive quality, which is a "
+                "judgement and is labelled as one"),
+            "speech_present": "bool - gates ASR entirely",
+            "spoken_words": (
+                "str | None - NULL when no speech is detected. Whisper "
+                "hallucinates on music-only audio (measured, Phase 0B), so "
+                "this is never stored unchecked"),
+        },
+    },
+    "vision": {
+        "requires": "video frames",
+        "model": "[OPEN] Qwen2.5-VL Q4 measured at 7634/8192 MiB VRAM",
+        "fields": {
+            "on_screen_text": (
+                "list[str] - the PRIMARY text channel for this niche, not "
+                "speech (measured, Phase 0B)"),
+            "hook_description": "str | None - what the first 3 seconds do",
+            "hook_frames_analysed": "int",
+            "camera_angle": "str | None - keyboard / face / wide / overhead",
+            "framing": "str | None - close / medium / wide",
+            "camera_movement": "str | None - static / handheld / pan",
+            "lighting": "str | None - natural / warm / dramatic / flat",
+            "setting": "str | None - concert hall / home / studio / outdoor",
+            "instrument_visible": "bool | None",
+            "performer_visible": "bool | None",
+            "cut_count": "int | None",
+            "mean_shot_seconds": "float | None",
+            "transition_kinds": "list[str]",
+            "text_overlay_present": "bool | None",
+            "emotional_presentation": (
+                "str | None - a judgement about presentation, never about "
+                "the performer"),
+            "narrative_structure": "str | None - demo / story / reveal",
+        },
+    },
+    "cross_platform": {
+        "requires": "the same performance published on both platforms",
+        "model": "no model; derived from existing publication links",
+        "fields": {
+            "paired_video_id": "int | None",
+            "duration_delta_s": "float | None",
+            "caption_differences": "dict | None",
+            "edit_differences": "dict | None",
+            "platform_specific_choices": (
+                "list[str] - what the creator changed for each platform, "
+                "which is only answerable where a confirmed pair exists"),
+        },
+    },
+}
+
+#: Attached to every produced item, without exception.
+REQUIRED_ITEM_FIELDS = (
+    "confidence",            # the model's own, uncalibrated
+    "confidence_calibrated",  # False until demonstrated on this corpus
+    "needs_human_review",    # True for every interpretive field
+    "method_version",
+    "produced_at",
+)
+
+
+class AnalysisRequestRefused(AnalysisRefused):
+    """A specific publication could not be queued, and why."""
+
+
+@dataclass
+class AnalysisRequest:
+    """A queued request to analyse one publication."""
+
+    video_id: int
+    external_id: str
+    platform: str
+    tier: str
+    modalities: list[str]
+    batch_ids: list[int] = field(default_factory=list)
+    #: What will be fetched, and for how long it may exist on disk.
+    media_policy: str = ""
+    estimated_gpu_seconds: float = 0.0
+    estimated_transient_mb: float = 0.0
+    will_run: bool = False
+    why_not: str | None = None
+    notes: list[str] = field(default_factory=list)
+
+
+def request_analysis(session: Session, video_id: int, *,
+                     tier: str = "tier2",
+                     modalities: tuple[str, ...] = ("vision", "audio"),
+                     requested_by: str = "ui") -> AnalysisRequest:
+    """Queue analysis of ONE publication.
+
+    This is the contract the interface calls. It creates real queue rows -
+    the queue already provides leases, heartbeats, bounded retries and
+    reaping - so the request is durable and visible. It does **not** run
+    anything: no extractor exists yet, so the batch sits `pending` until
+    Phase 6 provides a worker that understands these modalities.
+
+    That is deliberate and is reported in `will_run`. A request that looked
+    accepted and then silently never ran would be worse than a refusal.
+    """
+    video = session.get(Video, video_id)
+    if video is None:
+        raise AnalysisRequestRefused(f"no such publication {video_id}")
+    if tier not in TIER_FRAMES:
+        raise AnalysisRequestRefused(f"unknown tier {tier!r}")
+    unknown = [m for m in modalities if m not in FEATURE_CONTRACT]
+    if unknown:
+        raise AnalysisRequestRefused(
+            f"unknown modality {unknown}; the contract covers "
+            f"{sorted(FEATURE_CONTRACT)}")
+
+    creator = session.get(Creator, video.creator_id)
+    own = bool(creator and creator.is_own_account)
+
+    req = AnalysisRequest(
+        video_id=video.id, external_id=video.external_id,
+        platform=video.platform, tier=tier, modalities=list(modalities))
+
+    if video.is_fixture:
+        raise AnalysisRequestRefused(
+            "this is a fixture publication. Extracting features from "
+            "fabricated media would produce fabricated features, which is "
+            "worse than having none.")
+
+    media_url_known = bool(
+        ((video.provenance or {}).get("capabilities") or {}).get("media_url"))
+    if own:
+        req.media_policy = (
+            "Own content: the local master or preserved copy is used, and "
+            "the worker deletes its copy once the server confirms the "
+            "result was persisted (CLAUDE.md 4.7).")
+    else:
+        if not media_url_known and video.media_status != "available":
+            raise AnalysisRequestRefused(
+                "no media is reachable for this publication. The provider "
+                "did not supply a media URL, and nothing is stored - "
+                "correctly, because competitor media is not retained.")
+        req.media_policy = (
+            f"Third-party content: media is fetched at analysis time, held "
+            f"for at most {COMPETITOR_MEDIA_TTL}, and deleted once features "
+            f"are persisted. The bytes are never added to the archive and "
+            f"never served through the API. Having a provider URL is not "
+            f"permission to keep the file.")
+        req.notes.append(
+            "`[OPEN]` Whether transient download is appropriate for every "
+            "source is a question for legal review before "
+            "commercialisation (DEVELOPMENT_PLAN.md 2.3).")
+
+    frames = TIER_FRAMES[tier]
+    duration = video.duration_s or 30.0
+    gpu = 0.0
+    if "vision" in modalities:
+        gpu += VLM_COLD_LOAD_S + frames * VLM_PER_FRAME_S
+    if "audio" in modalities:
+        gpu += duration / WHISPER_REALTIME_FACTOR
+    req.estimated_gpu_seconds = round(gpu, 1)
+    req.estimated_transient_mb = round(duration * MB_PER_SECOND, 2)
+
+    # One batch per modality. Batching by modality rather than by video is
+    # not a preference: VLM cold load is 44.7 s against 9.0 s of inference
+    # for a 4-frame video (measured, Phase 0B), so per-video batches spend
+    # five times more on loading than on work.
+    for modality in modalities:
+        batch = AnalysisBatch(
+            modality=modality, tier=tier,
+            method_version=FEATURE_CONTRACT_VERSION, status="pending")
+        session.add(batch)
+        session.flush()
+        session.add(BatchVideo(batch_id=batch.id, video_id=video.id,
+                               frames=frames, state="pending"))
+        req.batch_ids.append(batch.id)
+    session.flush()
+
+    req.will_run = False
+    req.why_not = (
+        "Queued, but nothing will execute it yet: no worker implements "
+        "these modalities. Phase 6 provides the extractors. The request is "
+        "durable and will be picked up when one exists.")
+    req.notes.append(
+        f"Idempotency key will be "
+        f"{{modality}}:{video.id}:{FEATURE_CONTRACT_VERSION}, under a "
+        f"unique index, so running the job twice produces exactly one "
+        f"result row (CLAUDE.md 4.1).")
+    req.notes.append(
+        "Every produced item must carry "
+        f"{', '.join(REQUIRED_ITEM_FIELDS)}. An interpretive label with no "
+        f"confidence and no review path becomes treated as a fact.")
+    logger.info("queued analysis request for video %s (%s), tier %s, "
+                "batches %s, requested_by=%s", video.id, video.external_id,
+                tier, req.batch_ids, requested_by)
+    return req
+
+
+def pending_requests(session: Session, *, limit: int = 50) -> list[dict]:
+    """Queued analysis that has nothing to run it yet.
+
+    Surfaced so a growing queue of never-executed work is visible rather
+    than quietly accumulating.
+    """
+    rows = session.execute(
+        select(AnalysisBatch, BatchVideo, Video)
+        .join(BatchVideo, BatchVideo.batch_id == AnalysisBatch.id)
+        .join(Video, Video.id == BatchVideo.video_id)
+        .where(AnalysisBatch.status == "pending")
+        .order_by(AnalysisBatch.id.desc()).limit(limit)).all()
+    return [{
+        "batch_id": b.id, "modality": b.modality, "tier": b.tier,
+        "method_version": b.method_version, "state": bv.state,
+        "video_id": v.id, "external_id": v.external_id,
+        "platform": v.platform,
+        "runnable": False,
+        "why_not": ("no worker implements this modality yet (Phase 6)"),
+    } for b, bv, v in rows]

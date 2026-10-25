@@ -546,7 +546,8 @@ destroys collected data.
 > | 1 | Infrastructure, queue, API | ✅ complete |
 > | 2 | Own-account collection, media, matching | ✅ substantially complete; 7-day acceptance pending |
 > | 3 | Unified GUI + Phase 4 foundations | ✅ complete |
-> | **4** | **Competitor discovery + targeted creator research** | **◐ research delivered; keyword discovery pending** |
+> | 4 | Competitor discovery + targeted creator research | ✅ complete |
+> | **4.5** | **Live competitive intelligence: discovery, timeline, report, collections** | **✅ delivered 2026-10-26** |
 > | 5 | Breakthrough analysis + baselines | planned |
 > | 6 | Multimodal feature extraction | planned |
 > | 7 | Comparative analytics + temporal intelligence | planned |
@@ -1010,6 +1011,155 @@ state which population it means.
 `config/settings.yaml` and provides `APIFY_TOKEN`. Until then everything
 runs against committed synthetic fixtures, labelled as such in the database,
 the API and the interface. That is the correct state, not a defect.
+
+### Phase 4.5 — Live Competitive Intelligence  **(delivered 2026-10-26)**
+
+The transition from infrastructure to a usable product: Phase 4 could
+research an account you already knew about; this phase finds accounts you
+did not.
+
+**Milestone 4.5.1 — Phase 4 readiness audit.** ✅ *three defects fixed*
+
+| defect | consequence | fix |
+|---|---|---|
+| The Apify token was sent as `?token=...` on **every** request | `[PRIMARY]` https://docs.apify.com/api/v2 (checked 2026-10-25, API v2) warns that "URLs are often stored in browser history and server logs". The credential was in every URL this process built. | `Authorization: Bearer`, which the same docs recommend |
+| **No in-flight guard on research.** The idempotency key was `research:{job.id}`, which protects a retry of one job — but every request minted a *new* job | Two requests arriving together each opened a job, each reserved budget under a distinct key, and each would have launched a **paid** provider run. Same class as the Phase 2 collector defect, in the path that costs money. | Per-query advisory lock plus an in-flight check, with a 30-minute staleness bound so a crashed process cannot lock a creator out |
+| `anchor_eligibility` was not scoped to own accounts | A sixth site in the Phase 4.8 family. It reports how much of **our** corpus can support fixed-age comparison — the figure that governs what the analysis may claim — and competitor backfills both inflated the total and landed entirely in `backfill_only`. | Joined to `creators.is_own_account` |
+
+*Verified clean:* the reservation is committed **before** the provider
+request begins (so a crash mid-call leaves budget held, not lost); no token
+reaches a log line, a response model or a browser payload; every competitor
+row carries provenance and both `posted_at` and `captured_at`; the
+seven-day acceptance window is untouched.
+
+**Milestone 4.5.2 — Keyword, hashtag and niche discovery.** ✅ *implemented*
+`server/research/discover.py`. The pipeline Phase 0A measurement forces:
+search a concept → get publications → derive creators → deduplicate → rank
+→ research the promising ones **selectively**.
+
+Expansion is deliberately not automatic. A candidate list carries a
+per-creator price and stops; `plan_expansion` walks the ranking under an
+explicit creator or spend ceiling and reports what it skipped and why.
+Niches are curated bundles (`classical_piano`, `chopin`, `piano_covers`, …)
+that expand into individual queries, because running a whole niche in one
+click would multiply cost by the number of terms without the owner seeing
+the bill.
+
+Ranking tiers — small-creator breakout, established breakout candidate,
+repeatedly relevant, relevant — each carry the *reasons* they were assigned,
+because a composite score with no explanation is indistinguishable from a
+made-up one.
+*Acceptance:* a query is reproducible from stored `params`; re-running
+appends an observation without duplicating a publication; an identical
+search inside 6 hours is **reused** rather than re-run; the sampling bias of
+a feed travels with every result set. ✅ met, 41 tests.
+
+**Three defects found by running it**, each now a regression test:
+
+1. **A discovery sample poisoned the incremental watermark.** A keyword feed
+   stores a handful of a creator's publications and leaves
+   `research_status` at `none`. `research_creator` treated the newest of
+   those as "collected up to here" and fetched only what came after —
+   **33 publications of 62**, with the back-catalogue permanently invisible.
+   Incremental collection is now gated on a creator having actually been
+   researched.
+2. **Job result sets resolved through `videos.discovery_job_id`**, which
+   records only the *first* job to see a publication. Re-running a search,
+   or a search that re-found a known creator, appeared to return nothing.
+   Added `metrics_snapshots.discovery_job_id`: the observation is the record
+   of "this job saw this publication at this moment".
+3. **A views-per-follower ratio is unstable when the denominator is small.**
+   A 640-follower account with a 9,300-view post scored level with a genuine
+   78,400-view breakout on 1,900 followers. The ratio is now reported but
+   gated behind an absolute view floor and smoothed against a pseudo-
+   audience, and the explanation says why it was not ranked as a breakout.
+
+**Milestone 4.5.3 — Discovery interface.** ✅ *implemented*
+`webui/discover.js`. Free estimate before any commitment, platform and
+limit selectors, niche tagging, authorisation and budget state, per-candidate
+reasons and signals, filters, save-to-collection, bounded expansion, and
+search history that reopens a stored result set for nothing.
+
+**Milestone 4.5.4 — Creator breakthrough timeline.** ✅ *implemented*
+`server/research/timeline.py` + `webui/timeline.js`, drawn as inline SVG
+(ADR 0006: no charting library for a few dozen points).
+
+The statistical requirement is enforced in the **data contract**, not the
+copy. Every timeline declares a `mode`:
+
+- `fixed_age` — every point is views at the same age, bracketed by real
+  observations. Comparable. Solid line.
+- `lifetime_exploratory` — the current reality: one lifetime figure per
+  publication at whatever age it happened to be. **Not a trajectory.**
+  Dashed line, warning header, and `age_days` on every point.
+- `mixed` — anchored points are marked and never averaged with the rest.
+
+Outlier candidates (a fact about one publication) are hollow rings; the
+change point (a claim about the creator's level) is a labelled rule;
+sustained runs are bands. `confidence_is_calibrated` is `False` everywhere,
+and the note says the score "is not a probability".
+*Acceptance:* a lifetime chart is never labelled a trajectory; the planted
+change point is located exactly (index 34 of 62); clicking a point opens the
+publication. ✅ met.
+
+**Milestone 4.5.5 — Creator research report.** ✅ *implemented*
+`server/research/report.py`. Ten sections, each declaring its own basis
+(`observed` / `inferred` / `unavailable`) and carrying its own caveats.
+
+The load-bearing section is the change-point analysis, which states **why it
+was flagged** as an ordered chain with its numbers (CUSUM location, robust
+medians either side, the sustain test, and the direction of the age
+confound) and **what would strengthen it** (observe again in a week; collect
+follower history; research a cohort). Repertoire detection is explicitly
+`metadata_mention` — keyword matching over captions, hashtags and music
+titles, which finds mentions, not works.
+*Acceptance:* an inferred breakthrough explains itself and names its missing
+evidence; no section presents a judgement as a measurement. ✅ met.
+
+**Milestone 4.5.6 — Competitive research collections.** ✅ *implemented*
+Migration `e7c2b94f83da`, `server/research/collections.py`,
+`webui/collections.js`.
+
+`purpose` is the point: a `research` group and a `control_cohort` are
+different objects, and `docs/SCHEMA_PLAN.md` §3 makes a control cohort of
+non-breakthrough creators in the same niche the prerequisite for promoting
+any pattern above `hypothesis`. A group assembled for inspiration cannot
+quietly become a control later.
+
+Members are compared on **within-creator relative performance**, never on
+lifetime views. Lifetime views are shown and labelled; sorting by them warns
+that it measures audience size and elapsed time rather than content quality.
+*Acceptance:* a collection carries no denormalised performance figure; an
+own account cannot join one; deleting a group keeps every creator and
+observation. ✅ met.
+
+**Milestone 4.5.7 — Multimodal data contract.** ✅ *declared, nothing runs*
+`FEATURE_CONTRACT` in `server/research/analysis_seam.py` declares all nine
+things the next phase must identify, across `audio`, `vision` and
+`cross_platform`. `request_analysis()` queues a real batch through the
+existing lease/heartbeat/retry queue and reports `will_run: False` with the
+reason — a request that looked accepted and silently never ran would be
+worse than a refusal. Fixture publications are refused outright: features
+from fabricated media would be fabricated features.
+
+Every produced item must carry `confidence`, `confidence_calibrated`,
+`needs_human_review`, `method_version` and `produced_at`. An interpretive
+label with no confidence and no review path becomes treated as a fact.
+
+**Milestone 4.5.8 — Live validation plan.** ✅ *written, unauthorised*
+`docs/LIVE_VALIDATION_PLAN.md`: five costed operations totalling **$0.42**,
+each with its provider, actor, expected results, known limitations, what it
+establishes and what it cannot. Includes pre-committed stopping rules and
+the observation that the **cheapest** operation in the plan ($0.075, a
+second pass a week later) is the most valuable, because it is the only one
+that produces a repeated observation.
+
+**Blocked on the owner, not on us.** The cap is `$0.00` and
+`providers_authorised` is empty, so every path resolves to fixtures and
+refuses rather than attempts. Authorising a provider and supplying
+`APIFY_TOKEN` switches the same code paths to live collection with no code
+change — which is what the fixture adapter subclassing the real one exists
+to guarantee.
 
 ### Phase 5 — Breakthrough Analysis at Scale
 

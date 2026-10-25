@@ -26,7 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from server.api import deps, research_api, ui
+from server.api import deps, discovery_api, research_api, ui
 from server.api.deps import get_session
 from server.db.models import Video
 from server.queue.queue import (
@@ -189,6 +189,7 @@ async def _lease_error(_: Request, exc: LeaseError):
 
 app.include_router(ui.router)
 app.include_router(research_api.router)
+app.include_router(discovery_api.router)
 
 
 @app.get("/health")

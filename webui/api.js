@@ -95,6 +95,46 @@ export const api = {
       method: 'POST',
       body: { answer, notes: notes || null },
     }),
+
+  // -- discovery ----------------------------------------------------------
+  // `estimate` is a GET and must stay free: the interface shows a price
+  // before the owner commits, which is only useful if asking costs nothing.
+  niches: () => request('/api/discovery/niches'),
+  discoveryEstimate: (params) =>
+    request(`/api/discovery/estimate${qs(params)}`),
+  runDiscovery: (body) =>
+    request('/api/discovery/search', { method: 'POST', body }),
+  discoverySearches: (params) =>
+    request(`/api/discovery/searches${qs(params)}`),
+  discoveryCandidates: (jobId) =>
+    request(`/api/discovery/searches/${jobId}/candidates`),
+  expansionPlan: (body) =>
+    request('/api/discovery/expansion-plan', { method: 'POST', body }),
+
+  // -- timeline and report ------------------------------------------------
+  creatorTimeline: (id, params) =>
+    request(`/api/research/creators/${id}/timeline${qs(params)}`),
+  creatorReport: (id) => request(`/api/research/creators/${id}/report`),
+
+  // -- collections --------------------------------------------------------
+  collections: () => request('/api/collections'),
+  createCollection: (body) =>
+    request('/api/collections', { method: 'POST', body }),
+  updateCollection: (id, body) =>
+    request(`/api/collections/${id}`, { method: 'PATCH', body }),
+  deleteCollection: (id) =>
+    request(`/api/collections/${id}`, { method: 'DELETE' }),
+  collection: (id) => request(`/api/collections/${id}`),
+  addCollectionMember: (id, body) =>
+    request(`/api/collections/${id}/members`, { method: 'POST', body }),
+  removeCollectionMember: (id, creatorId) =>
+    request(`/api/collections/${id}/members/${creatorId}`,
+      { method: 'DELETE' }),
+
+  // -- analysis seam (Phase 6) --------------------------------------------
+  analysisContract: () => request('/api/analysis/contract'),
+  requestAnalysis: (body) =>
+    request('/api/analysis/requests', { method: 'POST', body }),
 };
 
 /**

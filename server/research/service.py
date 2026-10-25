@@ -42,7 +42,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from server import budget
@@ -123,6 +123,49 @@ def is_fresh(creator: Creator, *, now: datetime | None = None,
     return (stamp - creator.last_refreshed_at) < fresh_for
 
 
+
+#: A job that has been running longer than this is treated as abandoned
+#: rather than in flight, so a crashed process cannot block a creator
+#: forever. The provider run timeout is well inside it.
+JOB_STALE_AFTER = timedelta(minutes=30)
+
+
+def _lock_query(session: Session, kind: str, platform: str, value: str
+                ) -> None:
+    """Serialise same-query research within the transaction.
+
+    Without this, two requests that arrive together both pass the in-flight
+    check below, both open a job, and both reserve budget under distinct
+    idempotency keys - two paid provider runs for one intent. The budget
+    lock cannot prevent it, because to budget they are legitimately
+    different jobs.
+    """
+    session.execute(
+        text("select pg_advisory_xact_lock(hashtext(:a), hashtext(:b))"),
+        {"a": f"virallab-research:{kind}:{platform}", "b": value})
+
+
+def in_flight_job(session: Session, kind: str, platform: str, value: str, *,
+                  now: datetime | None = None) -> DiscoveryJob | None:
+    """A running job for this exact query, if one is genuinely still alive."""
+    stamp = now or datetime.now(timezone.utc)
+    rows = session.scalars(
+        select(DiscoveryJob)
+        .where(DiscoveryJob.kind == kind,
+               DiscoveryJob.platform == platform,
+               DiscoveryJob.query_value == value,
+               DiscoveryJob.status == "running")
+        .order_by(DiscoveryJob.id.desc())).all()
+    for job in rows:
+        started = job.started_at
+        if started is None:
+            return job
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        if stamp - started < JOB_STALE_AFTER:
+            return job
+    return None
+
 def research_creator(session: Session, adapter: DiscoveryAdapter, *,
                      platform: str, handle: str,
                      limit: int = DEFAULT_LIMIT,
@@ -139,6 +182,22 @@ def research_creator(session: Session, adapter: DiscoveryAdapter, *,
             handle=handle, message=str(exc))
 
     plat = Platform(platform)
+    # Taken before the freshness check so that two simultaneous requests
+    # resolve in order rather than racing each other into two paid runs.
+    _lock_query(session, "creator", platform, handle)
+
+    running = in_flight_job(session, "creator", platform, handle, now=stamp)
+    if running is not None:
+        existing = find_creator(session, platform, handle)
+        return ResearchOutcome(
+            creator_id=existing.id if existing else None,
+            job_id=running.id, status="in_flight", platform=platform,
+            handle=handle, is_fixture=bool(running.is_fixture),
+            estimated_usd=running.estimated_usd,
+            message=("Research for this creator is already running "
+                     f"(job {running.id}). Nothing was collected and "
+                     f"nothing was spent."))
+
     existing = find_creator(session, platform, handle)
 
     # Fresh research is reused. Clicking research twice must not cost money.
@@ -154,7 +213,22 @@ def research_creator(session: Session, adapter: DiscoveryAdapter, *,
 
     since = None
     if incremental and existing is not None and not refresh:
-        since = _newest_publication(session, existing.id)
+        # Only ever incremental over a creator whose history has ACTUALLY
+        # been collected. A keyword or hashtag search stores a handful of a
+        # creator's publications as a sample, leaving `research_status`
+        # at "none"; treating the newest of those as a watermark made the
+        # first real research pass collect only what came after it, and the
+        # back-catalogue was then permanently invisible. Verified: a
+        # creator with 62 publications yielded 33 after a discovery sample
+        # had touched them.
+        if (existing.research_status == "collected"
+                and (existing.publications_collected or 0) > 0):
+            since = _newest_publication(session, existing.id)
+        else:
+            logger.info(
+                "creator %s/%s has publications from discovery but no "
+                "collected history; running a FULL back-catalogue pass "
+                "rather than an incremental one", platform, handle)
 
     query = DiscoveryQuery(kind=QueryKind.CREATOR, platform=plat,
                            value=handle, limit=limit, since=since)
@@ -164,13 +238,18 @@ def research_creator(session: Session, adapter: DiscoveryAdapter, *,
         kind="creator", platform=platform, query_value=handle,
         requested_limit=limit, provider=adapter.name,
         is_fixture=adapter.is_fixture, status="running",
-        estimated_usd=estimate)
+        estimated_usd=estimate, started_at=stamp)
     session.add(job)
     session.flush()
 
     creator = existing or upsert_creator_row(
         session, platform, handle, source="manual_lookup",
         is_fixture=adapter.is_fixture, discovered_via=f"handle:{handle}")
+    #: Whether this call invented the row. A lookup that never reaches a
+    #: provider must not leave a permanent account behind: a typo, or a
+    #: real handle typed while no provider is authorised, would otherwise
+    #: accumulate empty `research_status='failed'` creators forever.
+    creator_is_new = existing is None
     creator.last_job_id = job.id
     creator.research_status = "pending"
     session.commit()
@@ -189,6 +268,16 @@ def research_creator(session: Session, adapter: DiscoveryAdapter, *,
         except SpendRefused as exc:
             job.status, job.error = "refused", str(exc)
             job.finished_at = datetime.now(timezone.utc)
+            if creator_is_new and not (creator.publications_collected or 0):
+                job.creators_new = 0
+                session.delete(creator)
+                session.commit()
+                logger.warning("research refused for %s/%s: %s", platform,
+                               handle, exc)
+                return ResearchOutcome(
+                    creator_id=None, job_id=job.id, status="refused",
+                    platform=platform, handle=handle,
+                    estimated_usd=estimate, message=str(exc))
             creator.research_status = (
                 "collected" if creator.publications_collected else "none")
             session.commit()
@@ -219,10 +308,21 @@ def research_creator(session: Session, adapter: DiscoveryAdapter, *,
                     "settled", reservation.id)
         job.status, job.error = "failed", str(exc)[:1000]
         job.finished_at = datetime.now(timezone.utc)
-        creator.research_status = "failed"
+        creator_id = creator.id
+        if creator_is_new and not (creator.publications_collected or 0):
+            # Nothing was ever learned about this account. Keep the job -
+            # the attempt and its cost are part of the record - but do not
+            # leave an account row that implies the creator is known.
+            job.creators_new = 0
+            session.delete(creator)
+            creator_id = None
+            logger.info("removed the empty creator stub for %s/%s after a "
+                        "failed first lookup", platform, handle)
+        else:
+            creator.research_status = "failed"
         session.commit()
         return ResearchOutcome(
-            creator_id=creator.id, job_id=job.id, status="failed",
+            creator_id=creator_id, job_id=job.id, status="failed",
             platform=platform, handle=handle, estimated_usd=estimate,
             message=str(exc))
 

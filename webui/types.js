@@ -11,6 +11,29 @@
  */
 
 /**
+ * @typedef {Object} AnalysisRequestBody
+ * @property {number} video_id
+ * @property {string=} tier
+ * @property {Array<string>=} modalities
+ */
+
+/**
+ * @typedef {Object} AnalysisRequestView
+ * @property {number} video_id
+ * @property {string} external_id
+ * @property {string} platform
+ * @property {string} tier
+ * @property {Array<string>} modalities
+ * @property {Array<number>=} batch_ids
+ * @property {string} media_policy
+ * @property {number} estimated_gpu_seconds
+ * @property {number} estimated_transient_mb
+ * @property {boolean} will_run
+ * @property {string|null=} why_not
+ * @property {Array<string>=} notes
+ */
+
+/**
  * @typedef {Object} BatchLease
  * What the server hands a worker on a successful dequeue.
  * @property {number} batch_id
@@ -63,6 +86,45 @@
  */
 
 /**
+ * @typedef {Object} CandidateSignalView
+ * @property {string} key
+ * @property {string} label
+ * @property {number|null} value
+ * @property {boolean} available
+ * @property {string|null=} note
+ */
+
+/**
+ * @typedef {Object} CandidateView
+ * @property {number} creator_id
+ * @property {string} platform
+ * @property {string} handle
+ * @property {string|null} display_name
+ * @property {string|null} profile_url
+ * @property {number|null} follower_count
+ * @property {boolean} followers_available
+ * @property {number} sampled_publications
+ * @property {number|null} sampled_median_views
+ * @property {number|null} sampled_best_views
+ * @property {string|null} best_publication_external_id
+ * @property {number|null} best_views_per_follower
+ * @property {number|null} engagement_rate
+ * @property {boolean} counts_rounded
+ * @property {string|null} newest_publication_at
+ * @property {string|null} oldest_publication_at
+ * @property {string|null} niche
+ * @property {boolean} already_researched
+ * @property {string|null} last_refreshed_at
+ * @property {number} publications_collected
+ * @property {number} estimated_research_usd
+ * @property {number} score
+ * @property {string} tier
+ * @property {Array<string>=} reasons
+ * @property {Array<CandidateSignalView>=} signals
+ * @property {boolean=} is_fixture
+ */
+
+/**
  * @typedef {Object} CapabilityList
  * @property {Array<CapabilityState>} capabilities
  */
@@ -80,6 +142,98 @@
  */
 
 /**
+ * @typedef {Object} ChangePointDetail
+ * @property {string} classification
+ * @property {number|null} publication_index
+ * @property {number|null} video_id
+ * @property {string|null} at
+ * @property {number|null} median_before
+ * @property {number|null} median_after
+ * @property {number|null} step_ratio
+ * @property {boolean|null} sustained
+ * @property {number|null} confidence
+ * @property {boolean=} confidence_is_calibrated
+ * @property {string} confidence_note
+ * @property {Object=} evidence
+ * @property {Array<string>=} missing_evidence
+ */
+
+/**
+ * @typedef {Object} CollectionCreateRequest
+ * @property {string} name
+ * @property {string=} purpose
+ * @property {string|null=} niche
+ * @property {string|null=} notes
+ */
+
+/**
+ * @typedef {Object} CollectionDetail
+ * @property {number} id
+ * @property {string} name
+ * @property {string} purpose
+ * @property {string} purpose_label
+ * @property {string|null} niche
+ * @property {string|null} notes
+ * @property {string|null} created_at
+ * @property {string|null} updated_at
+ * @property {Array<CollectionMemberView>=} members
+ * @property {number=} member_count
+ * @property {number=} researched_count
+ * @property {string|null=} stalest_refresh
+ * @property {Array<string>=} needs_refresh
+ * @property {Array<string>=} caveats
+ */
+
+/**
+ * @typedef {Object} CollectionMemberRequest
+ * @property {number} creator_id
+ * @property {string|null=} reason
+ * @property {string|null=} notes
+ * @property {number|null=} discovered_by_job_id
+ */
+
+/**
+ * @typedef {Object} CollectionMemberView
+ * @property {number} creator_id
+ * @property {string} platform
+ * @property {string} handle
+ * @property {string|null} display_name
+ * @property {number|null} follower_count
+ * @property {boolean} is_fixture
+ * @property {string} research_status
+ * @property {string|null} last_refreshed_at
+ * @property {number} publications_collected
+ * @property {string|null} notes
+ * @property {string|null} reason
+ * @property {string|null} added_at
+ * @property {number=} observations
+ * @property {number=} publications_observed
+ * @property {number|null=} median_views
+ * @property {number|null=} best_relative_performance
+ * @property {number|null=} typical_relative_performance
+ * @property {number|null=} age_span_days
+ * @property {string|null=} breakthrough_classification
+ * @property {string|null=} breakthrough_at
+ * @property {number|null=} median_days_between_posts
+ * @property {Array<string>=} caveats
+ */
+
+/**
+ * @typedef {Object} CollectionRow
+ * @property {number} id
+ * @property {string} name
+ * @property {string} purpose
+ * @property {string} purpose_label
+ * @property {string|null} niche
+ * @property {string|null} notes
+ * @property {string|null} created_at
+ * @property {string|null} updated_at
+ * @property {number} member_count
+ * @property {number} researched_count
+ * @property {string|null} stalest_refresh
+ */
+
+/**
  * @typedef {Object} CollectionRunSummary
  * @property {string} platform
  * @property {string} kind
@@ -90,6 +244,52 @@
  * @property {number|null=} videos_new
  * @property {number|null=} snapshots_written
  * @property {string|null=} error
+ */
+
+/**
+ * @typedef {Object} CollectionUpdateRequest
+ * @property {string|null=} name
+ * @property {string|null=} purpose
+ * @property {string|null=} niche
+ * @property {string|null=} notes
+ */
+
+/**
+ * @typedef {Object} CreatorReportView
+ * @property {number} creator_id
+ * @property {string} platform
+ * @property {string} handle
+ * @property {string|null} display_name
+ * @property {string|null} profile_url
+ * @property {boolean} is_fixture
+ * @property {string} generated_at
+ * @property {Array<ReportSectionView>=} sections
+ * @property {string|null=} research_date
+ * @property {string|null=} provider
+ * @property {number|null=} cost_usd
+ * @property {number|null=} job_id
+ * @property {Array<string>=} data_limitations
+ */
+
+/**
+ * @typedef {Object} CreatorTimelineView
+ * @property {number} creator_id
+ * @property {string} platform
+ * @property {string} handle
+ * @property {string|null} display_name
+ * @property {boolean} is_fixture
+ * @property {string} mode
+ * @property {string} mode_label
+ * @property {Array<TimelinePointView>=} points
+ * @property {ChangePointDetail|null=} change_point
+ * @property {number=} outlier_candidates
+ * @property {Array<SustainedRunView>=} sustained_runs
+ * @property {Array<FrequencyBucketView>=} frequency
+ * @property {number=} repeatedly_observed
+ * @property {number=} anchored_points
+ * @property {number|null=} age_span_days
+ * @property {number|null=} median_days_between_posts
+ * @property {Array<string>=} caveats
  */
 
 /**
@@ -105,6 +305,89 @@
  * @property {string|null=} decided_by
  * @property {string|null=} decided_at
  * @property {number} remaining
+ */
+
+/**
+ * @typedef {Object} DiscoveryEstimate
+ * What a search would cost, before running it.
+ * @property {string} kind
+ * @property {string} platform
+ * @property {string} value
+ * @property {number} limit
+ * @property {string} provider
+ * @property {boolean} is_fixture
+ * @property {number} estimated_usd
+ * @property {boolean} supported
+ * @property {string|null=} unsupported_reason
+ * @property {number|null=} reusable_job_id
+ * @property {string|null=} reusable_started_at
+ * @property {boolean=} spending_blocked
+ * @property {number=} monthly_cap_usd
+ * @property {number|null=} remaining_usd
+ * @property {Array<string>=} coverage_warnings
+ */
+
+/**
+ * @typedef {Object} DiscoveryRequest
+ * @property {string} kind keyword | hashtag
+ * @property {string} platform
+ * @property {string} value
+ * @property {number=} limit
+ * @property {string|null=} niche
+ * @property {boolean=} force
+ */
+
+/**
+ * @typedef {Object} DiscoveryResultView
+ * @property {number|null} job_id
+ * @property {string} status ok | reused | in_flight | refused | failed
+ * @property {string} kind
+ * @property {string} platform
+ * @property {string} value
+ * @property {string|null=} niche
+ * @property {boolean=} is_fixture
+ * @property {number=} publications_seen
+ * @property {number=} publications_new
+ * @property {number=} creators_seen
+ * @property {number=} creators_new
+ * @property {number|null=} estimated_usd
+ * @property {number|null=} actual_usd
+ * @property {Array<string>=} coverage_notes
+ * @property {Array<Object>=} item_errors
+ * @property {string|null=} message
+ * @property {Array<CandidateView>=} candidates
+ */
+
+/**
+ * @typedef {Object} ExpansionPlanView
+ * @property {Array<CandidateView>=} candidates
+ * @property {Array<string>=} skipped_already_fresh
+ * @property {number=} total_estimated_usd
+ * @property {number|null=} budget_remaining_usd
+ * @property {boolean=} within_budget
+ * @property {Array<string>=} notes
+ */
+
+/**
+ * @typedef {Object} ExpansionRequest
+ * @property {number} job_id
+ * @property {Array<number>=} creator_ids
+ * @property {number|null=} max_creators
+ * @property {number|null=} max_spend_usd
+ */
+
+/**
+ * @typedef {Object} FeatureContractView
+ * @property {string} version
+ * @property {Object} modalities
+ * @property {Array<string>} required_item_fields
+ * @property {Array<Object>=} pending_requests
+ */
+
+/**
+ * @typedef {Object} FrequencyBucketView
+ * @property {string} month
+ * @property {number} publications
  */
 
 /**
@@ -191,6 +474,14 @@
  */
 
 /** @typedef {"vision"|"transcription"|"audio"|"shots"|"screening"} Modality */
+
+/**
+ * @typedef {Object} NicheView
+ * @property {string} key
+ * @property {string} label
+ * @property {Array<string>} keywords
+ * @property {Array<string>} hashtags
+ */
 
 /**
  * @typedef {Object} Overview
@@ -297,6 +588,16 @@
  * @property {Object|null=} evidence
  * @property {PairSide} a
  * @property {PairSide} b
+ */
+
+/**
+ * @typedef {Object} ReportSectionView
+ * @property {string} key
+ * @property {string} title
+ * @property {string} basis
+ * @property {Object=} body
+ * @property {Array<string>=} caveats
+ * @property {string|null=} unavailable_reason
  */
 
 /**
@@ -440,6 +741,24 @@
  */
 
 /**
+ * @typedef {Object} SearchHistoryRow
+ * @property {number} job_id
+ * @property {string} kind
+ * @property {string} platform
+ * @property {string} value
+ * @property {string|null} niche
+ * @property {string} provider
+ * @property {boolean} is_fixture
+ * @property {string} status
+ * @property {string|null} started_at
+ * @property {number} publications
+ * @property {number} creators
+ * @property {number|null} estimated_usd
+ * @property {number|null} actual_usd
+ * @property {boolean=} reusable
+ */
+
+/**
  * @typedef {Object} SessionRequest
  * @property {string} password
  */
@@ -464,7 +783,45 @@
  * @property {Array<Object>=} available_fixtures
  */
 
+/**
+ * @typedef {Object} SustainedRunView
+ * @property {string} kind
+ * @property {number} start_index
+ * @property {number} end_index
+ * @property {string} start_at
+ * @property {string} end_at
+ * @property {number} publications
+ * @property {number} median_relative
+ */
+
 /** @typedef {"1"|"2"|"3"} Tier */
+
+/**
+ * @typedef {Object} TimelinePointView
+ * @property {number} video_id
+ * @property {string} external_id
+ * @property {string} published_at
+ * @property {number|null} views
+ * @property {string|null} observed_at
+ * @property {number|null} age_days
+ * @property {number|null=} views_at_anchor
+ * @property {number|null=} anchor_days
+ * @property {string|null=} anchor_method
+ * @property {string|null=} anchor_unavailable_reason
+ * @property {number|null=} relative_performance
+ * @property {number|null=} robust_z
+ * @property {number|null=} baseline_views
+ * @property {boolean=} is_outlier_candidate
+ * @property {boolean=} is_change_point
+ * @property {number=} observation_count
+ * @property {string|null=} caption
+ * @property {number|null=} duration_s
+ * @property {string|null=} url
+ * @property {string|null=} thumbnail_url
+ * @property {boolean=} media_preview_available
+ * @property {string|null=} media_preview_note
+ * @property {boolean=} counts_rounded
+ */
 
 /**
  * @typedef {Object} ValidationError

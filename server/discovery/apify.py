@@ -177,13 +177,23 @@ class ApifyClient:
 
     def _request(self, method: str, path: str, *, json_body: dict | None = None,
                  params: dict | None = None) -> dict | list:
+        """Authenticate with a header, never a query parameter.
+
+        `[PRIMARY]` https://docs.apify.com/api/v2 (checked 2026-10-25, API
+        v2) supports both and recommends the header: "Using your token in
+        the request header is more secure than using it as a URL parameter
+        because URLs are often stored in browser history and server logs."
+        An earlier version of this client sent `?token=...`, which put the
+        credential in every URL this process built.
+        """
         url = f"{API}/{path.lstrip('/')}"
         p = dict(params or {})
-        p["token"] = self.token
+        headers = {"Authorization": f"Bearer {self.token}"}
         last: Exception | None = None
         for attempt in range(1, MAX_HTTP_ATTEMPTS + 1):
             try:
-                r = self.http.request(method, url, params=p, json=json_body)
+                r = self.http.request(method, url, params=p, json=json_body,
+                                      headers=headers)
             except httpx.HTTPError as exc:
                 last = exc
             else:

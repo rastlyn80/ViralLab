@@ -82,6 +82,36 @@ Known entries from Phase 0A measurements:
   outlier boundaries;
 - one provider is **hard-capped at 10 items per run** on the free plan.
 
+### `discovery_jobs.params` *(implemented, `e7c2b94f83da`)*
+
+Promised in this document and shipped late: Phase 4 only had creator
+research, where the handle *was* the whole query. A keyword search also
+carries a niche, a cursor and a limit, and reconstructing those by guesswork
+is how a "repeat this search" button silently runs a different search.
+
+### `metrics_snapshots.discovery_job_id` *(implemented, `e7c2b94f83da`)*
+
+Which search produced an observation. Added after a found defect: "what did
+job N return" was answered from `videos.discovery_job_id`, which records
+only the **first** job to see a publication — so re-running a search, or a
+search that re-found a known creator, appeared to have returned nothing. The
+observation is the right home for it, because a job observing a publication
+at a moment *is* exactly one snapshot row.
+
+### `creator_collections` + `creator_collection_members` *(implemented, `e7c2b94f83da`)*
+
+Named groups of creators, with notes and a `purpose`. Not organisation for
+its own sake: §3 below makes a control cohort of non-breakthrough creators
+in the same niche a prerequisite for promoting any pattern above
+`hypothesis`, and a cohort has to be an explicit, stable set of accounts
+before it can serve as a control. `purpose` distinguishes a group assembled
+to copy formats from one assembled as a statistical control, so a later
+analysis cannot mistake one for the other.
+
+Carries **no** denormalised performance figure. Every number shown for a
+collection is derived from the observations at read time, so changing an
+analytical policy cannot corrupt a saved group.
+
 ### `creator_identities` + `creator_identity_members` *(tables implemented, unpopulated)*
 
 The vision requires one row per *person*, with per-platform accounts
@@ -296,7 +326,8 @@ updated model*, which is what makes the live experiment answerable at all.
 | **done** (3) | `cost_usd`, creator provenance, `creator_snapshots` | — | spending guard enforces the cap; 15 tests |
 | **done** (4) | `budget_reservations` (`c3e8b47d105a`) | — | two concurrent callers cannot both exceed the cap; a retry reuses its reservation; 23 tests |
 | **done** (4) | `discovery_jobs`, `creator_identities`, `creator_identity_members`, `breakthrough_candidates`, `videos.discovery_job_id`/`music`/`provenance`/`is_fixture`, `creators.research_status`/`last_job_id`/`is_fixture` (`d9f4a2b76c81`) | — | a query is reproducible from stored params; re-running appends an observation without duplicating a publication; 75 tests |
-| **5** | `creator_baselines` (materialised), cohort tables | a multi-creator corpus | a detected breakthrough carries a cohort comparison and either full evidence or a named gap |
+| **done** (4.5) | `discovery_jobs.params`, `metrics_snapshots.discovery_job_id`, `creator_collections`, `creator_collection_members` (`e7c2b94f83da`) | — | a concept search is reproducible from its row; a re-run search's result set is still resolvable; a cohort is an explicit stable set of accounts; 64 tests |
+| **5** | `creator_baselines` (materialised), cohort comparison tables | a multi-creator corpus | a detected breakthrough carries a cohort comparison and either full evidence or a named gap |
 | **6** | `video_features`, `feature_corrections` | GPU feature jobs | re-extraction adds rows; a correction never overwrites a machine value |
 | **7** | `trend_measurements`, `findings`, `model_runs`, `predictions` | Phase 6 features | V1–V5 reported separately; a finding can expire |
 | **8** | `recommendations`, `recommendation_evidence`, `creative_briefs` | Phase 7 models | every recommendation traces to evidence rows |

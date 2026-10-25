@@ -249,11 +249,40 @@ def test_an_unauthorised_paid_provider_is_refused_before_calling_out(
 
 
 def test_a_refusal_does_not_leave_the_creator_marked_as_collected(session):
-    service.research_creator(session, NeverCalled(), platform="tiktok",
-                             handle="someone_new", limit=50, now=NOW)
-    c = session.scalars(select(Creator)).one()
-    assert c.research_status != "collected"
-    assert (c.publications_collected or 0) == 0
+    """A refusal must never look like success.
+
+    Stronger than it used to be: a budget refusal on a creator we have
+    never collected now leaves no `creators` row at all, rather than an
+    empty one that implies the account is known. The job survives, because
+    the attempt is part of the record.
+    """
+    out = service.research_creator(session, NeverCalled(), platform="tiktok",
+                                   handle="someone_new", limit=50, now=NOW)
+    assert out.status == "refused"
+    assert out.creator_id is None
+    assert session.scalars(select(Creator)).all() == []
+    job = session.scalars(select(DiscoveryJob)).one()
+    assert job.status == "refused"
+    assert job.creators_new == 0
+
+
+def test_a_refusal_keeps_a_creator_whose_history_we_already_have(session,
+                                                                 adapter):
+    """Only an empty stub is removed; collected history is never discarded."""
+    service.research_creator(session, adapter, platform="tiktok",
+                             handle="demo_pianist", limit=200, now=NOW)
+    before = service.find_creator(session, "tiktok", "demo_pianist")
+    assert before.publications_collected == 62
+
+    out = service.research_creator(session, NeverCalled(), platform="tiktok",
+                                   handle="demo_pianist", limit=50,
+                                   refresh=True,
+                                   now=NOW + timedelta(days=2))
+    assert out.status == "refused"
+    kept = service.find_creator(session, "tiktok", "demo_pianist")
+    assert kept is not None
+    assert kept.publications_collected == 62
+    assert kept.research_status == "collected"
 
 
 def test_a_fixture_run_takes_no_reservation(session, adapter):
@@ -531,3 +560,149 @@ def test_a_missing_creator_is_404(client):
 def test_publication_sorting_is_validated(client):
     assert client.get("/api/research/creators/1/publications"
                       "?order=whatever").status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# in-flight protection
+#
+# The idempotency key is `research:{job.id}`, which protects a retry of one
+# job. Nothing created the same job twice, so two requests arriving together
+# each opened their own job, each reserved under a distinct key, and each
+# would have launched a paid provider run. Same class as the Phase 2
+# collector defect, but in the path that costs money.
+# ---------------------------------------------------------------------------
+
+def _paid_adapter(calls: list):
+    class PaidFixture(FixtureDiscoveryAdapter):
+        name = "apify"
+        is_fixture = False
+
+        def estimate_usd(self, query):
+            return 0.30
+
+        def search(self, query):
+            calls.append(query.value)
+            res = super().search(query)
+            res.provider = "apify"
+            res.is_fixture = False
+            res.actual_usd = 0.2871
+            return res
+    return PaidFixture()
+
+
+def _authorise(monkeypatch):
+    monkeypatch.setattr(
+        cfg, "settings",
+        lambda: cfg.Settings(raw={}, spending=cfg.Spending(
+            monthly_cap_usd=5.0, providers_authorised=("apify",))))
+
+
+def test_a_second_request_while_one_is_running_does_not_spend(session,
+                                                              monkeypatch):
+    """A job left `running` must block a duplicate, not start a paid run."""
+    _authorise(monkeypatch)
+    calls: list = []
+    adapter = _paid_adapter(calls)
+
+    # Simulate a request that is mid-flight: the job row exists and is
+    # running, exactly as it would be while the provider call is in
+    # progress.
+    session.add(DiscoveryJob(
+        kind="creator", platform="tiktok", query_value="demo_pianist",
+        requested_limit=100, provider="apify", is_fixture=False,
+        status="running", estimated_usd=0.30, started_at=NOW))
+    session.commit()
+
+    out = service.research_creator(session, adapter, platform="tiktok",
+                                   handle="demo_pianist", limit=100, now=NOW)
+
+    assert out.status == "in_flight"
+    assert calls == [], "the provider must not have been called"
+    assert session.scalars(select(BudgetReservation)).all() == []
+    # No second job was opened.
+    assert len(session.scalars(select(DiscoveryJob)).all()) == 1
+
+
+def test_a_stale_running_job_does_not_block_forever(session, monkeypatch):
+    """A crashed process must not lock a creator out permanently."""
+    _authorise(monkeypatch)
+    calls: list = []
+    adapter = _paid_adapter(calls)
+
+    session.add(DiscoveryJob(
+        kind="creator", platform="tiktok", query_value="demo_pianist",
+        requested_limit=100, provider="apify", is_fixture=False,
+        status="running", estimated_usd=0.30,
+        started_at=NOW - service.JOB_STALE_AFTER - timedelta(minutes=1)))
+    session.commit()
+
+    out = service.research_creator(session, adapter, platform="tiktok",
+                                   handle="demo_pianist", limit=100, now=NOW)
+    assert out.status == "ok"
+    assert calls == ["demo_pianist"]
+
+
+def test_the_in_flight_check_is_per_query_not_global(session, monkeypatch):
+    """A run for one creator must not block research of a different one."""
+    _authorise(monkeypatch)
+    calls: list = []
+    adapter = _paid_adapter(calls)
+
+    session.add(DiscoveryJob(
+        kind="creator", platform="tiktok", query_value="someone_else",
+        requested_limit=100, provider="apify", is_fixture=False,
+        status="running", estimated_usd=0.30, started_at=NOW))
+    session.commit()
+
+    out = service.research_creator(session, adapter, platform="tiktok",
+                                   handle="demo_pianist", limit=100, now=NOW)
+    assert out.status == "ok"
+    assert calls == ["demo_pianist"]
+
+
+def test_the_reservation_is_committed_before_the_provider_is_called(
+        session, maker, monkeypatch):
+    """The ordering that makes a crash mid-call safe.
+
+    If the reservation were still uncommitted when the provider request
+    began, a process death during the call would roll it back - releasing
+    budget for a call that may well have been billed. Verified by reading
+    the row from a SEPARATE connection at the moment `search()` is entered:
+    an uncommitted row is invisible there.
+    """
+    monkeypatch.setattr(
+        cfg, "settings",
+        lambda: cfg.Settings(raw={}, spending=cfg.Spending(
+            monthly_cap_usd=5.0, providers_authorised=("apify",))))
+
+    seen = {}
+
+    class Observing(FixtureDiscoveryAdapter):
+        name = "apify"
+        is_fixture = False
+
+        def estimate_usd(self, query):
+            return 0.30
+
+        def search(self, query):
+            # A second, independent session: it can only see committed rows.
+            with maker() as s2:
+                rows = s2.scalars(select(BudgetReservation)).all()
+                seen["count"] = len(rows)
+                seen["status"] = rows[0].status if rows else None
+                seen["amount"] = rows[0].estimated_usd if rows else None
+            res = super().search(query)
+            res.provider = "apify"
+            res.is_fixture = False
+            res.actual_usd = 0.2871
+            return res
+
+    out = service.research_creator(session, Observing(), platform="tiktok",
+                                   handle="demo_pianist", limit=50, now=NOW)
+    assert out.status == "ok"
+    assert seen["count"] == 1, (
+        "the reservation was not committed before the provider call, so a "
+        "crash during the call would have released budget that may have "
+        "been billed")
+    assert seen["status"] == "reserved"
+    assert seen["amount"] == pytest.approx(0.30)

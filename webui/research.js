@@ -30,15 +30,15 @@ const CLASS_STYLE = {
   rejected: '',
 };
 
-const classChip = (c) =>
+export const classChip = (c) =>
   `<span class="chip ${CLASS_STYLE[c] || ''}"><span class="dot"></span>${
     esc(CLASS_LABEL[c] || c)}</span>`;
 
-const fixtureChip = (on) => (on
+export const fixtureChip = (on) => (on
   ? '<span class="chip warn"><span class="dot"></span>fixture data</span>'
   : '');
 
-function spendingBanner(state) {
+export function spendingBanner(state) {
   if (state.fixture_mode) {
     return note(`<strong>Fixture mode.</strong> No paid provider is
       authorised, so research runs against committed <b>synthetic</b>
@@ -224,6 +224,11 @@ export const researchCreator = {
       <div class="row between">
         <h1>${platformChip(detail.platform)} ${esc(detail.handle)}
           ${fixtureChip(detail.is_fixture)}</h1>
+        <div class="row" style="gap:8px">
+          <a href="#/research/${detail.id}/timeline"><button>Timeline
+            </button></a>
+          <a href="#/research/${detail.id}/report"><button>Report</button></a>
+        </div>
         <a href="#/research">&larr; research</a>
       </div>
       <p class="lede">${esc(detail.display_name || '')}

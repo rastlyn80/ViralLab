@@ -6,8 +6,11 @@
  */
 
 import { api, ApiError } from './api.js';
+import { collectionDetail, collections } from './collections.js';
 import { esc, spinner, toast } from './components.js';
+import { discover } from './discover.js';
 import { research, researchCreator } from './research.js';
+import { creatorReport, creatorTimeline } from './timeline.js';
 import {
   competitors, dashboard, library, notFound, reviewMasters, reviewPairs,
   videoDetail,
@@ -22,6 +25,14 @@ const ROUTES = [
   { pattern: /^\/competitors$/, view: competitors, nav: 'competitors' },
   { pattern: /^\/research$/, view: research, nav: 'research' },
   { pattern: /^\/research\/(\d+)$/, view: researchCreator, nav: 'research' },
+  { pattern: /^\/research\/(\d+)\/timeline$/, view: creatorTimeline,
+    nav: 'research' },
+  { pattern: /^\/research\/(\d+)\/report$/, view: creatorReport,
+    nav: 'research' },
+  { pattern: /^\/discover$/, view: discover, nav: 'discover' },
+  { pattern: /^\/collections$/, view: collections, nav: 'collections' },
+  { pattern: /^\/collections\/(\d+)$/, view: collectionDetail,
+    nav: 'collections' },
 ];
 
 const NAV = [
@@ -34,12 +45,13 @@ const NAV = [
   { id: 'review-pairs', href: '#/review/pairs', label: 'Cross-platform',
     count: (o) => o?.review.publication_links_proposed },
   { group: 'Intelligence' },
+  { id: 'discover', href: '#/discover', label: 'Discover creators' },
   { id: 'research', href: '#/research', label: 'Creator research' },
+  { id: 'collections', href: '#/collections', label: 'Collections' },
   { id: 'competitors', href: '#/competitors', label: 'Capability status' },
   // Planned surfaces are listed but not linked: the navigation shape is
   // part of the architecture, and showing where things will live is honest
   // as long as nothing pretends to work.
-  { id: 'discovery', label: 'Keyword discovery', planned: 'Phase 4' },
   { id: 'features', label: 'Video intelligence', planned: 'Phase 6' },
   { id: 'strategist', label: 'AI strategist', planned: 'Phase 8' },
 ];
@@ -86,7 +98,7 @@ function renderShell() {
   document.getElementById('shell').innerHTML = `
     <div class="app">
       <aside class="sidebar">
-        <div class="brand">ViralLab <small>phase 3</small></div>
+        <div class="brand">ViralLab <small>phase 4.5</small></div>
         <nav class="nav" id="nav"></nav>
         <div style="margin-top:auto;padding:10px">
           <button id="logout" style="width:100%">Sign out</button>

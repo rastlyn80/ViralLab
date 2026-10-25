@@ -1,0 +1,304 @@
+{
+ "_fixture": true,
+ "_warning": "SYNTHETIC DATA. Fabricated for testing and demonstration. Not collected from any platform and not about any real person. Field shapes copy the Phase 0A recorded responses; values do not.",
+ "actor": "clockworks/free-tiktok-scraper",
+ "platform": "tiktok",
+ "kind": "hashtag",
+ "value": "pianotok",
+ "items": [
+  {
+   "id": "770000000000000001",
+   "text": "I played this at 6am and could not stop - Ravel, Pavane #classicalpiano #piano #ravel",
+   "playCount": 78400,
+   "diggCount": 5490,
+   "commentCount": 156,
+   "shareCount": 470,
+   "collectCount": 784,
+   "hashtags": [
+    {
+     "name": "classicalpiano"
+    },
+    {
+     "name": "piano"
+    },
+    {
+     "name": "ravel"
+    }
+   ],
+   "authorMeta": {
+    "id": "700000000000000173",
+    "name": "demo_smallbreakout",
+    "nickName": "Small Breakout (fixture)",
+    "fans": 1900,
+    "heart": 13300,
+    "video": 120,
+    "verified": false,
+    "bioLink": "https://instagram.com/demo_smallbreakout_ig"
+   },
+   "createTimeISO": "2024-12-03T18:30:00+00:00",
+   "videoMeta": {
+    "duration": 53,
+    "coverUrl": "https://example.invalid/c/770000000000000001.jpg"
+   },
+   "webVideoUrl": "https://www.tiktok.com/@demo_smallbreakout/video/770000000000000001",
+   "musicMeta": {
+    "musicName": "original sound",
+    "musicAuthor": "Small Breakout (fixture)",
+    "musicId": "8000001",
+    "musicOriginal": true
+   }
+  },
+  {
+   "id": "770000000000000003",
+   "text": "The saddest chord in classical music - Liszt, Liebestraum #classicalpiano #piano #liszt",
+   "playCount": 4900000,
+   "diggCount": 343000,
+   "commentCount": 9800,
+   "shareCount": 29400,
+   "collectCount": 49000,
+   "hashtags": [
+    {
+     "name": "classicalpiano"
+    },
+    {
+     "name": "piano"
+    },
+    {
+     "name": "liszt"
+    }
+   ],
+   "authorMeta": {
+    "id": "700000000000007974",
+    "name": "demo_bigname",
+    "nickName": "Big Name (fixture)",
+    "fans": 1240000,
+    "heart": 8680000,
+    "video": 120,
+    "verified": true,
+    "bioLink": null
+   },
+   "createTimeISO": "2025-02-06T18:30:00+00:00",
+   "videoMeta": {
+    "duration": 42,
+    "coverUrl": "https://example.invalid/c/770000000000000003.jpg"
+   },
+   "webVideoUrl": "https://www.tiktok.com/@demo_bigname/video/770000000000000003",
+   "musicMeta": {
+    "musicName": "original sound",
+    "musicAuthor": "Big Name (fixture)",
+    "musicId": "8000001",
+    "musicOriginal": true
+   }
+  },
+  {
+   "id": "770000000000000005",
+   "text": "The saddest chord in classical music - Debussy, Clair de Lune #classicalpiano #piano #debussy",
+   "playCount": 31000,
+   "diggCount": 2170,
+   "commentCount": 62,
+   "shareCount": 186,
+   "collectCount": 310,
+   "hashtags": [
+    {
+     "name": "classicalpiano"
+    },
+    {
+     "name": "piano"
+    },
+    {
+     "name": "debussy"
+    }
+   ],
+   "authorMeta": {
+    "id": "700000000000003847",
+    "name": "demo_steady",
+    "nickName": "Steady Hands (fixture)",
+    "fans": 48000,
+    "heart": 336000,
+    "video": 120,
+    "verified": false,
+    "bioLink": null
+   },
+   "createTimeISO": "2024-10-07T18:30:00+00:00",
+   "videoMeta": {
+    "duration": 32,
+    "coverUrl": "https://example.invalid/c/770000000000000005.jpg"
+   },
+   "webVideoUrl": "https://www.tiktok.com/@demo_steady/video/770000000000000005",
+   "musicMeta": {
+    "musicName": "original sound",
+    "musicAuthor": "Steady Hands (fixture)",
+    "musicId": "8000001",
+    "musicOriginal": true
+   }
+  },
+  {
+   "id": "770000000000000006",
+   "text": "This took me 11 years to learn - Ravel, Pavane #classicalpiano #piano #ravel",
+   "playCount": 28500,
+   "diggCount": 2000,
+   "commentCount": 57,
+   "shareCount": 171,
+   "collectCount": 285,
+   "hashtags": [
+    {
+     "name": "classicalpiano"
+    },
+    {
+     "name": "piano"
+    },
+    {
+     "name": "ravel"
+    }
+   ],
+   "authorMeta": {
+    "id": "700000000000003847",
+    "name": "demo_steady",
+    "nickName": "Steady Hands (fixture)",
+    "fans": 48000,
+    "heart": 336000,
+    "video": 120,
+    "verified": false,
+    "bioLink": null
+   },
+   "createTimeISO": "2025-03-11T18:30:00+00:00",
+   "videoMeta": {
+    "duration": 55,
+    "coverUrl": "https://example.invalid/c/770000000000000006.jpg"
+   },
+   "webVideoUrl": "https://www.tiktok.com/@demo_steady/video/770000000000000006",
+   "musicMeta": {
+    "musicName": "original sound",
+    "musicAuthor": "Steady Hands (fixture)",
+    "musicId": "8000001",
+    "musicOriginal": true
+   }
+  },
+  {
+   "id": "770000000000000007",
+   "text": "The saddest chord in classical music - Debussy, Clair de Lune #classicalpiano #piano #debussy",
+   "playCount": 9300,
+   "diggCount": 651,
+   "commentCount": 18,
+   "shareCount": 55,
+   "collectCount": 93,
+   "hashtags": [
+    {
+     "name": "classicalpiano"
+    },
+    {
+     "name": "piano"
+    },
+    {
+     "name": "debussy"
+    }
+   ],
+   "authorMeta": {
+    "id": "700000000000002539",
+    "name": "demo_tiny",
+    "nickName": "Tiny Channel (fixture)",
+    "fans": 640,
+    "heart": 4480,
+    "video": 120,
+    "verified": false,
+    "bioLink": null
+   },
+   "createTimeISO": "2025-03-12T18:30:00+00:00",
+   "videoMeta": {
+    "duration": 24,
+    "coverUrl": "https://example.invalid/c/770000000000000007.jpg"
+   },
+   "webVideoUrl": "https://www.tiktok.com/@demo_tiny/video/770000000000000007",
+   "musicMeta": {
+    "musicName": "original sound",
+    "musicAuthor": "Tiny Channel (fixture)",
+    "musicId": "8000001",
+    "musicOriginal": true
+   }
+  },
+  {
+   "id": "770000000000000002",
+   "text": "I played this at 6am and could not stop - Chopin, Nocturne in E-flat #classicalpiano #piano #chopin",
+   "playCount": 2100,
+   "diggCount": 147,
+   "commentCount": 4,
+   "shareCount": 12,
+   "collectCount": 21,
+   "hashtags": [
+    {
+     "name": "classicalpiano"
+    },
+    {
+     "name": "piano"
+    },
+    {
+     "name": "chopin"
+    }
+   ],
+   "authorMeta": {
+    "id": "700000000000000173",
+    "name": "demo_smallbreakout",
+    "nickName": "Small Breakout (fixture)",
+    "fans": 1900,
+    "heart": 13300,
+    "video": 120,
+    "verified": false,
+    "bioLink": "https://instagram.com/demo_smallbreakout_ig"
+   },
+   "createTimeISO": "2025-04-16T18:30:00+00:00",
+   "videoMeta": {
+    "duration": 26,
+    "coverUrl": "https://example.invalid/c/770000000000000002.jpg"
+   },
+   "webVideoUrl": "https://www.tiktok.com/@demo_smallbreakout/video/770000000000000002",
+   "musicMeta": {
+    "musicName": "original sound",
+    "musicAuthor": "Small Breakout (fixture)",
+    "musicId": "8000001",
+    "musicOriginal": true
+   }
+  },
+  {
+   "id": "770000000000000004",
+   "text": "POV: you hear this for the first time - Einaudi, Nuvole Bianche #classicalpiano #piano #einaudi",
+   "playCount": 310000,
+   "diggCount": 21700,
+   "commentCount": 620,
+   "shareCount": 1860,
+   "collectCount": 3100,
+   "hashtags": [
+    {
+     "name": "classicalpiano"
+    },
+    {
+     "name": "piano"
+    },
+    {
+     "name": "einaudi"
+    }
+   ],
+   "authorMeta": {
+    "id": "700000000000007974",
+    "name": "demo_bigname",
+    "nickName": "Big Name (fixture)",
+    "fans": 1240000,
+    "heart": 8680000,
+    "video": 120,
+    "verified": true,
+    "bioLink": null
+   },
+   "createTimeISO": "2025-03-27T18:30:00+00:00",
+   "videoMeta": {
+    "duration": 36,
+    "coverUrl": "https://example.invalid/c/770000000000000004.jpg"
+   },
+   "webVideoUrl": "https://www.tiktok.com/@demo_bigname/video/770000000000000004",
+   "musicMeta": {
+    "musicName": "original sound",
+    "musicAuthor": "Big Name (fixture)",
+    "musicId": "8000001",
+    "musicOriginal": true
+   }
+  }
+ ]
+}

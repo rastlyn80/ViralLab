@@ -128,8 +128,16 @@ def anchor_eligibility(session: Session, platform: str = "tiktok") -> dict:
           select s.video_id,
                  extract(epoch from (min(s.captured_at) - v.posted_at))/86400.0
                    as first_age
-          from metrics_snapshots s join videos v on v.id = s.video_id
+          from metrics_snapshots s
+               join videos v on v.id = s.video_id
+               join creators c on c.id = v.creator_id
+          -- Own-account only. This figure says how much of OUR corpus can
+          -- support fixed-age comparison, and a researched competitor's
+          -- backfilled publications would both inflate the total and land
+          -- entirely in `backfill_only`, misreporting the one number that
+          -- governs what the analysis is allowed to claim.
           where v.platform = :p and v.posted_at is not null
+                and c.is_own_account
           group by s.video_id, v.posted_at)
         select count(*),
                count(*) filter (where first_age <= 7),

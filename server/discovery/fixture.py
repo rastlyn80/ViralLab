@@ -68,10 +68,20 @@ class FixtureDiscoveryAdapter(ApifyDiscoveryAdapter):
                     and d.get("kind") == query.kind.value
                     and str(d.get("value", "")).lower() == want_value):
                 return d
+        # Phrased for whoever is looking at the interface, not for a log
+        # reader. Someone typing a real handle into fixture mode has not
+        # made a mistake; they have hit an unauthorised provider, and the
+        # message should say what to do about it.
+        offers = ", ".join(
+            f"{f['value']} ({f['platform']} {f['kind']})"
+            for f in self.available()) or "none"
         raise DiscoveryError(
-            f"no fixture for {query.kind.value} {want_value!r} on "
-            f"{query.platform.value}. Available: "
-            f"{[(f['platform'], f['kind'], f['value']) for f in self.available()]}",
+            f"No paid provider is authorised, so ViralLab is running on "
+            f"synthetic demonstration fixtures and cannot look up "
+            f"{want_value!r} on {query.platform.value}. Real collection "
+            f"needs a provider and a monthly cap in config/settings.yaml "
+            f"plus an APIFY_TOKEN. The demonstration data available right "
+            f"now is: {offers}.",
             permanent=True, provider=self.name)
 
     def capabilities(self, platform: Platform) -> ProviderCapabilities:

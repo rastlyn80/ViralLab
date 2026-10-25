@@ -432,7 +432,12 @@ def test_an_unknown_fixture_fails_clearly():
                                 platform=Platform.TIKTOK,
                                 value="nobody_here"))
     assert exc.value.permanent is True
-    assert "Available" in str(exc.value)
+    msg = str(exc.value)
+    # The message is for whoever is looking at the interface: it must name
+    # the cause (no authorised provider) and the remedy, not just the fact.
+    assert "No paid provider is authorised" in msg
+    assert "config/settings.yaml" in msg
+    assert "demo_pianist" in msg, "it should still say what IS available"
 
 
 def test_adapter_selection_defaults_to_fixture():
@@ -456,3 +461,65 @@ def test_published_and_observed_times_are_separate():
         assert p.published_at is not None
         assert p.published_at < r.observed_at
     assert r.observed_at > datetime.now(timezone.utc) - timedelta(minutes=5)
+
+
+# ---------------------------------------------------------------------------
+# credential handling
+#
+# `[PRIMARY]` https://docs.apify.com/api/v2 (checked 2026-10-25, API v2)
+# supports both header and query-parameter auth and recommends the header:
+# "URLs are often stored in browser history and server logs."
+# ---------------------------------------------------------------------------
+
+def test_the_token_never_appears_in_a_request_url():
+    """It used to be sent as `?token=...` on every request."""
+    seen = {}
+
+    def handler(request):
+        seen["url"] = str(request.url)
+        seen["query"] = dict(request.url.params)
+        seen["auth"] = request.headers.get("Authorization")
+        return httpx.Response(200, json={"data": {"id": "r",
+                                                  "status": "SUCCEEDED"}})
+
+    _client(handler)._request("GET", "actor-runs/r")
+
+    assert "SECRET-TOKEN" not in seen["url"]
+    assert "token" not in seen["query"]
+    assert "token" not in seen["url"]
+
+
+def test_the_token_is_sent_as_a_bearer_header():
+    seen = {}
+
+    def handler(request):
+        seen["auth"] = request.headers.get("Authorization")
+        seen["url"] = str(request.url)
+        return httpx.Response(200, json={"data": {}})
+
+    apify.ApifyClient(
+        "SECRET-TOKEN",
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+        poll_seconds=0.0, run_timeout_seconds=5
+    )._request("GET", "actor-runs/r")
+
+    assert seen["auth"] == "Bearer SECRET-TOKEN"
+    assert "SECRET-TOKEN" not in seen["url"]
+
+
+def test_a_retry_log_line_cannot_carry_the_token(monkeypatch, caplog):
+    """The retry path logs method and path. It must never log the full URL."""
+    monkeypatch.setattr(apify.time, "sleep", lambda s: None)
+
+    def handler(request):
+        return httpx.Response(500, json={"error": "boom"})
+
+    client = apify.ApifyClient(
+        "SECRET-TOKEN",
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+        poll_seconds=0.0, run_timeout_seconds=5)
+    with caplog.at_level("WARNING"):
+        with pytest.raises(DiscoveryError):
+            client._request("GET", "actor-runs/r")
+    assert caplog.records, "expected retry warnings"
+    assert "SECRET-TOKEN" not in caplog.text

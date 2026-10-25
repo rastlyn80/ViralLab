@@ -257,6 +257,144 @@ BANNER = {
 }
 
 
+
+# ---------------------------------------------------------------------------
+# keyword / hashtag discovery
+#
+# A concept search returns publications from MANY creators. The fixture is
+# built so the candidate ranking has genuinely different cases to separate,
+# rather than one shape repeated:
+#
+#   demo_smallbreakout  - 1,900 followers, one post at 41x their following.
+#                         The case the product exists to find.
+#   demo_bigname        - 1.2M followers, one post well above their own
+#                         sampled median: a breakout CANDIDATE on an
+#                         established account, which is a different claim.
+#   demo_steady         - appears 4 times with unremarkable figures. Tests
+#                         that "repeatedly relevant" is not reported as
+#                         "consistently strong".
+#   demo_tiny           - 1 post, small account.
+#   demo_pianist        - the already-researched creator, so the interface
+#                         has to avoid offering to re-buy them.
+# ---------------------------------------------------------------------------
+
+#: (handle, display, followers, [views...])
+KEYWORD_CREATORS = [
+    ("demo_smallbreakout", "Small Breakout (fixture)", 1_900,
+     [78_400, 2_100]),
+    ("demo_bigname", "Big Name (fixture)", 1_240_000,
+     [4_900_000, 310_000, 288_000]),
+    ("demo_steady", "Steady Hands (fixture)", 48_000,
+     [31_000, 28_500, 33_200, 26_800]),
+    ("demo_tiny", "Tiny Channel (fixture)", 640, [9_300]),
+    ("demo_pianist", TIKTOK_NAME, 184_300, [121_000]),
+]
+
+
+def _kw_title(rng: random.Random) -> tuple[str, list[str]]:
+    composer, work = REPERTOIRE[rng.randrange(len(REPERTOIRE))]
+    hook = HOOKS[rng.randrange(len(HOOKS))]
+    tags = ["classicalpiano", "piano", composer.lower()]
+    return f"{hook} - {composer}, {work} #" + " #".join(tags), tags
+
+
+def keyword_items() -> list[dict]:
+    """TikTok keyword search, exact-count actor (followers available)."""
+    rng = random.Random(90210)
+    items: list[dict] = []
+    vid = 760_000_000_000_000_000
+    for handle, name, followers, view_list in KEYWORD_CREATORS:
+        for n, views in enumerate(view_list):
+            vid += 1
+            title, tags = _kw_title(rng)
+            posted = START + timedelta(days=rng.randrange(5, 400),
+                                       hours=rng.randrange(24))
+            items.append({
+                "inputSource": "search",
+                "id": str(vid),
+                "title": title,
+                "views": views,
+                "likes": int(views * rng.uniform(0.04, 0.13)),
+                "comments": int(views * rng.uniform(0.001, 0.006)),
+                "shares": int(views * rng.uniform(0.002, 0.02)),
+                "bookmarks": int(views * rng.uniform(0.004, 0.03)),
+                "hashtags": tags,
+                "channel": {
+                    "id": f"70000000000000{abs(hash(handle)) % 10000:04d}",
+                    "name": name, "username": handle,
+                    "avatar": "https://example.invalid/avatar.jpg",
+                    "verified": followers > 500_000,
+                    "url": f"https://www.tiktok.com/@{handle}",
+                    "followers": followers,
+                    "following": rng.randrange(50, 900),
+                    "videos": rng.randrange(20, 400),
+                    "likes": followers * rng.randrange(4, 30),
+                },
+                "collabInfo": None,
+                "uploadedAt": int(posted.timestamp()),
+                "uploadedAtFormatted": posted.strftime("%Y-%m-%d %H:%M:%S"),
+                "video": {
+                    "width": 1080, "height": 1920, "ratio": "9:16",
+                    "duration": round(rng.uniform(14.0, 58.0), 1),
+                    "url": f"https://example.invalid/v/{vid}.mp4",
+                    "cover": f"https://example.invalid/c/{vid}.jpg",
+                },
+                "song": {"id": str(8000000 + n), "title": "original sound",
+                         "artist": name, "original": True},
+                "postPage": f"https://www.tiktok.com/@{handle}/video/{vid}",
+            })
+    rng.shuffle(items)
+    return items
+
+
+def keyword_hashtag_items() -> list[dict]:
+    """TikTok hashtag feed via the ROUNDED free actor.
+
+    Deliberately the rounded provider: the interface has to show that a
+    view count of 78,400 arrives as 78,000, which blurs exactly the outlier
+    boundary the ranking depends on.
+    """
+    rng = random.Random(31337)
+    items: list[dict] = []
+    vid = 770_000_000_000_000_000
+    for handle, name, followers, view_list in KEYWORD_CREATORS[:4]:
+        for views in view_list[:2]:
+            vid += 1
+            title, tags = _kw_title(rng)
+            posted = START + timedelta(days=rng.randrange(200, 420))
+            rounded = int(float(f"{views:.3g}"))
+            link = None
+            if handle == "demo_smallbreakout":
+                link = "https://instagram.com/demo_smallbreakout_ig"
+            items.append({
+                "id": str(vid),
+                "text": title,
+                "playCount": rounded,
+                "diggCount": int(float(f"{int(rounded * 0.07):.3g}")),
+                "commentCount": int(rounded * 0.002),
+                "shareCount": int(rounded * 0.006),
+                "collectCount": int(rounded * 0.01),
+                "hashtags": [{"name": t} for t in tags],
+                "authorMeta": {
+                    "id": f"70000000000000{abs(hash(handle)) % 10000:04d}",
+                    "name": handle, "nickName": name,
+                    "fans": int(float(f"{followers:.3g}")),
+                    "heart": followers * 7, "video": 120,
+                    "verified": followers > 500_000,
+                    "bioLink": link,
+                },
+                "createTimeISO": posted.isoformat(),
+                "videoMeta": {
+                    "duration": rng.randrange(15, 60),
+                    "coverUrl": f"https://example.invalid/c/{vid}.jpg"},
+                "webVideoUrl": f"https://www.tiktok.com/@{handle}/video/{vid}",
+                "musicMeta": {"musicName": "original sound",
+                              "musicAuthor": name, "musicId": "8000001",
+                              "musicOriginal": True},
+            })
+    rng.shuffle(items)
+    return items
+
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     files = {
@@ -272,6 +410,14 @@ def main() -> int:
             "actor": "apify/instagram-hashtag-scraper",
             "platform": "instagram", "kind": "hashtag",
             "value": "classicalpiano", "items": hashtag_items()},
+        "tiktok_keyword_classical_piano.json": {
+            "actor": "apidojo/tiktok-scraper",
+            "platform": "tiktok", "kind": "keyword",
+            "value": "classical piano", "items": keyword_items()},
+        "tiktok_hashtag_pianotok.json": {
+            "actor": "clockworks/free-tiktok-scraper",
+            "platform": "tiktok", "kind": "hashtag",
+            "value": "pianotok", "items": keyword_hashtag_items()},
     }
     for name, payload in files.items():
         (OUT / name).write_text(

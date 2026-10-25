@@ -1,0 +1,505 @@
+{
+ "_fixture": true,
+ "_warning": "SYNTHETIC DATA. Fabricated for testing and demonstration. Not collected from any platform and not about any real person. Field shapes copy the Phase 0A recorded responses; values do not.",
+ "actor": "apidojo/tiktok-scraper",
+ "platform": "tiktok",
+ "kind": "keyword",
+ "value": "classical piano",
+ "items": [
+  {
+   "inputSource": "search",
+   "id": "760000000000000002",
+   "title": "I played this at 6am and could not stop - Satie, Gymnopedie No. 1 #classicalpiano #piano #satie",
+   "views": 2100,
+   "likes": 148,
+   "comments": 10,
+   "shares": 29,
+   "bookmarks": 36,
+   "hashtags": [
+    "classicalpiano",
+    "piano",
+    "satie"
+   ],
+   "channel": {
+    "id": "700000000000000173",
+    "name": "Small Breakout (fixture)",
+    "username": "demo_smallbreakout",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_smallbreakout",
+    "followers": 1900,
+    "following": 294,
+    "videos": 35,
+    "likes": 26600
+   },
+   "collabInfo": null,
+   "uploadedAt": 1712021400,
+   "uploadedAtFormatted": "2024-04-02 01:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 52.7,
+    "url": "https://example.invalid/v/760000000000000002.mp4",
+    "cover": "https://example.invalid/c/760000000000000002.jpg"
+   },
+   "song": {
+    "id": "8000001",
+    "title": "original sound",
+    "artist": "Small Breakout (fixture)",
+    "original": true
+   },
+   "postPage": "https://www.tiktok.com/@demo_smallbreakout/video/760000000000000002"
+  },
+  {
+   "inputSource": "search",
+   "id": "760000000000000008",
+   "title": "This took me 11 years to learn - Bach, Prelude in C #classicalpiano #piano #bach",
+   "views": 33200,
+   "likes": 3009,
+   "comments": 86,
+   "shares": 356,
+   "bookmarks": 171,
+   "hashtags": [
+    "classicalpiano",
+    "piano",
+    "bach"
+   ],
+   "channel": {
+    "id": "700000000000003847",
+    "name": "Steady Hands (fixture)",
+    "username": "demo_steady",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_steady",
+    "followers": 48000,
+    "following": 449,
+    "videos": 288,
+    "likes": 480000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1738251000,
+   "uploadedAtFormatted": "2025-01-30 15:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 44.8,
+    "url": "https://example.invalid/v/760000000000000008.mp4",
+    "cover": "https://example.invalid/c/760000000000000008.jpg"
+   },
+   "song": {
+    "id": "8000002",
+    "title": "original sound",
+    "artist": "Steady Hands (fixture)",
+    "original": true
+   },
+   "postPage": "https://www.tiktok.com/@demo_steady/video/760000000000000008"
+  },
+  {
+   "inputSource": "search",
+   "id": "760000000000000010",
+   "title": "I played this at 6am and could not stop - Debussy, Clair de Lune #classicalpiano #piano #debussy",
+   "views": 9300,
+   "likes": 534,
+   "comments": 42,
+   "shares": 33,
+   "bookmarks": 248,
+   "hashtags": [
+    "classicalpiano",
+    "piano",
+    "debussy"
+   ],
+   "channel": {
+    "id": "700000000000002539",
+    "name": "Tiny Channel (fixture)",
+    "username": "demo_tiny",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_tiny",
+    "followers": 640,
+    "following": 551,
+    "videos": 394,
+    "likes": 12800
+   },
+   "collabInfo": null,
+   "uploadedAt": 1722936600,
+   "uploadedAtFormatted": "2024-08-06 09:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 42.9,
+    "url": "https://example.invalid/v/760000000000000010.mp4",
+    "cover": "https://example.invalid/c/760000000000000010.jpg"
+   },
+   "song": {
+    "id": "8000000",
+    "title": "original sound",
+    "artist": "Tiny Channel (fixture)",
+    "original": true
+   },
+   "postPage": "https://www.tiktok.com/@demo_tiny/video/760000000000000010"
+  },
+  {
+   "inputSource": "search",
+   "id": "760000000000000006",
+   "title": "Nobody talks about this passage - Debussy, Clair de Lune #classicalpiano #piano #debussy",
+   "views": 31000,
+   "likes": 4001,
+   "comments": 41,
+   "shares": 156,
+   "bookmarks": 382,
+   "hashtags": [
+    "classicalpiano",
+    "piano",
+    "debussy"
+   ],
+   "channel": {
+    "id": "700000000000003847",
+    "name": "Steady Hands (fixture)",
+    "username": "demo_steady",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_steady",
+    "followers": 48000,
+    "following": 219,
+    "videos": 226,
+    "likes": 1248000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1726054200,
+   "uploadedAtFormatted": "2024-09-11 11:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 43.1,
+    "url": "https://example.invalid/v/760000000000000006.mp4",
+    "cover": "https://example.invalid/c/760000000000000006.jpg"
+   },
+   "song": {
+    "id": "8000000",
+    "title": "original sound",
+    "artist": "Steady Hands (fixture)",
+    "original": true
+   },
+   "postPage": "https://www.tiktok.com/@demo_steady/video/760000000000000006"
+  },
+  {
+   "inputSource": "search",
+   "id": "760000000000000005",
+   "title": "The saddest chord in classical music - Einaudi, Nuvole Bianche #classicalpiano #piano #einaudi",
+   "views": 288000,
+   "likes": 33864,
+   "comments": 408,
+   "shares": 4089,
+   "bookmarks": 3728,
+   "hashtags": [
+    "classicalpiano",
+    "piano",
+    "einaudi"
+   ],
+   "channel": {
+    "id": "700000000000007974",
+    "name": "Big Name (fixture)",
+    "username": "demo_bigname",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": true,
+    "url": "https://www.tiktok.com/@demo_bigname",
+    "followers": 1240000,
+    "following": 649,
+    "videos": 282,
+    "likes": 22320000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1743744600,
+   "uploadedAtFormatted": "2025-04-04 05:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 32.8,
+    "url": "https://example.invalid/v/760000000000000005.mp4",
+    "cover": "https://example.invalid/c/760000000000000005.jpg"
+   },
+   "song": {
+    "id": "8000002",
+    "title": "original sound",
+    "artist": "Big Name (fixture)",
+    "original": true
+   },
+   "postPage": "https://www.tiktok.com/@demo_bigname/video/760000000000000005"
+  },
+  {
+   "inputSource": "search",
+   "id": "760000000000000009",
+   "title": "POV: you hear this for the first time - Satie, Gymnopedie No. 1 #classicalpiano #piano #satie",
+   "views": 26800,
+   "likes": 2863,
+   "comments": 91,
+   "shares": 350,
+   "bookmarks": 259,
+   "hashtags": [
+    "classicalpiano",
+    "piano",
+    "satie"
+   ],
+   "channel": {
+    "id": "700000000000003847",
+    "name": "Steady Hands (fixture)",
+    "username": "demo_steady",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_steady",
+    "followers": 48000,
+    "following": 322,
+    "videos": 394,
+    "likes": 1104000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1716453000,
+   "uploadedAtFormatted": "2024-05-23 08:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 55.1,
+    "url": "https://example.invalid/v/760000000000000009.mp4",
+    "cover": "https://example.invalid/c/760000000000000009.jpg"
+   },
+   "song": {
+    "id": "8000003",
+    "title": "original sound",
+    "artist": "Steady Hands (fixture)",
+    "original": true
+   },
+   "postPage": "https://www.tiktok.com/@demo_steady/video/760000000000000009"
+  },
+  {
+   "inputSource": "search",
+   "id": "760000000000000003",
+   "title": "This took me 11 years to learn - Debussy, Clair de Lune #classicalpiano #piano #debussy",
+   "views": 4900000,
+   "likes": 349117,
+   "comments": 27662,
+   "shares": 16600,
+   "bookmarks": 107369,
+   "hashtags": [
+    "classicalpiano",
+    "piano",
+    "debussy"
+   ],
+   "channel": {
+    "id": "700000000000007974",
+    "name": "Big Name (fixture)",
+    "username": "demo_bigname",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": true,
+    "url": "https://www.tiktok.com/@demo_bigname",
+    "followers": 1240000,
+    "following": 408,
+    "videos": 303,
+    "likes": 11160000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1743748200,
+   "uploadedAtFormatted": "2025-04-04 06:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 24.8,
+    "url": "https://example.invalid/v/760000000000000003.mp4",
+    "cover": "https://example.invalid/c/760000000000000003.jpg"
+   },
+   "song": {
+    "id": "8000000",
+    "title": "original sound",
+    "artist": "Big Name (fixture)",
+    "original": true
+   },
+   "postPage": "https://www.tiktok.com/@demo_bigname/video/760000000000000003"
+  },
+  {
+   "inputSource": "search",
+   "id": "760000000000000011",
+   "title": "I played this at 6am and could not stop - Chopin, Nocturne in E-flat #classicalpiano #piano #chopin",
+   "views": 121000,
+   "likes": 8970,
+   "comments": 211,
+   "shares": 761,
+   "bookmarks": 2921,
+   "hashtags": [
+    "classicalpiano",
+    "piano",
+    "chopin"
+   ],
+   "channel": {
+    "id": "700000000000000727",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 420,
+    "videos": 366,
+    "likes": 2580200
+   },
+   "collabInfo": null,
+   "uploadedAt": 1724506200,
+   "uploadedAtFormatted": "2024-08-24 13:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 46.4,
+    "url": "https://example.invalid/v/760000000000000011.mp4",
+    "cover": "https://example.invalid/c/760000000000000011.jpg"
+   },
+   "song": {
+    "id": "8000000",
+    "title": "original sound",
+    "artist": "Demo Pianist (fixture)",
+    "original": true
+   },
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/760000000000000011"
+  },
+  {
+   "inputSource": "search",
+   "id": "760000000000000001",
+   "title": "The saddest chord in classical music - Einaudi, Nuvole Bianche #classicalpiano #piano #einaudi",
+   "views": 78400,
+   "likes": 6618,
+   "comments": 182,
+   "shares": 164,
+   "bookmarks": 1167,
+   "hashtags": [
+    "classicalpiano",
+    "piano",
+    "einaudi"
+   ],
+   "channel": {
+    "id": "700000000000000173",
+    "name": "Small Breakout (fixture)",
+    "username": "demo_smallbreakout",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_smallbreakout",
+    "followers": 1900,
+    "following": 327,
+    "videos": 320,
+    "likes": 13300
+   },
+   "collabInfo": null,
+   "uploadedAt": 1733531400,
+   "uploadedAtFormatted": "2024-12-07 00:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 54.3,
+    "url": "https://example.invalid/v/760000000000000001.mp4",
+    "cover": "https://example.invalid/c/760000000000000001.jpg"
+   },
+   "song": {
+    "id": "8000000",
+    "title": "original sound",
+    "artist": "Small Breakout (fixture)",
+    "original": true
+   },
+   "postPage": "https://www.tiktok.com/@demo_smallbreakout/video/760000000000000001"
+  },
+  {
+   "inputSource": "search",
+   "id": "760000000000000004",
+   "title": "This took me 11 years to learn - Chopin, Nocturne in E-flat #classicalpiano #piano #chopin",
+   "views": 310000,
+   "likes": 15882,
+   "comments": 1288,
+   "shares": 5811,
+   "bookmarks": 3852,
+   "hashtags": [
+    "classicalpiano",
+    "piano",
+    "chopin"
+   ],
+   "channel": {
+    "id": "700000000000007974",
+    "name": "Big Name (fixture)",
+    "username": "demo_bigname",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": true,
+    "url": "https://www.tiktok.com/@demo_bigname",
+    "followers": 1240000,
+    "following": 194,
+    "videos": 105,
+    "likes": 27280000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1728239400,
+   "uploadedAtFormatted": "2024-10-06 18:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 23.0,
+    "url": "https://example.invalid/v/760000000000000004.mp4",
+    "cover": "https://example.invalid/c/760000000000000004.jpg"
+   },
+   "song": {
+    "id": "8000001",
+    "title": "original sound",
+    "artist": "Big Name (fixture)",
+    "original": true
+   },
+   "postPage": "https://www.tiktok.com/@demo_bigname/video/760000000000000004"
+  },
+  {
+   "inputSource": "search",
+   "id": "760000000000000007",
+   "title": "This took me 11 years to learn - Rachmaninoff, Prelude in G minor #classicalpiano #piano #rachmaninoff",
+   "views": 28500,
+   "likes": 3701,
+   "comments": 82,
+   "shares": 153,
+   "bookmarks": 524,
+   "hashtags": [
+    "classicalpiano",
+    "piano",
+    "rachmaninoff"
+   ],
+   "channel": {
+    "id": "700000000000003847",
+    "name": "Steady Hands (fixture)",
+    "username": "demo_steady",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_steady",
+    "followers": 48000,
+    "following": 574,
+    "videos": 279,
+    "likes": 672000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1734355800,
+   "uploadedAtFormatted": "2024-12-16 13:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 18.5,
+    "url": "https://example.invalid/v/760000000000000007.mp4",
+    "cover": "https://example.invalid/c/760000000000000007.jpg"
+   },
+   "song": {
+    "id": "8000001",
+    "title": "original sound",
+    "artist": "Steady Hands (fixture)",
+    "original": true
+   },
+   "postPage": "https://www.tiktok.com/@demo_steady/video/760000000000000007"
+  }
+ ]
+}

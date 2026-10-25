@@ -457,3 +457,32 @@ def test_coverage_report_measures_only_our_own_corpus(session):
     assert r["never_observed"] == 0
     assert r["with_trajectory"] == 1
     assert r["mean_snapshots"] == 2.0
+
+
+def test_anchor_eligibility_measures_only_our_own_corpus(session):
+    """This figure governs what the analysis is allowed to claim.
+
+    A researched competitor's publications are all backfilled - first seen
+    hundreds of days after posting - so counting them would both inflate
+    `videos_with_snapshots` and dump the excess into `backfill_only`,
+    understating how much of OUR corpus can support a fixed-age comparison.
+    """
+    mine = make_video(session, 3.0)
+    snap(session, mine, days_after_post=1.0, views=50)
+
+    rival = upsert_creator(session, platform="tiktok", handle="rival3",
+                           external_id="acct-rival3", is_own_account=False)
+    for i in range(10):
+        v = Video(creator_id=rival.id, platform="tiktok",
+                  external_id=f"r3-{i}", source="discovery",
+                  posted_at=utcnow() - timedelta(days=400 + i))
+        session.add(v)
+        session.flush()
+        session.add(MetricsSnapshot(video_id=v.id, views=100000,
+                                    captured_at=utcnow(), is_rounded=True))
+    session.commit()
+
+    e = anchor_eligibility(session, platform="tiktok")
+    assert e["videos_with_snapshots"] == 1
+    assert e["could_support_7d"] == 1
+    assert e["backfill_only"] == 0
