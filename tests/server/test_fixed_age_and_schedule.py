@@ -429,3 +429,31 @@ def test_refresh_targets_exclude_researched_competitors(session):
     targets = select_for_refresh(session, "tiktok", max_calls=10)
     assert targets == [mine.external_id]
     assert not any(t.startswith("rival") for t in targets)
+
+
+def test_coverage_report_measures_only_our_own_corpus(session):
+    """`coverage_report` judges readiness before modelling.
+
+    A researched competitor observed once is not a gap in our corpus, and
+    counting them would inflate `never_observed` and depress
+    `mean_snapshots` - the two figures the report exists to produce.
+    """
+    from server.collectors.snapshot_policy import coverage_report
+
+    mine = make_video(session, 10.0)
+    snap(session, mine, days_after_post=1.0, views=10)
+    snap(session, mine, days_after_post=5.0, views=20)
+
+    rival = upsert_creator(session, platform="tiktok", handle="rival2",
+                           external_id="acct-rival2", is_own_account=False)
+    for i in range(15):
+        session.add(Video(creator_id=rival.id, platform="tiktok",
+                          external_id=f"r2-{i}", source="discovery",
+                          posted_at=utcnow() - timedelta(days=2 + i)))
+    session.commit()
+
+    r = coverage_report(session, "tiktok")
+    assert r["videos"] == 1
+    assert r["never_observed"] == 0
+    assert r["with_trajectory"] == 1
+    assert r["mean_snapshots"] == 2.0

@@ -973,7 +973,8 @@ three more places, one of them worse than the media problem:
 |---|---|
 | `media_preservation` (4 queries) | a researched competitor's reels **downloaded and permanently retained** |
 | `snapshot_policy.select_for_refresh` | competitor publications have **no snapshots**, so they sort to priority 1 ("never observed") and **spend the owner's Instagram API quota**, crowding out the owner's own young posts — the only window in which a real `views@7d` anchor is capturable, and one that does not come back |
-| `scheduler.collect` (2 queries) | `by_ext` was platform-wide, so an official-API snapshot could attach to a third party's publication on an external-id collision |
+| `snapshot_policy.coverage_report` | competitor publications counted as gaps in the owner's corpus — inflating `never_observed`, depressing `mean_snapshots`, which is the report used to judge readiness before modelling |
+| `scheduler.collect` (2 queries) | **nothing** — scoped for clarity, not for a defect. `videos` carries `UniqueConstraint(platform, external_id)`, so a platform-wide `by_ext` map could never have misattributed a snapshot. Recorded here because the first version of this entry claimed otherwise. |
 | `ui.build_video_page` | third-party publications listed in the owner's own archive, which exists to offer signed media URLs and drive master-link review against local master files |
 
 Fixed by scoping each to `Creator.is_own_account` — and in the collector, to
@@ -991,10 +992,10 @@ The 62 fixture rows were removed from production, which returned to exactly
 619 videos and 1372 snapshots, and the dashboard to 234 TikTok publications,
 2 capture days and 90.2% Instagram media coverage.
 *Acceptance:* a competitor publication is never fetched, never adopted from
-disk by filename, never counted in media coverage, never selected for
-refresh, never listed in the owner's library, never served as media, and
-never moves any own-account figure in the overview. ✅ met, 7 regression
-tests, verified to fail without the fix.
+disk by filename, never counted in media coverage or corpus coverage, never
+selected for refresh, never listed in the owner's library, never served as
+media, and never moves any own-account figure in the overview. ✅ met, 8
+regression tests, verified to fail without the fix.
 
 **The general lesson, recorded because it will recur:** every query written
 before Phase 4 that filtered `videos` by platform was *implicitly* filtering

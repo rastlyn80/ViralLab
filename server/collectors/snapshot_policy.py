@@ -177,8 +177,14 @@ def coverage_report(session: Session, platform: str) -> dict:
         with latest as (
           select v.id, v.posted_at, max(s.captured_at) as last_seen,
                  count(s.id) as n
-          from videos v left join metrics_snapshots s on s.video_id = v.id
+          from videos v
+               join creators c on c.id = v.creator_id
+               left join metrics_snapshots s on s.video_id = v.id
+          -- Own-account only, like select_for_refresh above. This report
+          -- exists to make a gap in OUR corpus visible before modelling;
+          -- a researched competitor's single observation is not a gap.
           where v.platform = :p and v.posted_at is not null
+                and c.is_own_account
           group by v.id, v.posted_at)
         select count(*),
                count(*) filter (where n = 0),
