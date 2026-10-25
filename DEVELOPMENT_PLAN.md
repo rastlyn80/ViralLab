@@ -532,6 +532,36 @@ destroys collected data.
 
 ## 7. Phased Implementation Plan
 
+> **`docs/PRODUCT_VISION.md` is the definitive product specification.**
+> Where this plan and that document disagree about *what* is being built,
+> the vision document is correct and this plan is corrected. Where they
+> disagree about *how or when*, this plan is correct.
+>
+> **Roadmap sequence (Revision 4, 2026-10-24).** The phases below were
+> renumbered to put the product before further historical analysis:
+>
+> | # | Phase | State |
+> |---|---|---|
+> | 0A/0B | Feasibility probes | ✅ complete |
+> | 1 | Infrastructure, queue, API | ✅ complete |
+> | 2 | Own-account collection, media, matching | ✅ substantially complete; 7-day acceptance pending |
+> | **3** | **Unified GUI + Phase 4 foundations** | **◐ in progress — this cycle** |
+> | 4 | Competitor discovery + targeted creator ingestion | planned |
+> | 5 | Breakthrough analysis + baselines | planned |
+> | 6 | Multimodal feature extraction | planned |
+> | 7 | Comparative analytics + temporal intelligence | planned |
+> | 8 | Evidence-based AI creative strategist | planned |
+> | 9 | Live experiment + closed-loop learning | planned (MVP ends here) |
+> | 10 | Automated retraining cadence | post-MVP |
+> | 11 | Cross-niche trend intelligence | post-MVP |
+> | 12 | Production, scheduling, publishing | post-MVP |
+>
+> The old Phase 3 (niche discovery) is now Phase 4; old Phases 4-8 shift by
+> one and are consolidated as described below. **No requirement or
+> architecture decision from the previous numbering has been dropped** —
+> §12's validation protocol, §5.4's fixed-age rules and every ADR still
+> apply, and the acceptance criteria below incorporate the originals.
+
 **MVP = Phases 0A through 8.** The live experiment is now inside the MVP:
 the MVP must test whether recommendations *improve outcomes*, not merely
 whether recommendations are produced.
@@ -755,82 +785,250 @@ retention and **no** saves, which stay NULL and must never be coalesced to
 zero (verified: 702 TikTok snapshots, `saves` NULL in all 702, value 0 in
 none).
 
-### Phase 3 — Niche Discovery Ingestion
-Build the discovery adapter against whichever provider won Phase 0A, plus
-the official IG Hashtag Search / Business Discovery foothold where it adds
-value. Normalize into the shared schema.
-**Acceptance:** 1,000–5,000 videos from one real niche ingested, with
-per-provider cost **logged from actual billing**, and ingestion idempotent
-across re-runs (re-running a collection does not duplicate rows).
+### Phase 3 — Unified GUI and Phase 4 Foundations  **(in progress)**
 
-### Phase 4 — Baselines, Outlier Labeling & Sampling Design
-Rolling per-creator median/MAD baselines; three-way labeling; the stratified
-Tier 2/3 selector writing `analysis_samples` with sampling probabilities.
-**Acceptance:** you manually review a random 50-video label sample and
-confirm ≥85% agreement (a sanity check, not a scientific claim); the sampler
-demonstrably produces a sample containing all three performance strata in
-the intended proportions; methodology written up.
+The first genuinely usable interface, plus the data and safety foundations
+competitor discovery needs. Rationale: every capability so far has been a
+separate command-line script, which `docs/PRODUCT_VISION.md` §3.I
+explicitly forbids continuing.
 
-### Phase 5 — Progressive Analysis Pipeline
-Tier 1 on Ubuntu for all videos; Tier 2 and Tier 3 as GPU jobs using the
-Phase 0B-chosen configuration.
-**Acceptance:** Tier 1 across the full ingested corpus; **100 videos through
-Tier 2** and ~10 through Tier 3, unattended; a mid-batch worker kill is
-recovered with no data loss and no duplicate feature rows; measured
-throughput matches Phase 0B's benchmark within a stated tolerance (if it
-doesn't, the cost model is re-derived before scaling).
+**Milestone 3.1 — Typed API + no-build SPA.** ✅ *implemented*
+`/api/*` with Pydantic response models (`shared/schemas/ui.py`), a static
+ES-module SPA in `webui/`, and `webui/types.js` generated from OpenAPI so
+the contract is checked rather than transcribed. Stack rationale in
+**ADR 0006** — React/Vite was rejected on measured grounds (184 MiB free
+RAM on the server; deployment is a file copy).
+*Acceptance:* a test fails if the generated types drift from the models.
+✅ met.
 
-### Phase 6 — Predictive Modeling v1
-LightGBM on Tier 1 + Tier 2 features with inverse-probability weights, under
-the four validation tests of §12.3, against the two required baselines of
-§12.4.
-**Acceptance:** a validation report giving results for **all four** tests
-(chronological, creator-grouped, unseen-creator, and transfer-to-your-account)
-with uncertainty intervals, plus an explicit beat/no-beat verdict against
-both baselines. **A no-beat result is a valid, reportable outcome** — it
-must be stated plainly, and any recommendation surfaced afterwards must be
-labeled as not-yet-validated.
+**Milestone 3.2 — Dashboard, library, detail, review.** ✅ *implemented*
+Connected platforms and health; searchable/filterable publication list;
+detail with snapshot history, provenance, master links and cross-platform
+relationships; review of master links and cross-platform pairs with four
+answers including *"same performance, different edit"*.
+*Acceptance:* every performance figure renders with its observation age; an
+unreported metric renders as unknown, never 0; a machine proposal is
+visually distinct from a human decision; no filesystem path reaches the
+browser. ✅ met, 32 API tests.
 
-### Phase 7 — Recommendation Generation
-Model feature importances + pgvector nearest-neighbour retrieval of similar
-high-performing videos (filtered to your niche and repertoire style) →
-structured recommendations with per-claim evidence classes
-(`established finding` / `hypothesis`).
-**Acceptance:** ≥10 recommendations for real upcoming content reviewed by
-you; a majority rated specific enough to act on; every claim carries an
-evidence class and a traceable supporting statistic.
+**Milestone 3.3 — Access control.** ✅ *implemented*
+Signed HttpOnly SameSite=Strict session cookie; mutations additionally
+require a header a cross-site form cannot set; `/status/*` no longer open;
+media only via short-lived signed single-video URLs.
+*Acceptance:* unauthenticated reads refused, mutation without the header
+refused. ✅ met.
 
-### Phase 8 — Live Own-Account Experiment *(new; now inside the MVP)*
-A **pre-registered, paired, interleaved A/B** on your real TikTok and
-Instagram accounts:
-- Arms: **ViralLab-guided** posts vs **control** posts made by your normal
-  process. Assignment **randomized and interleaved** in time.
-- Each post's predicted relative-performance is **pre-registered in
-  `experiments` before publishing** — no post-hoc fitting.
-- Analysis: paired non-parametric test (e.g. Wilcoxon signed-rank) on the
-  relative-performance index, with a confidence interval, plus the
-  prediction-vs-actual calibration from `outcomes`.
-- **Interleaving, not before/after.** A before/after comparison would be
-  badly confounded by your own skill improvement over time and by account
-  growth shifting the baseline. Interleaving controls both.
-- **Stated power limitation, up front:** with n≈20–40 posts over the MVP
-  window, only a **large** effect is detectable. The expected honest output
-  is a directional signal with a confidence interval that may well include
-  zero. A pre-registered stopping rule governs any early read, and posts
-  keep accumulating past the MVP.
+**Milestone 3.4 — Spending guard.** ✅ *implemented*
+`server/config.py` makes `spending.monthly_cap_usd` real. It shipped as
+`0.00` with no authorised providers and was **read by nothing**; discovery
+needs a paid provider, so this is now the single door every paid call goes
+through, refusing by default.
+*Acceptance:* a paid call is refused with the shipped configuration; the
+cap cannot be exceeded; refusal is non-retryable. ✅ met, 15 tests.
 
-**Acceptance:** ≥20 posts (≥10 per arm) published under the pre-registered
-protocol, analysed and written up with effect size **and** interval — and
-the write-up explicitly distinguishes "recommendations measurably improved
-outcomes," "no detectable effect at this sample size," and "inconclusive."
-Declaring success requires the first; the MVP is complete either way,
-because the MVP's job is to *run the test honestly*, not to pass it.
+**Milestone 3.5 — Phase 4 data foundations.** ✅ *implemented*
+Migration `b5f2a81c04d7`: `collection_runs.cost_usd`/`provider`, creator
+provenance columns, and append-only `creator_snapshots` so follower history
+is never fabricated. Full forward plan in `docs/SCHEMA_PLAN.md`.
+*Acceptance:* migration applies and reverses on the authoritative database;
+a discovered creator is distinguishable from an own account in the same
+table. ✅ met.
 
-> **MVP acceptance = Phases 0A–8 each individually accepted.** This answers
-> the brief's five MVP questions plus the one Revision 1 deferred: whether
-> recommendations actually improve outcomes.
+**Milestone 3.6 — Phase 2 reliability closure.** ◐ *partially met*
+Media preservation audited: per-item commits, orphan adoption, `.part`
+sweeping, database-backed deduplication, cap no longer consuming attempts.
+A screen-veto recall bug was found and fixed (+31 genuine variant edges).
+*Acceptance:* 7 consecutive unattended collection days — **not yet
+elapsed**, earliest legitimate completion **2026-10-31**.
 
-### Phase 9 — Continuous Learning Loop *(post-MVP)*
+**Dependencies:** none outstanding.
+**Blocked:** nothing.
+
+---
+
+### Phase 4 — Competitor Discovery and Targeted Creator Ingestion
+
+The first capability that makes ViralLab more than a personal analytics
+tool. `[PRIMARY]` Official APIs expose no competitor data, so this is
+third-party collection under §2.3, and the pipeline shape is fixed by
+Phase 0A measurement:
+
+> **discover creators via hashtag/keyword → fetch each creator's
+> back-catalogue by profile → build the fixed-age corpus from the
+> back-catalogues.**
+
+Hashtag feeds returned 0 of 45 records aged ≥35 days, so they discover
+creators and never measure performance.
+
+**Milestone 4.1 — `DiscoveryAdapter` seam.** Behind the existing
+`DataSourceAdapter` pattern. Entry kinds: keyword, hashtag, niche, genre,
+composer, handle, trend. Writes into `creators`/`videos` with
+`source='discovery'`.
+*Acceptance:* a run is reproducible from its stored params; re-running
+updates rows and never duplicates; every row carries provenance and
+recorded coverage limits.
+*Depends on:* an authorised budget (3.4), `discovery_runs` migration.
+
+**Milestone 4.2 — Targeted creator analysis.** Enter a handle, get history
+and a strategy summary. Includes cross-platform account reconciliation via
+`creator_identities`, **evidence-gated**: bio link, cross-posted content
+detected by the Phase 2 fingerprint, or manual confirmation. A coincidental
+handle match is not evidence.
+*Acceptance:* a creator analysed by hand is indistinguishable in the
+database from one discovered automatically, except by `source`.
+
+**Milestone 4.3 — Small-account outlier discovery.** Find unusually
+successful videos from small accounts, not just big accounts.
+*Acceptance:* the returned set is not rank-ordered by follower count.
+
+**Milestone 4.4 — Refresh scheduling.** An analysed account becomes a
+tracked account, refreshed within quota and budget.
+*Acceptance:* refresh respects the cap; a refusal is logged, not retried.
+
+**Milestone 4.5 — Discovery UI.** Launch and review searches; cost and
+coverage shown **before** commitment.
+*Acceptance:* no control appears for a capability that does not work.
+
+**Blocked by:** owner authorisation of `monthly_cap_usd` and
+`providers_authorised`. Until then, discovery is architecturally ready and
+operationally refused — which is the correct state, not a defect.
+
+---
+
+### Phase 5 — Breakthrough Analysis and Creator Baselines
+
+The most distinctive feature in the product, and the easiest to get
+scientifically wrong.
+
+**Milestone 5.1 — Rolling baselines.** Per-creator median/MAD at fixed
+anchor ages, with the window stored rather than assumed.
+*Acceptance:* a baseline is never computed across mixed ages.
+
+**Milestone 5.2 — Change-point detection.** A breakthrough is a shift in
+the creator's own performance distribution, not one high-view video.
+*Acceptance:* a single outlier does not produce a breakthrough; the
+detected shape distinguishes single / successive / gradual.
+
+**Milestone 5.3 — Cohort control.** Niche-wide movement over the same
+period is computed and subtracted.
+*Acceptance:* a month in which the whole niche jumped is attributed to the
+platform, not to any creator.
+
+**Milestone 5.4 — Evidence gating.** Status defaults to
+`inferred_breakthrough`; promotion needs historical follower counts **and**
+age-normalised views, and `missing_evidence` names what is absent.
+*Acceptance:* **no output claims a video caused follower growth without
+both.**
+
+**Milestone 5.5 — Creator timeline visualisation.** Publication history,
+outliers against the rolling baseline, detected change points, and
+subsequent performance — inline SVG, no charting dependency.
+*Acceptance:* a human can see from the timeline whether a detected
+breakthrough is plausible.
+
+**Depends on:** Phase 4 corpus; **at least two capture days** (see below).
+
+---
+
+### Phase 6 — Multimodal Feature Extraction
+
+Structured musical, visual, editing and language characteristics, per
+`docs/PRODUCT_VISION.md` §3.D. Uses the Phase 0B-measured configuration and
+the per-modality batch design (ADR 0002, ADR 0004).
+
+**Milestone 6.1 — Feature vocabulary** (`docs/FEATURE_SCHEMA.md`).
+**Milestone 6.2 — Extraction jobs** on the existing queue; one modality in
+VRAM at a time.
+**Milestone 6.3 — Provenance and confidence** on every feature: method,
+model, version, confidence, extracted-at. Re-extraction adds rows.
+**Milestone 6.4 — Human correction**, stored alongside the machine value
+and reused as labelled evaluation data.
+*Acceptance:* an AI classification is never stored as ground truth; a
+correction never overwrites a machine value; low-confidence features are
+excluded from modelling rather than averaged in.
+
+---
+
+### Phase 7 — Comparative Analytics and Temporal Intelligence
+
+**Milestone 7.1 — Three-way comparison** of viral, moderately successful
+and ordinary publications, with all three strata preserved by the sampler.
+**Milestone 7.2 — Confound handling:** creator baseline, account size,
+platform, niche, age, observation date, seasonality, sampling weights,
+correlated features.
+**Milestone 7.3 — Predictive model v1** under the §12.3 protocol (V1–V5
+reported **separately**, never averaged) against both baselines of §12.4.
+**Milestone 7.4 — Temporal intelligence:** recency weighting, rolling
+windows, emerging/declining detection, change points, historical-vs-current
+comparison, drift-triggered recalibration, and the time-travel view.
+**Milestone 7.5 — Attribution discipline:** distinguish algorithm change
+from audience shift, sampling change, competition and creator behaviour.
+*Acceptance:* a no-beat result is reported plainly as a valid outcome; a
+2023 strategy is not recommended in 2026 merely because its videos
+accumulated views; an expired finding is demoted, not silently reused.
+
+---
+
+### Phase 8 — Evidence-Based AI Creative Strategist
+
+Five layers, deliberately separated (`PRODUCT_VISION.md` §3.G):
+extraction → statistical modelling → evidence retrieval → LLM strategist →
+feedback learning.
+
+**Milestone 8.1 — Evidence retrieval** over findings and comparable videos
+(pgvector in the existing Postgres).
+**Milestone 8.2 — Strategist** producing the full structured brief:
+repertoire, concept, hook, spoken words, camera, lighting, duration,
+pacing, on-screen text, caption, hashtags, cover, platform variants,
+posting window, comparables, uncertainty, alternatives for testing.
+**Milestone 8.3 — Conversational refinement** against stored artistic
+identity, equipment and repertoire.
+**Milestone 8.4 — Evidence lineage:** `recommendation_evidence` rows are
+mandatory.
+*Acceptance:* **no claim without a traceable statistic**; the LLM never
+originates a number; nothing is labelled `established_finding` unless it
+survived §12.3 and beat both baselines. **No model is trained from
+scratch**; fine-tuning only when validated data justifies it.
+
+---
+
+### Phase 9 — Live Experiment and Closed-Loop Learning
+
+The MVP's actual endpoint, unchanged from the previous numbering (old Phase
+8): a pre-registered own-account experiment testing whether recommendations
+*improve outcomes*, with its stated power limits.
+
+Adds the closed loop: *evidence → recommendation → brief → variant →
+publication → observed performance → updated model*, stored as
+relationships rather than conventions.
+*Acceptance:* predicted vs observed compared for content the system
+actually advised; pre-registered stopping rule honoured; an inconclusive
+result stays inconclusive.
+
+---
+
+### A dependency that gates Phases 5, 7 and 9
+
+**Every snapshot in the database was captured on one day** (2026-10-24), at
+publication ages from 1 to 1357 days. So no genuine `views@7d` or
+`views@30d` exists for any current publication, and none may be
+reconstructed — `server/analytics/fixed_age.py` returns `None` with a
+reason rather than interpolating.
+
+Fixed-age analysis becomes possible only as the daily collector accumulates
+history: `views@7d` from ~2026-11-02 for publications posted from now,
+`views@30d` from ~2026-11-25, `views@90d` from ~2027-01-24. For the
+existing archive the only sound comparison is §5.4 Strategy A — compare
+mature publications within an age band — never a reconstructed anchor.
+Full detail in `docs/phase3-data-readiness.md`.
+
+### Phase 10 — Continuous Learning Loop *(post-MVP)*
+
+> Renumbered from Phase 9. Its **drift detection and recalibration triggers
+> moved forward into Phase 7** (temporal intelligence) and its
+> **prediction-vs-outcome comparison into Phase 9** (closed loop), because
+> the vision document makes both load-bearing rather than post-MVP. What
+> remains here is the fully automated retraining cadence.
 Scheduled retraining, drift detection on model performance over time,
 automated prediction-vs-outcome tracking at scale, recommendation-
 effectiveness evaluation.
@@ -838,13 +1036,23 @@ effectiveness evaluation.
 compare → retrain — runs without manual intervention, with drift detection
 firing correctly on a synthetic degradation test.
 
-### Phase 10 — Trend Intelligence *(post-MVP)*
+### Phase 11 — Trend Intelligence *(post-MVP)*
+
+> Renumbered from Phase 10. Its **emerging/declining pattern detection
+> moved forward into Phase 7**; what remains is cross-niche trend
+> discovery beyond the owner's own niche.
 Growth-rate tracking of hashtags/audio/formats; early-emergence detection vs
 already-saturated trends.
 **Acceptance:** a historical backtest shows ≥1 real trend flagged before an
 operationally-defined saturation point.
 
-### Phase 11 — Creation, Publishing & Repurposing *(explicitly future)*
+### Phase 12 — Creation, Publishing & Repurposing *(explicitly future)*
+
+> Renumbered from Phase 11. Its **generative recommendation content moved
+> forward into Phase 8** (the AI creative strategist), which the vision
+> document makes the flagship feature rather than a future extra. What
+> remains here is content *production*, scheduling and actual publishing —
+> still explicitly post-MVP.
 
 Everything in this phase is **out of MVP scope and must not be built early**.
 It is recorded here so the architecture does not foreclose it — the

@@ -47,9 +47,19 @@ def client(tmp_path_factory):
         VIRALLAB_WORKER_TOKENS=f"gpu-1:{TOKEN}",
         VIRALLAB_MEDIA_ROOT=str(media_root),
         VIRALLAB_PUBLIC_BASE_URL="https://testserver",
+        # This module tests the WORKER API. The UI session gate is covered
+        # by tests/server/test_ui_api.py, which sets a password and asserts
+        # that /status/* is closed. Explicitly clearing it here keeps the two
+        # modules independent of import order - without this, whether
+        # /status/queue needed a cookie depended on which module loaded
+        # `server.api.ui` first.
+        VIRALLAB_UI_PASSWORD="",
     )
     import importlib
 
+    # ui must be reloaded too: it reads VIRALLAB_UI_PASSWORD at import.
+    from server.api import ui as ui_module
+    importlib.reload(ui_module)
     from server.api import app as app_module
     importlib.reload(app_module)
 
@@ -156,6 +166,8 @@ def test_full_round_trip_over_http(client, session):
     assert r.status_code == 200
     assert r.json() == {"written": len(ids), "batch_status": "done"}
 
+    # Open here only because this module deliberately configures no UI
+    # password; with one set this endpoint requires a session.
     assert client.get("/status/queue").json()["depth"]["vision"]["done"] == 1
 
 

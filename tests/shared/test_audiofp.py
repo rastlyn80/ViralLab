@@ -215,3 +215,45 @@ def test_fingerprint_is_deterministic():
     samples = tone(10.0, seed=15)
     assert (audiofp.fingerprint_samples(samples)
             == audiofp.fingerprint_samples(samples))
+
+
+# --------------------------------------------------------------------------
+# the screen must not veto what it cannot see
+# --------------------------------------------------------------------------
+
+def test_screen_is_conclusive_only_when_the_shorter_clip_fits():
+    """The screen truncates the SHORTER side and slides it over the whole
+    longer one, so it stays authoritative as long as the short side fits in
+    the window."""
+    short = fp_from(tone(10.0, seed=30))
+    long_ = fp_from(tone(audiofp.QUICK_SECONDS + 25.0, seed=31))
+    assert audiofp.screen_is_conclusive(short, short) is True
+    assert audiofp.screen_is_conclusive(short, long_) is True
+    assert audiofp.screen_is_conclusive(long_, short) is True
+    # Both sides longer than the window: the short side is itself truncated,
+    # so a rejection cannot be trusted.
+    assert audiofp.screen_is_conclusive(long_, long_) is False
+
+
+def test_screen_finds_an_excerpt_taken_from_beyond_the_quick_window():
+    """The defect this pins: truncating BOTH sides meant a 9 s excerpt of a
+    37 s master scored 0.191 on the screen against 1.000 at full fidelity.
+    As a veto that silently discarded a real variant relationship and cost
+    performance grouping 30 genuine edges."""
+    base = tone(audiofp.QUICK_SECONDS + 25.0, seed=32)
+    tail_start = int((audiofp.QUICK_SECONDS + 10.0) * audiofp.SAMPLE_RATE)
+    excerpt = base[tail_start:tail_start + int(12.0 * audiofp.SAMPLE_RATE)]
+    a, b = fp_from(base), fp_from(excerpt)
+    quick = audiofp.compare(a, b, quick=True)
+    full = audiofp.compare(a, b)
+    assert full["score"] >= 0.85, (
+        f"a tail excerpt scored only {full['score']:.3f} at full fidelity")
+    assert quick["score"] >= 0.45, (
+        f"the screen scored {quick['score']:.3f} on a pair that matches "
+        f"1.00 at full fidelity, so it would veto a real relationship")
+
+
+def test_screen_is_inconclusive_for_missing_fingerprints():
+    good = fp_from(tone(10.0, seed=33))
+    assert audiofp.screen_is_conclusive(None, good) is False
+    assert audiofp.screen_is_conclusive({}, good) is False

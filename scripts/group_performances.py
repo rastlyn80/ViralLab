@@ -43,8 +43,6 @@ from remote import connect  # noqa: E402
 #: same measured floor the matcher uses (docs/benchmarks/2-audio-fingerprint
 #: .md: worst known positive 0.862, worst known negative 0.425).
 PERFORMANCE_FLOOR = 0.70
-#: Cheap screen before the full comparison, as in the matcher.
-SCREEN_FLOOR = 0.45
 
 #: Suffixes the owner appends to variants of one export. Used only to NAME a
 #: group, after audio has already decided its membership.
@@ -117,9 +115,15 @@ def main() -> int:
         for b in keys[i + 1:]:
             fb = have[b]["audiofp"]
             pairs += 1
-            q = audiofp.compare(fa, fb, quick=True)
-            if not q.get("comparable") or q["score"] < SCREEN_FLOOR:
-                continue
+            # No screening here, deliberately. Grouping has no independent
+            # visual signal to fall back on, so a wrong veto is silent data
+            # loss - and one already happened: a 9 s excerpt of a 37 s
+            # master scored 0.191 on the screen against 1.000 at full
+            # fidelity, which cost 30 genuine variant edges.
+            #
+            # The screen was never worth that risk at this scale. Measured:
+            # 3.7 ms screened vs 7.6 ms full, so across 31k master pairs it
+            # saves about two minutes. Correctness is worth two minutes.
             full = audiofp.compare(fa, fb)
             if full.get("comparable") and full["score"] >= PERFORMANCE_FLOOR:
                 u.join(a, b)

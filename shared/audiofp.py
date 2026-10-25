@@ -195,6 +195,30 @@ def _quick_frames() -> int:
     return int(QUICK_SECONDS * SAMPLE_RATE / HOP)
 
 
+def screen_is_conclusive(a: dict | None, b: dict | None) -> bool:
+    """Can a `quick=True` comparison be trusted to REJECT this pair?
+
+    The screen truncates the SHORTER clip to the quick window and slides it
+    over the whole longer one, so it stays conclusive as long as the shorter
+    clip itself fits in the window - which covers every realistic case,
+    since the short side of a candidate pair is a published clip.
+
+    It became necessary to be explicit about this because the first version
+    truncated *both* sides. `EXTRA Improv.mp4` (37.2 s) contains
+    `Improv 1 January.mp4` (9.1 s): full comparison 1.000 at coverage 1.00,
+    quick screen **0.191**, because the 9 s excerpt lies beyond the first
+    30 s of the longer file and the screen never looked there. Used as a
+    veto, that silently discarded a real variant relationship and cost
+    performance grouping 30 genuine edges.
+    """
+    for fp in (a, b):
+        if not (fp or {}).get("words"):
+            return False
+    n = _quick_frames()
+    shorter = min(len(a["words"]), len(b["words"]))
+    return shorter <= n
+
+
 def compare(a: dict | None, b: dict | None, *,
             min_aligned: int = MIN_ALIGNED_FRAMES,
             quick: bool = False) -> dict:
@@ -206,14 +230,23 @@ def compare(a: dict | None, b: dict | None, *,
     starts later than the master, i.e. a different hook or a trim.
     """
     if quick:
-        # Screening: primary phase only, truncated. Cheap and deliberately
-        # permissive - it decides what to look at properly, not what matches.
+        # Screening: primary phase only, and only the SHORTER side truncated.
+        #
+        # Truncating both sides was a defect: a short excerpt taken from
+        # beyond the first QUICK_SECONDS of a long master shared nothing
+        # with what the screen looked at, so the screen rejected pairs that
+        # were in fact identical. Keeping the longer side whole lets the
+        # sliding search find the excerpt wherever it actually is, and costs
+        # almost nothing - the work is bounded by the short side.
         n = _quick_frames()
         pa, pb = load_words(a), load_words(b)
         if pa is None or pb is None:
             return {"score": 0.0, "offset_s": 0.0, "aligned_frames": 0,
                     "coverage": 0.0, "comparable": False}
-        phases_a, phases_b = [pa[:n]], [pb[:n]]
+        if len(pa) <= len(pb):
+            phases_a, phases_b = [pa[:n]], [pb]
+        else:
+            phases_a, phases_b = [pa], [pb[:n]]
     else:
         phases_a, phases_b = _all_phases(a), _all_phases(b)
     if not phases_a or not phases_b:

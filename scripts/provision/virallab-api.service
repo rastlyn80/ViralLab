@@ -18,10 +18,11 @@ WorkingDirectory=/home/rastlyn/virallab
 # Secrets stay in the 0600 .env rather than in this unit file, which is
 # world-readable under /etc/systemd/system.
 EnvironmentFile=/home/rastlyn/virallab/.env
-ExecStart=/home/rastlyn/virallab/.venv/bin/python -m uvicorn \
-    server.api.app:app \
-    --host ${VIRALLAB_BIND_IP} --port 8443 \
-    --ssl-keyfile certs/server.key --ssl-certfile certs/server.crt
+# A launcher rather than uvicorn directly, because `--host ${VAR}` bound
+# 0.0.0.0 the moment that variable went missing: deploy.py regenerates .env
+# wholesale, which silently dropped the key and exposed the API on the home
+# LAN. run_api_svc.sh resolves the address itself and fails closed.
+ExecStart=/bin/bash /home/rastlyn/virallab/run_api_svc.sh
 Restart=always
 RestartSec=10
 # Collection is idempotent and the due() check is database-backed, so a

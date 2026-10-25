@@ -36,24 +36,91 @@ class Base(DeclarativeBase):
 # --------------------------------------------------------------------------
 
 class Creator(Base):
+    """One account on one platform.
+
+    Discovered creators, manually looked-up creators and the owner's own
+    accounts all live here. That is a deliberate commitment from
+    docs/PRODUCT_VISION.md: there is no separate "competitor" dataset, and a
+    creator found by hashtag differs from one typed in by hand only by
+    `source`. Analysis that silently studied one population would be
+    studying a biased sample of its own making.
+    """
+
     __tablename__ = "creators"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     platform: Mapped[str] = mapped_column(String(32))
     external_id: Mapped[str | None] = mapped_column(String(128))
     handle: Mapped[str] = mapped_column(String(256))
+    display_name: Mapped[str | None] = mapped_column(Text)
+    profile_url: Mapped[str | None] = mapped_column(Text)
+    #: Latest known value, for convenience. History lives in
+    #: `creator_snapshots` and is what any growth claim must rest on - a
+    #: single mutable number cannot evidence "this video grew the account".
     follower_count: Mapped[int | None] = mapped_column(BigInteger)
     niche_tags: Mapped[list | None] = mapped_column(JSONB)
     #: Own accounts get true daily snapshots via official APIs, so their
     #: fixed-age anchors are exact rather than inferred (plan 5.4).
     is_own_account: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: own_api | discovery | manual_lookup | cross_reference
+    source: Mapped[str] = mapped_column(String(32), default="own_api")
+    #: The query, hashtag or handle that surfaced this creator.
+    discovered_via: Mapped[str | None] = mapped_column(Text)
+    first_seen_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    last_refreshed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    #: Coverage and restrictions of whatever produced this row, so a partial
+    #: back-catalogue is never mistaken for a complete one.
+    provenance: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now())
 
     videos: Mapped[list["Video"]] = relationship(back_populates="creator")
+    snapshots: Mapped[list["CreatorSnapshot"]] = relationship(
+        back_populates="creator")
 
     __table_args__ = (
         UniqueConstraint("platform", "handle", name="uq_creator_platform_handle"),
+        CheckConstraint(
+            "source in ('own_api','discovery','manual_lookup',"
+            "'cross_reference')", name="ck_creator_source"),
+        Index("ix_creators_source", "source"),
+    )
+
+
+class CreatorSnapshot(Base):
+    """One observation of an account's own figures. Append-only.
+
+    Exists so a growth claim can be evidenced or honestly refused. The
+    product vision forbids asserting that a video caused follower growth
+    without historical follower counts; where this table has no rows
+    covering the period, the finding is an `inferred_breakthrough` and says
+    which evidence was missing.
+    """
+
+    __tablename__ = "creator_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    creator_id: Mapped[int] = mapped_column(ForeignKey("creators.id"))
+    captured_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+    follower_count: Mapped[int | None] = mapped_column(BigInteger)
+    following_count: Mapped[int | None] = mapped_column(BigInteger)
+    publication_count: Mapped[int | None] = mapped_column(BigInteger)
+    total_likes: Mapped[int | None] = mapped_column(BigInteger)
+    source: Mapped[str] = mapped_column(String(32), default="own_api")
+    #: One validated provider rounds large figures to ~3 significant digits,
+    #: which blurs small changes. Recorded per reading rather than assumed.
+    is_rounded: Mapped[bool] = mapped_column(Boolean, default=False)
+    raw: Mapped[dict | None] = mapped_column(JSONB)
+
+    creator: Mapped[Creator] = relationship(back_populates="snapshots")
+
+    __table_args__ = (
+        UniqueConstraint("creator_id", "captured_at",
+                         name="uq_creator_snapshot"),
+        Index("ix_creator_snapshots_creator", "creator_id", "captured_at"),
     )
 
 
@@ -87,6 +154,11 @@ class Video(Base):
         DateTime(timezone=True))
     #: Bounded, so a permanently failing item cannot be retried forever.
     media_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    #: Content digest of the preserved file. Stored rather than recomputed:
+    #: hashing every preserved file at the start of every pass meant reading
+    #: 736 MB from disk daily for information that never changes. Also what
+    #: makes an orphaned file detectable.
+    media_sha256: Mapped[str | None] = mapped_column(String(64))
     #: Platform-hosted cover image. The URL expires, so the dHash is what is
     #: actually relied on; the URL is kept for provenance. For TikTok this is
     #: the ONLY content signal available - the API returns no media file - so
@@ -517,6 +589,14 @@ class CollectionRun(Base):
         Integer, default=0, server_default=text("0"))
     media_downloaded: Mapped[int] = mapped_column(
         Integer, default=0, server_default=text("0"))
+    #: Which third-party provider served this run, if any. NULL for the
+    #: official APIs, which are free.
+    provider: Mapped[str | None] = mapped_column(String(64))
+    #: Actual billed cost, not an estimate (CLAUDE.md 5.3). The spending
+    #: guard in server/config.py sums this for the current month, so a paid
+    #: call that fails to record its cost makes the budget look emptier than
+    #: it is.
+    cost_usd: Mapped[float | None] = mapped_column(Float)
     error: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (

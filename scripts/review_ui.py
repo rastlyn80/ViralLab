@@ -1,6 +1,17 @@
 """Side-by-side review of proposed content relationships.
 
-    python scripts/review_ui.py          # then open http://127.0.0.1:8770
+**SUPERSEDED.** Reviewing now happens in the unified web interface served by
+the Ubuntu API (ADR 0006), and local master playback is handled by
+`scripts/local_media_bridge.py`, which is this file's serving half without
+the duplicated review workflow.
+
+Kept, not deleted, because it still works offline and needs no server: if
+the Ubuntu box is unreachable this is the fallback. Nothing is lost by using
+either - every decision is stored in the database, attributed to `human`,
+and neither tool overwrites the other.
+
+    python scripts/local_media_bridge.py    # preferred: feeds the web UI
+    python scripts/review_ui.py             # fallback, standalone
 
 Why a local web app rather than a page or a terminal prompt: the two things
 that need comparing live in different places. The local master sits on `D:`

@@ -70,19 +70,77 @@ def _env() -> dict[str, str]:
     return out
 
 
+#: A pass still running after this long is assumed dead. Generous: a full
+#: Instagram pass paginates the account, writes snapshots and preserves
+#: media, and must never be declared dead while it is merely slow - the same
+#: principle as the job reaper (CLAUDE.md 4.3).
+RUN_STALE_AFTER = timedelta(hours=3)
+
+
+def reconcile_stale_runs(session: Session, *,
+                         stale_after: timedelta = RUN_STALE_AFTER) -> int:
+    """Close out runs whose process died, and report how many.
+
+    A pass killed mid-flight leaves `status='running'` forever. That is the
+    opposite of what `collection_runs` is for: the table exists so a silent
+    stall is visible, and a row stuck at 'running' makes a dead pass look
+    like a working one. Such rows are marked `deferred` with an explanation,
+    which is also what lets `due()` schedule the next attempt.
+    """
+    cutoff = utcnow() - stale_after
+    result = session.execute(text("""
+        update collection_runs
+           set status = 'deferred',
+               finished_at = now(),
+               error = coalesce(error, '') ||
+                 'process exited before this pass finished; closed out by '
+                 'reconcile_stale_runs'
+         where status = 'running' and started_at < :cutoff"""),
+        {"cutoff": cutoff})
+    n = result.rowcount or 0
+    if n:
+        session.commit()
+        logger.warning("closed out %d collection run(s) left in 'running' by "
+                       "a process that exited", n)
+    return n
+
+
 def due(session: Session, platform: str, account_ref: str, *,
-        interval: timedelta = MIN_INTERVAL) -> bool:
-    """Has enough time passed since the last SUCCESSFUL pass?
+        interval: timedelta = MIN_INTERVAL,
+        stale_after: timedelta = RUN_STALE_AFTER) -> bool:
+    """Should a pass start now?
 
     Checked against the database rather than an in-memory timer, so a restart
     does not re-run a pass that already happened, and a long outage does not
     queue up a backlog of them.
+
+    Two conditions, not one. The original only asked whether enough time had
+    passed since the last *successful* pass, which made a pass that was still
+    **in flight** invisible: restarting the service mid-pass started a second
+    overlapping one, because the first had no `finished_at` yet. Observed in
+    production - three Instagram passes inside four minutes, duplicating API
+    calls and writing near-duplicate snapshots at effectively the same age.
     """
-    last = session.execute(text("""
-        select max(finished_at) from collection_runs
-        where platform = :p and account_ref = :a and status = 'ok'"""),
-        {"p": platform, "a": account_ref}).scalar()
-    return last is None or (utcnow() - last) >= interval
+    row = session.execute(text("""
+        select
+          (select max(finished_at) from collection_runs
+            where platform = :p and account_ref = :a and status = 'ok')
+            as last_ok,
+          (select max(started_at) from collection_runs
+            where platform = :p and account_ref = :a and status = 'running')
+            as in_flight"""),
+        {"p": platform, "a": account_ref}).one()
+    last_ok, in_flight = row[0], row[1]
+
+    # A pass that is plausibly still working owns the slot. One that has
+    # exceeded the stale window is assumed dead and does not block forever -
+    # reconcile_stale_runs() closes it out separately.
+    if in_flight is not None and (utcnow() - in_flight) < stale_after:
+        logger.info("%s pass started %s is still in flight; not starting "
+                    "another", platform, in_flight)
+        return False
+
+    return last_ok is None or (utcnow() - last_ok) >= interval
 
 
 class CollectionDisabled(RuntimeError):
@@ -117,9 +175,13 @@ def collect_tiktok_once(session: Session, *, kind: str = "daily") -> CollectionR
                                  handle=env.get("TIKTOK_HANDLE", account),
                                  external_id=account, is_own_account=True)
         seen = new = 0
+        # Kept so media preservation does not have to walk the media edge a
+        # second time: one daily pass should paginate the account once.
+        fetched = []
         for v in adapter.fetch_account_videos(account):
             _, created = upsert_video(session, creator, v,
                                       source="official_api")
+            fetched.append(v)
             seen += 1
             new += int(created)
         session.flush()
@@ -216,7 +278,7 @@ def collect_instagram_once(session: Session, *, kind: str = "daily"
         logger.info("instagram daily pass ok: %d seen, %d new, %d snapshots",
                     seen, new, snaps)
 
-        _preserve_media_quietly(session, adapter, account)
+        _preserve_media_quietly(session, adapter, account, items=fetched)
         return run
     except Exception as exc:
         session.rollback()
@@ -228,7 +290,8 @@ def collect_instagram_once(session: Session, *, kind: str = "daily"
         raise
 
 
-def _preserve_media_quietly(session: Session, adapter, account: str) -> None:
+def _preserve_media_quietly(session: Session, adapter, account: str, *,
+                            items=None) -> None:
     """Preserve newly collected Instagram media; never raise.
 
     Isolated on purpose. Media preservation touches the filesystem, the
@@ -243,13 +306,19 @@ def _preserve_media_quietly(session: Session, adapter, account: str) -> None:
         root = Path(_env().get("VIRALLAB_MEDIA_ROOT")
                     or "/home/rastlyn/virallab/media")
         res = preserve_instagram_media(session, adapter, account,
-                                       media_root=root)
+                                       media_root=root, items=items)
         logger.info(
             "instagram media: %d saved, %d unsupported, %d api-restricted, "
             "%d failed, %d deduplicated, %.1f MB added%s",
             res.saved, res.unsupported, res.api_restricted, res.failed,
             res.deduplicated, res.bytes_added / 1e6,
             f" ({res.stopped_reason})" if res.stopped_reason else "")
+        if (res.orphans_adopted or res.orphans_removed
+                or res.part_files_removed):
+            logger.info("instagram media sweep: %d orphan(s) adopted, "
+                        "%d removed, %d part file(s) cleaned",
+                        res.orphans_adopted, res.orphans_removed,
+                        res.part_files_removed)
         if res.failed or res.skipped_attempts:
             logger.warning(
                 "instagram media needs attention: %d failed this pass, "
@@ -319,6 +388,11 @@ async def daily_collection_loop(session_factory, *,
     """
     while True:
         try:
+            # Close out anything a previous process left mid-flight, so a
+            # dead pass neither masquerades as a live one nor blocks the
+            # next attempt.
+            with session_factory() as session:
+                reconcile_stale_runs(session)
             for platform in COLLECTORS:
                 with session_factory() as session:
                     row = session.scalar(select(OAuthToken).where(

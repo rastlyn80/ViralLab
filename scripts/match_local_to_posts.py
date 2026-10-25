@@ -196,7 +196,15 @@ def main() -> int:
         for qid, loc in local.items():
             s_q, d_q = score(loc, post, quick=True)
             screened += 1
-            if (s_q >= SCREEN_FLOOR
+            # A screen that cannot see the whole clip must not decide. The
+            # visual signal already covers the full duration, so this is
+            # belt-and-braces here - but the same blind spot cost
+            # performance grouping a real relationship, so it is made
+            # explicit rather than relied upon implicitly.
+            inconclusive = not audiofp.screen_is_conclusive(
+                loc.get("audiofp"), post.get("audiofp"))
+            if (inconclusive
+                    or s_q >= SCREEN_FLOOR
                     or d_q["frame_overlap"] >= SCREEN_VISUAL_FLOOR
                     or d_q["audio_similarity"] >= SCREEN_AUDIO_FLOOR):
                 candidates.append(qid)

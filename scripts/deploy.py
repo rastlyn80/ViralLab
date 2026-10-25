@@ -11,6 +11,7 @@ copies only what the server half actually runs.
 from __future__ import annotations
 
 import argparse
+import secrets
 import stat
 import sys
 from pathlib import Path
@@ -21,7 +22,9 @@ from remote import connect, env, run  # noqa: E402
 REMOTE_ROOT = "/home/rastlyn/virallab"
 
 #: Server-side only. The GPU worker's own deps and the probes stay local.
-INCLUDE_DIRS = ["server", "shared", "config", "tests"]
+#: webui/ is included because the SPA has no build step: deploying the
+#: interface is copying the files (ADR 0006).
+INCLUDE_DIRS = ["server", "shared", "config", "tests", "webui"]
 #: gpu_worker is NOT synced: it runs on Windows only.
 INCLUDE_FILES = ["alembic.ini", "pytest.ini", "requirements-server.txt"]
 EXCLUDE_PARTS = {"__pycache__", ".pytest_cache", "node_modules"}
@@ -68,6 +71,12 @@ def main() -> int:
                 mkdirs(f"{REMOTE_ROOT}/{Path(rel).parent.as_posix()}")
                 sftp.put(str(f), f"{REMOTE_ROOT}/{rel}")
                 sent += 1
+        # The systemd service launcher lives next to the code it starts.
+        # Shipped explicitly because scripts/ as a whole is not deployed.
+        launcher = local_root / "scripts" / "provision" / "run_api_svc.sh"
+        if launcher.is_file():
+            sftp.put(str(launcher), f"{REMOTE_ROOT}/run_api_svc.sh")
+            sent += 1
         for name in INCLUDE_FILES:
             f = local_root / name
             if f.is_file():
@@ -83,15 +92,33 @@ def main() -> int:
         # the username in "://virallab:", which is exactly what it did once.
         head, _, _name = db_url.rpartition("/")
         test_db_url = f"{head}/virallab_test"
+        # Web-UI password. Generated once if absent and appended to the
+        # LOCAL .env (gitignored) rather than printed, so the credential
+        # never appears in a transcript, a log or this tool's output.
+        ui_password = e.get("SERVER_UI_PASSWORD", "").strip()
+        if not ui_password:
+            ui_password = secrets.token_urlsafe(18)
+            with (local_root / ".env").open("a", encoding="utf-8") as fh:
+                fh.write(f"\nSERVER_UI_PASSWORD={ui_password}\n")
+            print("generated a web-UI password and appended it to .env as "
+                  "SERVER_UI_PASSWORD (deliberately not printed here)")
+
         envfile = "\n".join([
             f"VIRALLAB_DB_URL={db_url}",
             # Separate disposable database: the suite truncates tables and
             # must never be able to reach the application database.
             f"VIRALLAB_TEST_DB_URL={test_db_url}",
             f"VIRALLAB_MEDIA_SECRET={e['SERVER_MEDIA_SECRET']}",
+            # Without this the web UI is readable by anything that can reach
+            # the tailnet address; app startup logs a warning if it is unset.
+            f"VIRALLAB_UI_PASSWORD={ui_password}",
             f"VIRALLAB_WORKER_TOKENS=gpu-1:{e['SERVER_WORKER_TOKEN']}",
             f"VIRALLAB_PUBLIC_BASE_URL=https://{e['UBUNTU_HOST']}:8443",
             f"VIRALLAB_MEDIA_ROOT={REMOTE_ROOT}/media",
+            # The tailnet address. run_api_svc.sh re-derives this if it is
+            # missing and refuses to bind 0.0.0.0 either way, but recording
+            # it keeps the intended interface explicit.
+            f"VIRALLAB_BIND_IP={e.get('UBUNTU_HOST','')}",
             "VIRALLAB_MEDIA_TTL=900",
             # Ubuntu is the authoritative collector: it needs the app
             # credentials to refresh the rotating TikTok token (ADR 0005).

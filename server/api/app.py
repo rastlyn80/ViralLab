@@ -22,9 +22,12 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session, sessionmaker
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from server.api import deps, ui
+from server.api.deps import get_session
 from server.db.models import Video
 from server.queue.queue import (
     LeaseError, fail_batch, heartbeat, lease_batch, queue_depth, reap_expired,
@@ -55,8 +58,33 @@ COLLECTION_INTERVAL = int(os.environ.get(
 
 logger = logging.getLogger("virallab.api")
 
-_engine = None
-_Session: sessionmaker | None = None
+
+def _configure_logging() -> None:
+    """Attach our own handler to the `virallab` logger tree.
+
+    uvicorn configures only its own loggers, so everything logged here -
+    including the reaper and the daily collector - went nowhere. The loop was
+    verifiably running but invisible in logs/api.log, which is the worst
+    combination: working, and unobservable.
+    """
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(
+        "%(asctime)s %(levelname)-8s %(name)s %(message)s"))
+    level = os.environ.get("VIRALLAB_LOG_LEVEL", "INFO").upper()
+    # BOTH trees. Configuring only "virallab" fixed the reaper and left the
+    # collectors silent, because they use `getLogger(__name__)` and so live
+    # under "server.*". That is how a failing media-preservation pass
+    # produced no log line at all: the exception handler logged, and the
+    # record went nowhere.
+    for name in ("virallab", "server"):
+        root = logging.getLogger(name)
+        if root.handlers:
+            continue
+        root.addHandler(handler)
+        root.setLevel(level)
+        # Already captured in logs/api.log by the unit's stdout append.
+        root.propagate = False
+
 
 
 def _parse_tokens(raw: str) -> dict[str, str]:
@@ -83,7 +111,7 @@ async def _reaper_loop(interval: int) -> None:
     while True:
         await asyncio.sleep(interval)
         try:
-            with _Session() as session:          # type: ignore[misc]
+            with deps.session_factory()() as session:
                 reaped = reap_expired(session)
                 session.commit()
             if reaped:
@@ -97,22 +125,27 @@ async def _reaper_loop(interval: int) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _engine, _Session
     if not DB_URL:
         raise RuntimeError("VIRALLAB_DB_URL is not set")
     if not MEDIA_SECRET:
         raise RuntimeError("VIRALLAB_MEDIA_SECRET is not set")
-    _engine = create_engine(DB_URL, future=True, pool_pre_ping=True)
-    _Session = sessionmaker(_engine, expire_on_commit=False, future=True)
+    _configure_logging()
+    deps.configure(DB_URL)
     app.state.tokens = _parse_tokens(WORKER_TOKENS)
+    if not ui.auth_required():
+        logger.warning(
+            "VIRALLAB_UI_PASSWORD is not set: the web UI is readable by "
+            "anything that can reach this tailnet address. Set it to "
+            "require a password.")
 
     tasks = [asyncio.create_task(_reaper_loop(REAPER_INTERVAL))]
     logger.info("reaper started (every %ss)", REAPER_INTERVAL)
     if COLLECTION_ENABLED:
         from server.scheduler.collect import daily_collection_loop
         tasks.append(asyncio.create_task(
-            daily_collection_loop(_Session,
-                                  check_interval_seconds=COLLECTION_INTERVAL)))
+            daily_collection_loop(
+                deps.session_factory(),
+                check_interval_seconds=COLLECTION_INTERVAL)))
         logger.info("daily collection started (checks every %ss)",
                     COLLECTION_INTERVAL)
     try:
@@ -125,18 +158,12 @@ async def lifespan(app: FastAPI):
                 await t
             except asyncio.CancelledError:
                 pass
-        if _engine is not None:
-            _engine.dispose()
+        deps.dispose()
 
 
 app = FastAPI(title="ViralLab", version="0.1.0", lifespan=lifespan)
 
 
-def get_session() -> Session:
-    if _Session is None:
-        raise HTTPException(503, "database not initialised")
-    with _Session() as session:
-        yield session
 
 
 def require_worker(request: Request,
@@ -158,6 +185,9 @@ async def _lease_error(_: Request, exc: LeaseError):
     # 409 Conflict: the caller's lease is no longer current. This is the
     # zombie-worker guard, and it must be distinguishable from a 500.
     return JSONResponse(status_code=409, content={"detail": str(exc)})
+
+
+app.include_router(ui.router)
 
 
 @app.get("/health")
@@ -232,7 +262,7 @@ def post_worker_status(status: WorkerStatus,
     return {"recorded": True}
 
 
-@app.get("/status/collection")
+@app.get("/status/collection", dependencies=[Depends(ui.require_ui)])
 def get_collection_status(session: Session = Depends(get_session)):
     """Recent collection runs and credential health.
 
@@ -258,7 +288,7 @@ def get_collection_status(session: Session = Depends(get_session)):
     }
 
 
-@app.get("/status/queue")
+@app.get("/status/queue", dependencies=[Depends(ui.require_ui)])
 def get_queue_depth(session: Session = Depends(get_session)):
     """Queue visibility: a GPU backlog must be observable, not silent."""
     return {"depth": queue_depth(session)}
@@ -281,6 +311,9 @@ def admin_reap(session: Session = Depends(get_session),
 # ---------------------------------------------------------------------------
 # media
 # ---------------------------------------------------------------------------
+
+WEBUI_DIR = Path(__file__).resolve().parent.parent.parent / "webui"
+
 
 @app.get("/media/{video_id}")
 def get_media(video_id: int, expires: int = Query(...), sig: str = Query(...),
@@ -308,3 +341,19 @@ def get_media(video_id: int, expires: int = Query(...), sig: str = Query(...),
     if not path.is_file():
         raise HTTPException(404, "media file missing")
     return FileResponse(path, media_type="video/mp4")
+
+
+# ---------------------------------------------------------------------------
+# the web UI
+#
+# Mounted LAST and at the root, so every API route above is matched first and
+# the SPA only handles what is left. `html=True` serves index.html for
+# unknown paths, which is what lets the client-side router own the URL bar.
+# ---------------------------------------------------------------------------
+
+if WEBUI_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=str(WEBUI_DIR), html=True),
+              name="webui")
+else:                                                    # pragma: no cover
+    logger.warning("webui/ not found at %s; the API is running without a "
+                   "user interface", WEBUI_DIR)

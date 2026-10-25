@@ -11,14 +11,15 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import sessionmaker
 
 from server.analytics.fixed_age import (
     ANCHORS, anchor_eligibility, metric_at_age, observation_age_days,
 )
 from server.collectors.base import upsert_creator
-from server.db.models import Base, Creator, MetricsSnapshot, Video, utcnow
+from server.db.models import (Base, CollectionRun, Creator, MetricsSnapshot,
+                              Video, utcnow)
 from server.scheduler.collect import MIN_INTERVAL, due
 from tests.conftest import TEST_DB_URL, assert_disposable
 
@@ -321,3 +322,79 @@ def test_buc_usage_parsing_and_stop_threshold():
         '{"123":[{"call_count":1,"estimated_time_to_regain_access":12}]}')
     assert throttled.should_stop is True
     assert BucUsage.parse(None) is None and BucUsage.parse("not json") is None
+
+
+# ---------------------------------------------------------------------------
+# overlapping passes
+# ---------------------------------------------------------------------------
+
+def test_an_in_flight_pass_blocks_a_second_one(session):
+    """Observed in production: three Instagram passes inside four minutes.
+
+    `due()` only asked whether enough time had passed since the last
+    SUCCESSFUL pass, so a pass still running had no `finished_at` and was
+    invisible. Restarting the service mid-pass therefore started another,
+    duplicating API calls and writing near-duplicate snapshots at
+    effectively the same age.
+    """
+    from server.scheduler.collect import due
+    session.add(CollectionRun(platform="instagram", account_ref="ig-1",
+                              kind="daily", status="running",
+                              started_at=utcnow() - timedelta(minutes=3)))
+    session.commit()
+    assert due(session, "instagram", "ig-1") is False
+
+
+def test_a_long_dead_pass_does_not_block_forever(session):
+    """A crashed pass must not wedge the schedule."""
+    from server.scheduler.collect import RUN_STALE_AFTER, due
+    session.add(CollectionRun(platform="instagram", account_ref="ig-1",
+                              kind="daily", status="running",
+                              started_at=utcnow() - RUN_STALE_AFTER
+                              - timedelta(minutes=5)))
+    session.commit()
+    assert due(session, "instagram", "ig-1") is True
+
+
+def test_a_slow_pass_is_not_declared_dead(session):
+    """A full Instagram pass paginates, snapshots and preserves media. Slow
+    is not dead - the same principle as the job reaper."""
+    from server.scheduler.collect import RUN_STALE_AFTER, reconcile_stale_runs
+    session.add(CollectionRun(platform="instagram", account_ref="ig-1",
+                              kind="daily", status="running",
+                              started_at=utcnow() - RUN_STALE_AFTER
+                              + timedelta(minutes=30)))
+    session.commit()
+    assert reconcile_stale_runs(session) == 0
+    assert session.scalar(select(func.count(CollectionRun.id)).where(
+        CollectionRun.status == "running")) == 1
+
+
+def test_stale_runs_are_closed_out_with_an_explanation(session):
+    """A row stuck at 'running' makes a dead pass look like a working one,
+    which defeats the point of recording runs at all."""
+    from server.scheduler.collect import RUN_STALE_AFTER, reconcile_stale_runs
+    session.add(CollectionRun(platform="tiktok", account_ref="tt-1",
+                              kind="daily", status="running",
+                              started_at=utcnow() - RUN_STALE_AFTER
+                              - timedelta(hours=1)))
+    session.commit()
+    assert reconcile_stale_runs(session) == 1
+    row = session.scalars(select(CollectionRun)).one()
+    assert row.status == "deferred"
+    assert row.finished_at is not None
+    assert "exited before this pass finished" in (row.error or "")
+    # And it no longer blocks the schedule.
+    from server.scheduler.collect import due
+    assert due(session, "tiktok", "tt-1") is True
+
+
+def test_reconcile_is_idempotent(session):
+    from server.scheduler.collect import RUN_STALE_AFTER, reconcile_stale_runs
+    session.add(CollectionRun(platform="tiktok", account_ref="tt-1",
+                              kind="daily", status="running",
+                              started_at=utcnow() - RUN_STALE_AFTER
+                              - timedelta(hours=1)))
+    session.commit()
+    assert reconcile_stale_runs(session) == 1
+    assert reconcile_stale_runs(session) == 0
