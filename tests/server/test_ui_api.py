@@ -288,7 +288,7 @@ def test_video_list_filters(client):
 
 def test_video_list_rejects_bad_parameters(client):
     assert client.get("/api/videos?platform=youtube").status_code == 422
-    assert client.get("/api/videos?limit=5000").status_code == 422
+    assert client.get("/api/videos?limit=2000").status_code == 422
     assert client.get("/api/videos?order=views").status_code == 422
 
 
@@ -549,3 +549,79 @@ def test_api_routes_are_not_shadowed_by_the_static_mount(client):
     still reach the API."""
     assert client.get("/api/overview").status_code == 200
     assert client.get("/health").status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# ownership scoping in the overview - the Phase 4 regression
+# ---------------------------------------------------------------------------
+
+def test_researched_competitor_does_not_inflate_the_owners_corpus(client,
+                                                                  ctx):
+    """Phase 4 put third-party publications in the same tables.
+
+    This was a real defect, caught against the production database: a
+    single fixture research pass moved the dashboard's TikTok publication
+    count from 234 to 296. The owner's corpus size, publication dates and -
+    most importantly - capture-day count must all remain own-account only,
+    because the capture-day count governs whether any fixed-age anchor is
+    computable at all.
+    """
+    _, maker, _ = ctx
+    before = client.get("/api/overview").json()
+    lib_before = client.get("/api/videos?limit=200").json()["total"]
+
+    with maker() as s:
+        rival = Creator(platform="tiktok", handle="@rival",
+                        external_id="tt-rival", is_own_account=False,
+                        source="manual_lookup", is_fixture=True)
+        s.add(rival)
+        s.flush()
+        # Posted long before, and captured on a different day, so it would
+        # move every figure in the overview if it were counted.
+        v = Video(creator_id=rival.id, platform="tiktok",
+                  external_id="RIVAL1", posted_at=NOW - timedelta(days=900),
+                  source="discovery", provenance={"provider": "fixture"},
+                  is_fixture=True, media_status="absent")
+        s.add(v)
+        s.flush()
+        s.add(MetricsSnapshot(video_id=v.id, captured_at=NOW -
+                              timedelta(days=30), views=999999,
+                              is_rounded=True))
+        s.commit()
+        rival_id, vid = rival.id, v.id
+
+    try:
+        # The library is the owner's archive: signed media URLs and
+        # master-link review against local master files. A third party's
+        # publication has no business in it.
+        lib = client.get("/api/videos?limit=200").json()
+        assert all(v["external_id"] != "RIVAL1" for v in lib["items"])
+        assert lib["total"] == lib_before
+
+        # Defence in depth: even a preserved file on a competitor's row
+        # must not be served out of our own API.
+        with maker() as s2:
+            from server.db.models import Video as V
+            row = s2.query(V).filter_by(external_id="RIVAL1").one()
+            row.media_status = "available"
+            row.media_path = "/tmp/not-ours.mp4"
+            s2.commit()
+        detail = client.get(f"/api/videos/{vid}").json()
+        assert detail["media_url"] is None
+
+        after = client.get("/api/overview").json()
+        assert after["snapshot_days"] == before["snapshot_days"]
+        assert after["earliest_snapshot"] == before["earliest_snapshot"]
+        for plat in ("tiktok", "instagram"):
+            b = next(p for p in before["platforms"] if p["platform"] == plat)
+            a = next(p for p in after["platforms"] if p["platform"] == plat)
+            assert a["publications"] == b["publications"], plat
+            assert a["snapshots"] == b["snapshots"], plat
+            assert a["first_published"] == b["first_published"], plat
+    finally:
+        with maker() as s:
+            s.execute(text("delete from metrics_snapshots "
+                           f"where video_id = {vid}"))
+            s.execute(text(f"delete from videos where id = {vid}"))
+            s.execute(text(f"delete from creators where id = {rival_id}"))
+            s.commit()

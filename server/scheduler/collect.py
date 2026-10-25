@@ -186,8 +186,12 @@ def collect_tiktok_once(session: Session, *, kind: str = "daily") -> CollectionR
             new += int(created)
         session.flush()
 
+        # Scoped to the account being collected. An external id is only
+        # unique within an account, so a platform-wide map could attach an
+        # official-API snapshot to a researched third party's publication.
         by_ext = {v.external_id: v for v in session.scalars(
-            select(Video).where(Video.platform == "tiktok")).all()}
+            select(Video).where(Video.platform == "tiktok",
+                                Video.creator_id == creator.id)).all()}
         snaps = 0
         for m in adapter.fetch_metrics(account, list(by_ext)):
             target = by_ext.get(m.external_id)
@@ -256,8 +260,12 @@ def collect_instagram_once(session: Session, *, kind: str = "daily"
             new += int(created)
         session.flush()
 
+        # Scoped to the account being collected. An external id is only
+        # unique within an account, so a platform-wide map could attach an
+        # official-API snapshot to a researched third party's publication.
         by_ext = {v.external_id: v for v in session.scalars(
-            select(Video).where(Video.platform == "instagram")).all()}
+            select(Video).where(Video.platform == "instagram",
+                                Video.creator_id == creator.id)).all()}
         # Not every stored post: the policy prioritises never-seen and young
         # posts (where fixed-age anchors are still capturable) and rotates
         # the archive, so quota is spent where it buys something.

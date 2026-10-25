@@ -340,3 +340,96 @@ def test_coverage_excludes_unsupported_from_the_denominator(session,
     assert cov["coverage_pct"] == pytest.approx(50.0)
     assert cov["by_reason_class"]["not_a_video"] == 1
     assert cov["by_reason_class"]["api_restricted"] == 1
+
+
+# ---------------------------------------------------------------------------
+# ownership scoping - the Phase 4 regression
+#
+# Before Phase 4 every row in `videos` belonged to the owner, so filtering
+# by platform alone was equivalent to filtering by ownership. Competitor
+# research broke that equivalence, and these tests exist because the
+# difference is a policy violation rather than a wrong number: public
+# metadata access is not permission to retain a competitor's media
+# (docs/MULTIMODAL_PIPELINE.md).
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def competitor(session):
+    c = Creator(platform="instagram", handle="someone_else",
+                external_id="ig-other", is_own_account=False,
+                source="manual_lookup")
+    session.add(c)
+    session.commit()
+    return c
+
+
+def test_competitor_media_is_never_downloaded(session, creator, competitor,
+                                              tmp_path):
+    """A researched competitor's reel must not be fetched or retained.
+
+    The adapter offers a working media URL for both publications. Only the
+    owner's is taken.
+    """
+    add_video(session, creator, "mine")
+    add_video(session, competitor, "theirs")
+
+    adapter = FakeAdapter([
+        ("mine", {"media_type": "VIDEO"}),
+        ("theirs", {"media_type": "VIDEO", "media_url": "http://x/t.mp4"}),
+    ])
+    mp.preserve_instagram_media(session, adapter, "ig-1",
+                                media_root=tmp_path)
+
+    rows = {v.external_id: v for v in session.query(Video).all()}
+    # Untouched: no attempt, no status change, no reason recorded.
+    assert rows["theirs"].media_status == "absent"
+    assert rows["theirs"].media_reason is None
+    assert (rows["theirs"].media_attempts or 0) == 0
+    assert rows["theirs"].media_path is None
+    assert not list(tmp_path.glob("ig_theirs*"))
+    # The owner's was considered.
+    assert rows["mine"].media_reason == "api_restricted:no_media_url"
+
+
+def test_competitor_media_file_is_not_adopted_as_ours(session, creator,
+                                                      competitor, tmp_path):
+    """`sweep()` adopts orphaned files by external id.
+
+    A file named after a competitor publication must be treated as an
+    orphan and removed, not adopted into the archive, or the retention
+    policy could be defeated by a filename.
+    """
+    (tmp_path / "ig_theirs.mp4").write_bytes(b"x" * 64)
+    add_video(session, competitor, "theirs")
+
+    res = mp.PreservationResult()
+    mp.sweep(session, tmp_path, res)
+
+    assert res.orphans_adopted == 0
+    assert not (tmp_path / "ig_theirs.mp4").exists()
+    v = session.query(Video).filter_by(external_id="theirs").one()
+    assert v.media_status == "absent"
+
+
+def test_coverage_excludes_competitors(session, creator, competitor):
+    """A competitor's unpreserved reel is not a gap in our archive."""
+    add_video(session, creator, "mine", media_status="available")
+    for i in range(5):
+        add_video(session, competitor, f"theirs{i}")
+
+    cov = mp.coverage(session, "instagram")
+    assert cov["total"] == 1
+    assert cov["preservable"] == 1
+    assert cov["preserved"] == 1
+    assert cov["coverage_pct"] == 100.0
+
+
+def test_backfill_hashes_ignores_competitors(session, creator, competitor,
+                                             tmp_path):
+    f = tmp_path / "ig_theirs.mp4"
+    f.write_bytes(b"x" * 64)
+    add_video(session, competitor, "theirs", media_status="available",
+              media_path=str(f))
+    assert mp.backfill_hashes(session) == 0
+    v = session.query(Video).filter_by(external_id="theirs").one()
+    assert v.media_sha256 is None

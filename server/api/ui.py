@@ -186,6 +186,14 @@ def _signed_media_url(video: Video) -> str | None:
     """
     if video.media_status != "available" or not video.media_path:
         return None
+    # Defence in depth. Media preservation already refuses to fetch a third
+    # party's publication, so this should be unreachable - but the cost of
+    # being wrong is serving a competitor's media out of our own API, so the
+    # policy is enforced at the point of use as well as at collection.
+    if video.creator is not None and not video.creator.is_own_account:
+        logger.warning("refused to sign media for non-own-account video %s",
+                       video.id)
+        return None
     if not SESSION_SECRET:
         return None
     return sign_media_url("", video.id, SESSION_SECRET,
@@ -220,15 +228,24 @@ def build_overview(session: Session) -> Overview:
     platforms: list[PlatformSummary] = []
     for platform in ("tiktok", "instagram"):
         tok = tokens.get(platform)
+        # Own-account only. Phase 4 put third-party publications in the
+        # same table, and a researched competitor must not inflate the
+        # owner's corpus size, publication dates, or capture-day count -
+        # the last of which governs whether any fixed-age anchor is
+        # computable at all.
         agg = session.execute(
             select(func.count(Video.id),
                    func.min(Video.posted_at),
                    func.max(Video.posted_at))
-            .where(Video.platform == platform)).one()
+            .join(Creator, Creator.id == Video.creator_id)
+            .where(Video.platform == platform,
+                   Creator.is_own_account.is_(True))).one()
         snaps = session.scalar(
             select(func.count(MetricsSnapshot.id))
             .join(Video, Video.id == MetricsSnapshot.video_id)
-            .where(Video.platform == platform)) or 0
+            .join(Creator, Creator.id == Video.creator_id)
+            .where(Video.platform == platform,
+                   Creator.is_own_account.is_(True))) or 0
         platforms.append(PlatformSummary(
             platform=platform,
             account_ref=tok.account_ref if tok else None,
@@ -293,10 +310,14 @@ def build_overview(session: Session) -> Overview:
     # Distinct capture DAYS, not snapshots. One day means no fixed-age
     # anchor is computable for anything, which is the single most important
     # fact about the current corpus.
+    own_snaps = (select(MetricsSnapshot.captured_at)
+                 .join(Video, Video.id == MetricsSnapshot.video_id)
+                 .join(Creator, Creator.id == Video.creator_id)
+                 .where(Creator.is_own_account.is_(True)).subquery())
     days = count(select(func.count(func.distinct(
-        func.date_trunc("day", MetricsSnapshot.captured_at)))))
-    bounds = session.execute(select(func.min(MetricsSnapshot.captured_at),
-                                    func.max(MetricsSnapshot.captured_at))
+        func.date_trunc("day", own_snaps.c.captured_at)))))
+    bounds = session.execute(select(func.min(own_snaps.c.captured_at),
+                                    func.max(own_snaps.c.captured_at))
                              ).one()
 
     return Overview(
@@ -316,7 +337,12 @@ def build_video_page(session: Session, *, platform: str | None,
                      q: str | None, has_media: bool | None,
                      linked: str | None, order: str,
                      limit: int, offset: int) -> VideoPage:
-    stmt = select(Video)
+    # The library is the owner's own archive: it offers signed media URLs
+    # and drives master-link review against local master files, neither of
+    # which means anything for a third party's publication. Researched
+    # creators are browsed through /api/research/* instead.
+    stmt = (select(Video).join(Creator, Creator.id == Video.creator_id)
+            .where(Creator.is_own_account.is_(True)))
     if platform:
         stmt = stmt.where(Video.platform == platform)
     if has_media is True:

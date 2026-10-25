@@ -946,6 +946,63 @@ populates them yet.
 *Depends on:* bio links (already extracted by the clockworks normaliser) and
 the Phase 2 fingerprint for cross-posted content.
 
+**Milestone 4.8 — Ownership scoping.** ✅ *implemented, after a found defect*
+Before Phase 4, every row in `videos` belonged to the owner, so filtering by
+platform was *equivalent* to filtering by ownership. Competitor research broke
+that equivalence, and four queries still relied on it.
+
+Found by smoke-testing the deployed write path against the production
+database: one fixture research pass moved the dashboard's TikTok publication
+count from 234 to 296, and the own-account capture-day count — which governs
+whether any fixed-age anchor is computable at all — was computed over
+competitor snapshots too.
+
+The serious one was not the arithmetic. `media_preservation` selected **every**
+Instagram publication with no ownership filter, so the next unattended pass
+after researching an Instagram competitor would have downloaded and
+*permanently retained* their reels — the exact thing
+`docs/MULTIMODAL_PIPELINE.md` forbids and that `analysis_seam.py` refuses for
+transient analysis. That collector predates the policy and nothing connected
+the two. Nothing was actually downloaded: the fixture creator was TikTok-only,
+where no media is obtainable.
+
+An audit of every remaining `select(Video)` found the same assumption in
+three more places, one of them worse than the media problem:
+
+| site | what would have happened |
+|---|---|
+| `media_preservation` (4 queries) | a researched competitor's reels **downloaded and permanently retained** |
+| `snapshot_policy.select_for_refresh` | competitor publications have **no snapshots**, so they sort to priority 1 ("never observed") and **spend the owner's Instagram API quota**, crowding out the owner's own young posts — the only window in which a real `views@7d` anchor is capturable, and one that does not come back |
+| `scheduler.collect` (2 queries) | `by_ext` was platform-wide, so an official-API snapshot could attach to a third party's publication on an external-id collision |
+| `ui.build_video_page` | third-party publications listed in the owner's own archive, which exists to offer signed media URLs and drive master-link review against local master files |
+
+Fixed by scoping each to `Creator.is_own_account` — and in the collector, to
+the account actually being collected, which is strictly correct because an
+external id is only unique within an account. `videos.creator_id` is NOT
+NULL, so none of these joins can silently drop a row that should have been
+considered.
+
+`_signed_media_url` now also refuses to sign for a non-own-account video and
+logs it. That should be unreachable once preservation is scoped, but the cost
+of being wrong is serving a competitor's media out of our own API, so the
+policy is enforced at the point of use as well as at collection.
+
+The 62 fixture rows were removed from production, which returned to exactly
+619 videos and 1372 snapshots, and the dashboard to 234 TikTok publications,
+2 capture days and 90.2% Instagram media coverage.
+*Acceptance:* a competitor publication is never fetched, never adopted from
+disk by filename, never counted in media coverage, never selected for
+refresh, never listed in the owner's library, never served as media, and
+never moves any own-account figure in the overview. ✅ met, 7 regression
+tests, verified to fail without the fix.
+
+**The general lesson, recorded because it will recur:** every query written
+before Phase 4 that filtered `videos` by platform was *implicitly* filtering
+by ownership, and stayed correct only while the owner was the sole creator in
+the table. Phase 4 silently invalidated that, and the type system cannot
+catch it. Any new query over `videos`, `metrics_snapshots` or `creators` must
+state which population it means.
+
 **Blocked:** nothing in this phase is blocked by us. Live collection is
 **refused rather than attempted** until the owner sets
 `spending.monthly_cap_usd` and `providers_authorised` in

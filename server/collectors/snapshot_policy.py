@@ -110,8 +110,17 @@ def select_for_refresh(session: Session, platform: str, *,
         with latest as (
           select v.id, v.external_id, v.posted_at,
                  max(s.captured_at) as last_seen
-          from videos v left join metrics_snapshots s on s.video_id = v.id
+          from videos v
+               join creators c on c.id = v.creator_id
+               left join metrics_snapshots s on s.video_id = v.id
+          -- Own-account only. These ids are spent against the owner's
+          -- official-API quota, and a researched competitor's publications
+          -- have no snapshots at all, so they would sort straight to
+          -- priority 1 ("never observed") and crowd out the owner's own
+          -- young posts - the one window where a real views@7d anchor is
+          -- still capturable.
           where v.platform = :p and v.posted_at is not null
+                and c.is_own_account
           group by v.id, v.external_id, v.posted_at)
         select external_id,
                extract(epoch from (now() - posted_at))/86400.0 as age_days,

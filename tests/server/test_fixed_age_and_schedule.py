@@ -398,3 +398,34 @@ def test_reconcile_is_idempotent(session):
     session.commit()
     assert reconcile_stale_runs(session) == 1
     assert reconcile_stale_runs(session) == 0
+
+
+# ---------------------------------------------------------------------------
+# refresh targeting must not spend the owner's quota on third parties
+# ---------------------------------------------------------------------------
+
+def test_refresh_targets_exclude_researched_competitors(session):
+    """`select_for_refresh` returns ids spent against the owner's API quota.
+
+    A researched competitor's publications have no snapshots at all, so they
+    sort to priority 1 ("never observed") and would crowd out the owner's own
+    young posts - the only window in which a real views@7d anchor is still
+    capturable, and a window that does not come back.
+    """
+    from server.collectors.snapshot_policy import select_for_refresh
+
+    mine = make_video(session, 5.0)
+    snap(session, mine, days_after_post=1.0, views=100)
+
+    rival = upsert_creator(session, platform="tiktok", handle="rival",
+                           external_id="acct-rival", is_own_account=False)
+    for i in range(20):
+        session.add(Video(creator_id=rival.id, platform="tiktok",
+                          external_id=f"rival{i}", source="discovery",
+                          is_fixture=True,
+                          posted_at=utcnow() - timedelta(days=3 + i)))
+    session.commit()
+
+    targets = select_for_refresh(session, "tiktok", max_calls=10)
+    assert targets == [mine.external_id]
+    assert not any(t.startswith("rival") for t in targets)

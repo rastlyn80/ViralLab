@@ -55,7 +55,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from server.db.models import Video
+from server.db.models import Creator, Video
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +170,26 @@ def download(url: str, dest: Path, *, timeout: int = 120) -> tuple[bool, str]:
     return True, "ok"
 
 
+
+def own_instagram(platform: str = "instagram"):
+    """Select own-account publications only.
+
+    Load-bearing, not a tidiness filter. Phase 4 made it possible for a
+    third-party creator's publications to exist in `videos`, and
+    **public metadata access is not permission to retain their media**
+    (docs/MULTIMODAL_PIPELINE.md). Without this scope the preservation pass
+    would download and permanently keep a researched competitor's reels,
+    which is exactly the policy `server/research/analysis_seam.py` refuses
+    to allow for transient analysis.
+
+    `videos.creator_id` is NOT NULL, so the join can never silently drop a
+    row that should have been considered.
+    """
+    return (select(Video)
+            .join(Creator, Creator.id == Video.creator_id)
+            .where(Video.platform == platform,
+                   Creator.is_own_account.is_(True)))
+
 def sweep(session: Session, media_root: Path,
           res: PreservationResult) -> None:
     """Reconcile the filesystem against the database.
@@ -197,7 +217,7 @@ def sweep(session: Session, media_root: Path,
             logger.warning("could not remove stale part file %s", part)
 
     by_ext = {v.external_id: v for v in session.scalars(
-        select(Video).where(Video.platform == "instagram")).all()}
+        own_instagram()).all()}
 
     for f in media_root.glob("ig_*.mp4"):
         ext = f.stem[3:]
@@ -233,8 +253,7 @@ def sweep(session: Session, media_root: Path,
 
 def backfill_hashes(session: Session, limit: int = 500) -> int:
     """Record digests for files preserved before the column existed."""
-    rows = session.scalars(select(Video).where(
-        Video.platform == "instagram",
+    rows = session.scalars(own_instagram().where(
         Video.media_status == "available",
         Video.media_sha256.is_(None)).limit(limit)).all()
     done = 0
@@ -285,7 +304,7 @@ def preserve_instagram_media(
     backfill_hashes(session)
 
     rows = {v.external_id: v for v in session.scalars(
-        select(Video).where(Video.platform == "instagram")).all()}
+        own_instagram()).all()}
     wanted = {e for e, v in rows.items() if _retryable(v, now)}
     res.skipped_attempts = sum(
         1 for v in rows.values()
@@ -418,10 +437,11 @@ def coverage(session: Session, platform: str = "instagram") -> dict:
     """Media coverage, with unsupported types excluded from the denominator.
 
     Counting an image post as a missing video overstates the gap and makes
-    the number impossible to act on.
+    the number impossible to act on. Own-account only, for the same reason:
+    a researched competitor's unpreserved reels are not a gap in our
+    archive, they are media we are deliberately not keeping.
     """
-    rows = session.scalars(select(Video).where(
-        Video.platform == platform)).all()
+    rows = session.scalars(own_instagram(platform)).all()
     by_status: dict[str, int] = {}
     by_reason: dict[str, int] = {}
     for v in rows:

@@ -38,6 +38,10 @@ into a library. The features survive; the video does not. Concretely:
   it genuinely is;
 - no competitor media is ever served through the API, not even signed.
 
+The last two were stated here before anything enforced them, and one of the
+collectors was in fact violating the first. §6 records where each is now
+actually checked, and which test holds it there.
+
 `[OPEN]` Whether even transient download is appropriate for every source is
 a question for legal review before commercialisation, which §2.3 already
 requires. Until then this stays internal-research-only and the volume stays
@@ -211,7 +215,31 @@ stratified ~10%, Tier 3 on ~1%.
 
 ---
 
-## 6. Open questions
+## 6. Where the retention policy is enforced
+
+Three places, because they are three different risks.
+
+| layer | what it stops |
+|---|---|
+| `server/collectors/media_preservation.own_instagram()` | a competitor's reel being **downloaded and kept** by the unattended pass |
+| `server/research/analysis_seam.py` | analysis being enqueued at all where policy or GPU gating would be violated; declares competitor media transient (`COMPETITOR_MEDIA_TTL`, 6 hours) |
+| `server/api/ui._signed_media_url()` | a competitor's media being **served out of our own API**, even if a file somehow existed |
+
+The first and third were added after a found defect. `media_preservation`
+predates this policy and selected every Instagram publication by platform
+alone — correct only while the owner was the sole creator in `videos`, which
+Phase 4 silently stopped being true. Nothing connected the two, and the type
+system could not catch it.
+
+Scoping is therefore load-bearing policy enforcement rather than tidiness,
+and `tests/server/test_media_preservation.py` holds it there — including the
+case where a file *named* after a competitor publication must be removed as
+an orphan rather than adopted, so the policy cannot be defeated by a
+filename.
+
+---
+
+## 7. Open questions
 
 1. **General repertoire identification.** Unsolved; the fallback is provider
    metadata plus human confirmation. → §2 above.
