@@ -7,6 +7,7 @@
 
 import { api, ApiError } from './api.js';
 import { esc, spinner, toast } from './components.js';
+import { research, researchCreator } from './research.js';
 import {
   competitors, dashboard, library, notFound, reviewMasters, reviewPairs,
   videoDetail,
@@ -19,6 +20,8 @@ const ROUTES = [
   { pattern: /^\/review\/masters$/, view: reviewMasters, nav: 'review-masters' },
   { pattern: /^\/review\/pairs$/, view: reviewPairs, nav: 'review-pairs' },
   { pattern: /^\/competitors$/, view: competitors, nav: 'competitors' },
+  { pattern: /^\/research$/, view: research, nav: 'research' },
+  { pattern: /^\/research\/(\d+)$/, view: researchCreator, nav: 'research' },
 ];
 
 const NAV = [
@@ -31,12 +34,12 @@ const NAV = [
   { id: 'review-pairs', href: '#/review/pairs', label: 'Cross-platform',
     count: (o) => o?.review.publication_links_proposed },
   { group: 'Intelligence' },
-  { id: 'competitors', href: '#/competitors', label: 'Competitors' },
+  { id: 'research', href: '#/research', label: 'Creator research' },
+  { id: 'competitors', href: '#/competitors', label: 'Capability status' },
   // Planned surfaces are listed but not linked: the navigation shape is
   // part of the architecture, and showing where things will live is honest
   // as long as nothing pretends to work.
-  { id: 'creators', label: 'Creator analysis', planned: 'Phase 4' },
-  { id: 'breakthroughs', label: 'Breakthroughs', planned: 'Phase 5' },
+  { id: 'discovery', label: 'Keyword discovery', planned: 'Phase 4' },
   { id: 'features', label: 'Video intelligence', planned: 'Phase 6' },
   { id: 'strategist', label: 'AI strategist', planned: 'Phase 8' },
 ];

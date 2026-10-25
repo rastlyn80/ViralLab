@@ -134,12 +134,15 @@ def budget_state(session: Session, *, now: datetime | None = None) -> dict:
 
 def require_spend(session: Session, *, provider: str, estimated_usd: float,
                   now: datetime | None = None) -> dict:
-    """Authorise one paid call, or raise `SpendRefused`.
+    """Check whether a paid call *would* be allowed. Reserves nothing.
 
-    Every condition is checked explicitly rather than folded into one
-    boolean, so the refusal says which gate closed - the difference between
-    "no budget configured" and "this month is spent" matters to whoever
-    reads the log.
+    **This is not the enforcement path.** It answers "is there room?" for a
+    report or a UI, and it is subject to time-of-check/time-of-use: two
+    callers can both pass it and together exceed the cap.
+
+    Anything that actually spends money must call
+    `server.budget.reserve()`, which takes a lock, holds the budget until
+    settled, and is idempotent across retries.
     """
     s = settings().spending
     if provider not in s.providers_authorised:

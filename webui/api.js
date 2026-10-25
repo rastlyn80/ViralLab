@@ -77,6 +77,19 @@ export const api = {
 
   publicationLinks: (params) =>
     request(`/api/review/publication-links${qs(params)}`),
+
+  // -- competitor research ------------------------------------------------
+  researchState: () => request('/api/research/state'),
+  researchedCreators: (params) =>
+    request(`/api/research/creators${qs(params)}`),
+  runResearch: (body) =>
+    request('/api/research/creators', { method: 'POST', body }),
+  researchCreator: (id) => request(`/api/research/creators/${id}`),
+  researchPublications: (id, params) =>
+    request(`/api/research/creators/${id}/publications${qs(params)}`),
+  researchBreakthroughs: (id) =>
+    request(`/api/research/creators/${id}/breakthroughs`),
+  researchJobs: (params) => request(`/api/research/jobs${qs(params)}`),
   decidePublicationLink: (id, answer, notes) =>
     request(`/api/review/publication-links/${id}`, {
       method: 'POST',

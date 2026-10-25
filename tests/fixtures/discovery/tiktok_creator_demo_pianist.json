@@ -1,0 +1,3110 @@
+{
+ "_fixture": true,
+ "_warning": "SYNTHETIC DATA. Fabricated for testing and demonstration. Not collected from any platform and not about any real person. Field shapes copy the Phase 0A recorded responses; values do not.",
+ "actor": "apidojo/tiktok-scraper",
+ "platform": "tiktok",
+ "kind": "creator",
+ "value": "demo_pianist",
+ "items": [
+  {
+   "inputSource": "profile",
+   "id": "740000000000000000",
+   "title": "Nocturne in E-flat #chopin #piano #classicalmusic",
+   "views": 3168,
+   "likes": 361,
+   "comments": 11,
+   "shares": 18,
+   "bookmarks": 77,
+   "hashtags": [
+    "chopin",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1709339400,
+   "uploadedAtFormatted": "2024-03-02 00:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 32.0,
+    "url": "https://example.invalid/v/740000000000000000.mp4",
+    "cover": "https://example.invalid/c/740000000000000000.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000000.jpg"
+   },
+   "song": {
+    "id": "690000000000000000",
+    "title": "Nocturne in E-flat - Chopin",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 67.1,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000000",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000001",
+   "title": "Ballade No. 1 #chopin #piano #classicalmusic",
+   "views": 4990,
+   "likes": 319,
+   "comments": 8,
+   "shares": 20,
+   "bookmarks": 20,
+   "hashtags": [
+    "chopin",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1709843400,
+   "uploadedAtFormatted": "2024-03-07 20:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 29.75,
+    "url": "https://example.invalid/v/740000000000000001.mp4",
+    "cover": "https://example.invalid/c/740000000000000001.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000001.jpg"
+   },
+   "song": {
+    "id": "690000000000000001",
+    "title": "Ballade No. 1 - Chopin",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 51.1,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000001",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000002",
+   "title": "Clair de Lune #debussy #piano #classicalmusic",
+   "views": 11234,
+   "likes": 713,
+   "comments": 25,
+   "shares": 17,
+   "bookmarks": 40,
+   "hashtags": [
+    "debussy",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1710379800,
+   "uploadedAtFormatted": "2024-03-14 01:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 32.4,
+    "url": "https://example.invalid/v/740000000000000002.mp4",
+    "cover": "https://example.invalid/c/740000000000000002.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000002.jpg"
+   },
+   "song": {
+    "id": "690000000000000002",
+    "title": "Clair de Lune - Debussy",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 68.1,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000002",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000003",
+   "title": "Gymnopedie No. 1 #satie #piano #classicalmusic",
+   "views": 3597,
+   "likes": 227,
+   "comments": 8,
+   "shares": 8,
+   "bookmarks": 36,
+   "hashtags": [
+    "satie",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1710898200,
+   "uploadedAtFormatted": "2024-03-20 01:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 26.01,
+    "url": "https://example.invalid/v/740000000000000003.mp4",
+    "cover": "https://example.invalid/c/740000000000000003.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000003.jpg"
+   },
+   "song": {
+    "id": "690000000000000003",
+    "title": "Gymnopedie No. 1 - Satie",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 36.2,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000003",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000004",
+   "title": "Prelude in G minor #rachmaninoff #piano #classicalmusic",
+   "views": 2104,
+   "likes": 134,
+   "comments": 2,
+   "shares": 8,
+   "bookmarks": 9,
+   "hashtags": [
+    "rachmaninoff",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1711398600,
+   "uploadedAtFormatted": "2024-03-25 20:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 27.93,
+    "url": "https://example.invalid/v/740000000000000004.mp4",
+    "cover": "https://example.invalid/c/740000000000000004.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000004.jpg"
+   },
+   "song": {
+    "id": "690000000000000004",
+    "title": "Prelude in G minor - Rachmaninoff",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 68.1,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000004",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000005",
+   "title": "Liebestraum #liszt #piano #classicalmusic",
+   "views": 4571,
+   "likes": 579,
+   "comments": 12,
+   "shares": 26,
+   "bookmarks": 129,
+   "hashtags": [
+    "liszt",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1711927800,
+   "uploadedAtFormatted": "2024-03-31 23:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 52.04,
+    "url": "https://example.invalid/v/740000000000000005.mp4",
+    "cover": "https://example.invalid/c/740000000000000005.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000005.jpg"
+   },
+   "song": {
+    "id": "690000000000000005",
+    "title": "Liebestraum - Liszt",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 39.9,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000005",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000006",
+   "title": "Prelude in C #bach #piano #classicalmusic",
+   "views": 3772,
+   "likes": 340,
+   "comments": 4,
+   "shares": 19,
+   "bookmarks": 51,
+   "hashtags": [
+    "bach",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1712428200,
+   "uploadedAtFormatted": "2024-04-06 18:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 31.15,
+    "url": "https://example.invalid/v/740000000000000006.mp4",
+    "cover": "https://example.invalid/c/740000000000000006.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000006.jpg"
+   },
+   "song": {
+    "id": "690000000000000006",
+    "title": "Prelude in C - Bach",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 31.2,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000006",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000007",
+   "title": "Moonlight, 1st movement #beethoven #piano #classicalmusic",
+   "views": 3361,
+   "likes": 387,
+   "comments": 14,
+   "shares": 12,
+   "bookmarks": 19,
+   "hashtags": [
+    "beethoven",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1712961000,
+   "uploadedAtFormatted": "2024-04-12 22:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 40.51,
+    "url": "https://example.invalid/v/740000000000000007.mp4",
+    "cover": "https://example.invalid/c/740000000000000007.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000007.jpg"
+   },
+   "song": {
+    "id": "690000000000000007",
+    "title": "Moonlight, 1st movement - Beethoven",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 56.2,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000007",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000008",
+   "title": "Pavane #ravel #piano #classicalmusic",
+   "views": 2885,
+   "likes": 367,
+   "comments": 17,
+   "shares": 19,
+   "bookmarks": 34,
+   "hashtags": [
+    "ravel",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1713486600,
+   "uploadedAtFormatted": "2024-04-19 00:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 47.25,
+    "url": "https://example.invalid/v/740000000000000008.mp4",
+    "cover": "https://example.invalid/c/740000000000000008.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000008.jpg"
+   },
+   "song": {
+    "id": "690000000000000008",
+    "title": "Pavane - Ravel",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 66.3,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000008",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000009",
+   "title": "Nuvole Bianche #einaudi #piano #classicalmusic",
+   "views": 2086,
+   "likes": 186,
+   "comments": 7,
+   "shares": 9,
+   "bookmarks": 43,
+   "hashtags": [
+    "einaudi",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1714008600,
+   "uploadedAtFormatted": "2024-04-25 01:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 43.05,
+    "url": "https://example.invalid/v/740000000000000009.mp4",
+    "cover": "https://example.invalid/c/740000000000000009.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000009.jpg"
+   },
+   "song": {
+    "id": "690000000000000009",
+    "title": "Nuvole Bianche - Einaudi",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 32.2,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000009",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000010",
+   "title": "Nocturne in E-flat #chopin #piano #classicalmusic",
+   "views": 4324,
+   "likes": 599,
+   "comments": 18,
+   "shares": 39,
+   "bookmarks": 49,
+   "hashtags": [
+    "chopin",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1714534200,
+   "uploadedAtFormatted": "2024-05-01 03:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 35.14,
+    "url": "https://example.invalid/v/740000000000000010.mp4",
+    "cover": "https://example.invalid/c/740000000000000010.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000010.jpg"
+   },
+   "song": {
+    "id": "690000000000000010",
+    "title": "Nocturne in E-flat - Chopin",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 65.3,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000010",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000011",
+   "title": "Ballade No. 1 #chopin #piano #classicalmusic",
+   "views": 5340,
+   "likes": 480,
+   "comments": 8,
+   "shares": 24,
+   "bookmarks": 66,
+   "hashtags": [
+    "chopin",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1715049000,
+   "uploadedAtFormatted": "2024-05-07 02:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 24.63,
+    "url": "https://example.invalid/v/740000000000000011.mp4",
+    "cover": "https://example.invalid/c/740000000000000011.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000011.jpg"
+   },
+   "song": {
+    "id": "690000000000000011",
+    "title": "Ballade No. 1 - Chopin",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 41.9,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000011",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000012",
+   "title": "Clair de Lune #debussy #piano #classicalmusic",
+   "views": 31271,
+   "likes": 4206,
+   "comments": 149,
+   "shares": 282,
+   "bookmarks": 1042,
+   "hashtags": [
+    "debussy",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1715549400,
+   "uploadedAtFormatted": "2024-05-12 21:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 47.98,
+    "url": "https://example.invalid/v/740000000000000012.mp4",
+    "cover": "https://example.invalid/c/740000000000000012.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000012.jpg"
+   },
+   "song": {
+    "id": "690000000000000012",
+    "title": "Clair de Lune - Debussy",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 67.7,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000012",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000013",
+   "title": "Gymnopedie No. 1 #satie #piano #classicalmusic",
+   "views": 11851,
+   "likes": 848,
+   "comments": 33,
+   "shares": 67,
+   "bookmarks": 93,
+   "hashtags": [
+    "satie",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1716085800,
+   "uploadedAtFormatted": "2024-05-19 02:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 27.88,
+    "url": "https://example.invalid/v/740000000000000013.mp4",
+    "cover": "https://example.invalid/c/740000000000000013.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000013.jpg"
+   },
+   "song": {
+    "id": "690000000000000013",
+    "title": "Gymnopedie No. 1 - Satie",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 64.2,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000013",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000014",
+   "title": "Prelude in G minor #rachmaninoff #piano #classicalmusic",
+   "views": 2522,
+   "likes": 226,
+   "comments": 11,
+   "shares": 14,
+   "bookmarks": 53,
+   "hashtags": [
+    "rachmaninoff",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1716586200,
+   "uploadedAtFormatted": "2024-05-24 21:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 43.48,
+    "url": "https://example.invalid/v/740000000000000014.mp4",
+    "cover": "https://example.invalid/c/740000000000000014.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000014.jpg"
+   },
+   "song": {
+    "id": "690000000000000014",
+    "title": "Prelude in G minor - Rachmaninoff",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 41.1,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000014",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000015",
+   "title": "Liebestraum #liszt #piano #classicalmusic",
+   "views": 3073,
+   "likes": 279,
+   "comments": 4,
+   "shares": 7,
+   "bookmarks": 37,
+   "hashtags": [
+    "liszt",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1717108200,
+   "uploadedAtFormatted": "2024-05-30 22:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 47.86,
+    "url": "https://example.invalid/v/740000000000000015.mp4",
+    "cover": "https://example.invalid/c/740000000000000015.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000015.jpg"
+   },
+   "song": {
+    "id": "690000000000000015",
+    "title": "Liebestraum - Liszt",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 41.5,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000015",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000016",
+   "title": "Prelude in C #bach #piano #classicalmusic",
+   "views": 4952,
+   "likes": 593,
+   "comments": 12,
+   "shares": 44,
+   "bookmarks": 113,
+   "hashtags": [
+    "bach",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1717615800,
+   "uploadedAtFormatted": "2024-06-05 19:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 40.24,
+    "url": "https://example.invalid/v/740000000000000016.mp4",
+    "cover": "https://example.invalid/c/740000000000000016.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000016.jpg"
+   },
+   "song": {
+    "id": "690000000000000016",
+    "title": "Prelude in C - Bach",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 24.9,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000016",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000017",
+   "title": "Moonlight, 1st movement #beethoven #piano #classicalmusic",
+   "views": 7560,
+   "likes": 521,
+   "comments": 22,
+   "shares": 31,
+   "bookmarks": 91,
+   "hashtags": [
+    "beethoven",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1718134200,
+   "uploadedAtFormatted": "2024-06-11 19:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 30.74,
+    "url": "https://example.invalid/v/740000000000000017.mp4",
+    "cover": "https://example.invalid/c/740000000000000017.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000017.jpg"
+   },
+   "song": {
+    "id": "690000000000000017",
+    "title": "Moonlight, 1st movement - Beethoven",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 41.0,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000017",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000018",
+   "title": "Pavane #ravel #piano #classicalmusic",
+   "views": 6370,
+   "likes": 474,
+   "comments": 10,
+   "shares": 35,
+   "bookmarks": 87,
+   "hashtags": [
+    "ravel",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1718649000,
+   "uploadedAtFormatted": "2024-06-17 18:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 30.2,
+    "url": "https://example.invalid/v/740000000000000018.mp4",
+    "cover": "https://example.invalid/c/740000000000000018.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000018.jpg"
+   },
+   "song": {
+    "id": "690000000000000018",
+    "title": "Pavane - Ravel",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 42.9,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000018",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000019",
+   "title": "Nuvole Bianche #einaudi #piano #classicalmusic",
+   "views": 4858,
+   "likes": 500,
+   "comments": 23,
+   "shares": 10,
+   "bookmarks": 33,
+   "hashtags": [
+    "einaudi",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1719196200,
+   "uploadedAtFormatted": "2024-06-24 02:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 14.11,
+    "url": "https://example.invalid/v/740000000000000019.mp4",
+    "cover": "https://example.invalid/c/740000000000000019.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000019.jpg"
+   },
+   "song": {
+    "id": "690000000000000019",
+    "title": "Nuvole Bianche - Einaudi",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 26.9,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000019",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000020",
+   "title": "Nocturne in E-flat #chopin #piano #classicalmusic",
+   "views": 2477,
+   "likes": 184,
+   "comments": 6,
+   "shares": 9,
+   "bookmarks": 23,
+   "hashtags": [
+    "chopin",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1719707400,
+   "uploadedAtFormatted": "2024-06-30 00:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 52.33,
+    "url": "https://example.invalid/v/740000000000000020.mp4",
+    "cover": "https://example.invalid/c/740000000000000020.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000020.jpg"
+   },
+   "song": {
+    "id": "690000000000000020",
+    "title": "Nocturne in E-flat - Chopin",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 54.2,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000020",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000021",
+   "title": "Ballade No. 1 #chopin #piano #classicalmusic",
+   "views": 2487,
+   "likes": 230,
+   "comments": 9,
+   "shares": 16,
+   "bookmarks": 29,
+   "hashtags": [
+    "chopin",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1720204200,
+   "uploadedAtFormatted": "2024-07-05 18:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 15.67,
+    "url": "https://example.invalid/v/740000000000000021.mp4",
+    "cover": "https://example.invalid/c/740000000000000021.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000021.jpg"
+   },
+   "song": {
+    "id": "690000000000000021",
+    "title": "Ballade No. 1 - Chopin",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 27.7,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000021",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000022",
+   "title": "Clair de Lune #debussy #piano #classicalmusic",
+   "views": 3168,
+   "likes": 391,
+   "comments": 14,
+   "shares": 17,
+   "bookmarks": 76,
+   "hashtags": [
+    "debussy",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1720751400,
+   "uploadedAtFormatted": "2024-07-12 02:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 52.87,
+    "url": "https://example.invalid/v/740000000000000022.mp4",
+    "cover": "https://example.invalid/c/740000000000000022.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000022.jpg"
+   },
+   "song": {
+    "id": "690000000000000022",
+    "title": "Clair de Lune - Debussy",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 33.7,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000022",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000023",
+   "title": "Gymnopedie No. 1 #satie #piano #classicalmusic",
+   "views": 26983,
+   "likes": 2849,
+   "comments": 76,
+   "shares": 211,
+   "bookmarks": 310,
+   "hashtags": [
+    "satie",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1721266200,
+   "uploadedAtFormatted": "2024-07-18 01:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 45.55,
+    "url": "https://example.invalid/v/740000000000000023.mp4",
+    "cover": "https://example.invalid/c/740000000000000023.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000023.jpg"
+   },
+   "song": {
+    "id": "690000000000000023",
+    "title": "Gymnopedie No. 1 - Satie",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 53.7,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000023",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000024",
+   "title": "Prelude in G minor #rachmaninoff #piano #classicalmusic",
+   "views": 1919,
+   "likes": 182,
+   "comments": 7,
+   "shares": 15,
+   "bookmarks": 23,
+   "hashtags": [
+    "rachmaninoff",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1721773800,
+   "uploadedAtFormatted": "2024-07-23 22:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 42.03,
+    "url": "https://example.invalid/v/740000000000000024.mp4",
+    "cover": "https://example.invalid/c/740000000000000024.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000024.jpg"
+   },
+   "song": {
+    "id": "690000000000000024",
+    "title": "Prelude in G minor - Rachmaninoff",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 59.7,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000024",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000025",
+   "title": "Liebestraum #liszt #piano #classicalmusic",
+   "views": 4476,
+   "likes": 548,
+   "comments": 6,
+   "shares": 15,
+   "bookmarks": 117,
+   "hashtags": [
+    "liszt",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1722285000,
+   "uploadedAtFormatted": "2024-07-29 20:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 56.77,
+    "url": "https://example.invalid/v/740000000000000025.mp4",
+    "cover": "https://example.invalid/c/740000000000000025.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000025.jpg"
+   },
+   "song": {
+    "id": "690000000000000025",
+    "title": "Liebestraum - Liszt",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 22.9,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000025",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000026",
+   "title": "Prelude in C #bach #piano #classicalmusic",
+   "views": 1489,
+   "likes": 159,
+   "comments": 3,
+   "shares": 9,
+   "bookmarks": 28,
+   "hashtags": [
+    "bach",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1722828600,
+   "uploadedAtFormatted": "2024-08-05 03:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 21.98,
+    "url": "https://example.invalid/v/740000000000000026.mp4",
+    "cover": "https://example.invalid/c/740000000000000026.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000026.jpg"
+   },
+   "song": {
+    "id": "690000000000000026",
+    "title": "Prelude in C - Bach",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 58.8,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000026",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000027",
+   "title": "Moonlight, 1st movement #beethoven #piano #classicalmusic",
+   "views": 6230,
+   "likes": 865,
+   "comments": 38,
+   "shares": 25,
+   "bookmarks": 159,
+   "hashtags": [
+    "beethoven",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1723325400,
+   "uploadedAtFormatted": "2024-08-10 21:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 49.11,
+    "url": "https://example.invalid/v/740000000000000027.mp4",
+    "cover": "https://example.invalid/c/740000000000000027.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000027.jpg"
+   },
+   "song": {
+    "id": "690000000000000027",
+    "title": "Moonlight, 1st movement - Beethoven",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 64.6,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000027",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000028",
+   "title": "Pavane #ravel #piano #classicalmusic",
+   "views": 3453,
+   "likes": 236,
+   "comments": 6,
+   "shares": 14,
+   "bookmarks": 53,
+   "hashtags": [
+    "ravel",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1723865400,
+   "uploadedAtFormatted": "2024-08-17 03:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 21.37,
+    "url": "https://example.invalid/v/740000000000000028.mp4",
+    "cover": "https://example.invalid/c/740000000000000028.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000028.jpg"
+   },
+   "song": {
+    "id": "690000000000000028",
+    "title": "Pavane - Ravel",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 21.9,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000028",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000029",
+   "title": "Nuvole Bianche #einaudi #piano #classicalmusic",
+   "views": 5607,
+   "likes": 520,
+   "comments": 12,
+   "shares": 20,
+   "bookmarks": 67,
+   "hashtags": [
+    "einaudi",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1724376600,
+   "uploadedAtFormatted": "2024-08-23 01:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 20.12,
+    "url": "https://example.invalid/v/740000000000000029.mp4",
+    "cover": "https://example.invalid/c/740000000000000029.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000029.jpg"
+   },
+   "song": {
+    "id": "690000000000000029",
+    "title": "Nuvole Bianche - Einaudi",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 62.5,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000029",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000030",
+   "title": "Nocturne in E-flat #chopin #piano #classicalmusic",
+   "views": 4819,
+   "likes": 606,
+   "comments": 26,
+   "shares": 53,
+   "bookmarks": 63,
+   "hashtags": [
+    "chopin",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1724877000,
+   "uploadedAtFormatted": "2024-08-28 20:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 22.11,
+    "url": "https://example.invalid/v/740000000000000030.mp4",
+    "cover": "https://example.invalid/c/740000000000000030.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000030.jpg"
+   },
+   "song": {
+    "id": "690000000000000030",
+    "title": "Nocturne in E-flat - Chopin",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 25.0,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000030",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000031",
+   "title": "Ballade No. 1 #chopin #piano #classicalmusic",
+   "views": 4212,
+   "likes": 361,
+   "comments": 11,
+   "shares": 30,
+   "bookmarks": 28,
+   "hashtags": [
+    "chopin",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1725388200,
+   "uploadedAtFormatted": "2024-09-03 18:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 29.61,
+    "url": "https://example.invalid/v/740000000000000031.mp4",
+    "cover": "https://example.invalid/c/740000000000000031.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000031.jpg"
+   },
+   "song": {
+    "id": "690000000000000031",
+    "title": "Ballade No. 1 - Chopin",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 67.9,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000031",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000032",
+   "title": "Clair de Lune #debussy #piano #classicalmusic",
+   "views": 4221,
+   "likes": 433,
+   "comments": 15,
+   "shares": 29,
+   "bookmarks": 71,
+   "hashtags": [
+    "debussy",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1725939000,
+   "uploadedAtFormatted": "2024-09-10 03:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 30.65,
+    "url": "https://example.invalid/v/740000000000000032.mp4",
+    "cover": "https://example.invalid/c/740000000000000032.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000032.jpg"
+   },
+   "song": {
+    "id": "690000000000000032",
+    "title": "Clair de Lune - Debussy",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 67.8,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000032",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000033",
+   "title": "Gymnopedie No. 1 #satie #piano #classicalmusic",
+   "views": 2738,
+   "likes": 324,
+   "comments": 7,
+   "shares": 25,
+   "bookmarks": 32,
+   "hashtags": [
+    "satie",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1726450200,
+   "uploadedAtFormatted": "2024-09-16 01:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 57.69,
+    "url": "https://example.invalid/v/740000000000000033.mp4",
+    "cover": "https://example.invalid/c/740000000000000033.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000033.jpg"
+   },
+   "song": {
+    "id": "690000000000000033",
+    "title": "Gymnopedie No. 1 - Satie",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 54.1,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000033",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000034",
+   "title": "Nobody talks about this passage #rachmaninoff #piano #classicalmusic",
+   "views": 123406,
+   "likes": 14558,
+   "comments": 703,
+   "shares": 604,
+   "bookmarks": 2332,
+   "hashtags": [
+    "rachmaninoff",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1726965000,
+   "uploadedAtFormatted": "2024-09-22 00:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 25.95,
+    "url": "https://example.invalid/v/740000000000000034.mp4",
+    "cover": "https://example.invalid/c/740000000000000034.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000034.jpg"
+   },
+   "song": {
+    "id": "690000000000000034",
+    "title": "Prelude in G minor - Rachmaninoff",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 28.0,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000034",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000035",
+   "title": "The saddest chord in classical music #liszt #piano #classicalmusic",
+   "views": 106253,
+   "likes": 12004,
+   "comments": 430,
+   "shares": 321,
+   "bookmarks": 1493,
+   "hashtags": [
+    "liszt",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1727479800,
+   "uploadedAtFormatted": "2024-09-27 23:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 51.52,
+    "url": "https://example.invalid/v/740000000000000035.mp4",
+    "cover": "https://example.invalid/c/740000000000000035.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000035.jpg"
+   },
+   "song": {
+    "id": "690000000000000035",
+    "title": "Liebestraum - Liszt",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 66.3,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000035",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000036",
+   "title": "I played this at 6am and could not stop #bach #piano #classicalmusic",
+   "views": 211734,
+   "likes": 20663,
+   "comments": 555,
+   "shares": 1631,
+   "bookmarks": 4039,
+   "hashtags": [
+    "bach",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1728012600,
+   "uploadedAtFormatted": "2024-10-04 03:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 57.67,
+    "url": "https://example.invalid/v/740000000000000036.mp4",
+    "cover": "https://example.invalid/c/740000000000000036.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000036.jpg"
+   },
+   "song": {
+    "id": "690000000000000036",
+    "title": "Prelude in C - Bach",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 43.0,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000036",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000037",
+   "title": "POV: you hear this for the first time #beethoven #piano #classicalmusic",
+   "views": 255824,
+   "likes": 23564,
+   "comments": 1076,
+   "shares": 1180,
+   "bookmarks": 2919,
+   "hashtags": [
+    "beethoven",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1728505800,
+   "uploadedAtFormatted": "2024-10-09 20:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 45.34,
+    "url": "https://example.invalid/v/740000000000000037.mp4",
+    "cover": "https://example.invalid/c/740000000000000037.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000037.jpg"
+   },
+   "song": {
+    "id": "690000000000000037",
+    "title": "Moonlight, 1st movement - Beethoven",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 45.6,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000037",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000038",
+   "title": "This took me 11 years to learn #ravel #piano #classicalmusic",
+   "views": 101731,
+   "likes": 9256,
+   "comments": 445,
+   "shares": 435,
+   "bookmarks": 1923,
+   "hashtags": [
+    "ravel",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1729045800,
+   "uploadedAtFormatted": "2024-10-16 02:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 22.03,
+    "url": "https://example.invalid/v/740000000000000038.mp4",
+    "cover": "https://example.invalid/c/740000000000000038.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000038.jpg"
+   },
+   "song": {
+    "id": "690000000000000038",
+    "title": "Pavane - Ravel",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 35.4,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000038",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000039",
+   "title": "Nobody talks about this passage #einaudi #piano #classicalmusic",
+   "views": 107193,
+   "likes": 8892,
+   "comments": 428,
+   "shares": 201,
+   "bookmarks": 2121,
+   "hashtags": [
+    "einaudi",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1729564200,
+   "uploadedAtFormatted": "2024-10-22 02:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 25.93,
+    "url": "https://example.invalid/v/740000000000000039.mp4",
+    "cover": "https://example.invalid/c/740000000000000039.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000039.jpg"
+   },
+   "song": {
+    "id": "690000000000000039",
+    "title": "Nuvole Bianche - Einaudi",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 57.6,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000039",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000040",
+   "title": "The saddest chord in classical music #chopin #piano #classicalmusic",
+   "views": 89802,
+   "likes": 8253,
+   "comments": 230,
+   "shares": 350,
+   "bookmarks": 1248,
+   "hashtags": [
+    "chopin",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1730053800,
+   "uploadedAtFormatted": "2024-10-27 18:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 23.91,
+    "url": "https://example.invalid/v/740000000000000040.mp4",
+    "cover": "https://example.invalid/c/740000000000000040.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000040.jpg"
+   },
+   "song": {
+    "id": "690000000000000040",
+    "title": "Nocturne in E-flat - Chopin",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 66.2,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000040",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000041",
+   "title": "I played this at 6am and could not stop #chopin #piano #classicalmusic",
+   "views": 111834,
+   "likes": 11831,
+   "comments": 540,
+   "shares": 662,
+   "bookmarks": 2698,
+   "hashtags": [
+    "chopin",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1730583000,
+   "uploadedAtFormatted": "2024-11-02 21:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 27.12,
+    "url": "https://example.invalid/v/740000000000000041.mp4",
+    "cover": "https://example.invalid/c/740000000000000041.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000041.jpg"
+   },
+   "song": {
+    "id": "690000000000000041",
+    "title": "Ballade No. 1 - Chopin",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 29.4,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000041",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000042",
+   "title": "POV: you hear this for the first time #debussy #piano #classicalmusic",
+   "views": 161881,
+   "likes": 11212,
+   "comments": 365,
+   "shares": 858,
+   "bookmarks": 1709,
+   "hashtags": [
+    "debussy",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1731097800,
+   "uploadedAtFormatted": "2024-11-08 20:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 42.38,
+    "url": "https://example.invalid/v/740000000000000042.mp4",
+    "cover": "https://example.invalid/c/740000000000000042.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000042.jpg"
+   },
+   "song": {
+    "id": "690000000000000042",
+    "title": "Clair de Lune - Debussy",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 61.7,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000042",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000043",
+   "title": "This took me 11 years to learn #satie #piano #classicalmusic",
+   "views": 164979,
+   "likes": 18012,
+   "comments": 497,
+   "shares": 912,
+   "bookmarks": 2621,
+   "hashtags": [
+    "satie",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1731623400,
+   "uploadedAtFormatted": "2024-11-14 22:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 38.44,
+    "url": "https://example.invalid/v/740000000000000043.mp4",
+    "cover": "https://example.invalid/c/740000000000000043.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000043.jpg"
+   },
+   "song": {
+    "id": "690000000000000043",
+    "title": "Gymnopedie No. 1 - Satie",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 44.9,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000043",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000044",
+   "title": "Nobody talks about this passage #rachmaninoff #piano #classicalmusic",
+   "views": 73163,
+   "likes": 8400,
+   "comments": 97,
+   "shares": 206,
+   "bookmarks": 726,
+   "hashtags": [
+    "rachmaninoff",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1732149000,
+   "uploadedAtFormatted": "2024-11-21 00:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 38.46,
+    "url": "https://example.invalid/v/740000000000000044.mp4",
+    "cover": "https://example.invalid/c/740000000000000044.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000044.jpg"
+   },
+   "song": {
+    "id": "690000000000000044",
+    "title": "Prelude in G minor - Rachmaninoff",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 43.6,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000044",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000045",
+   "title": "The saddest chord in classical music #liszt #piano #classicalmusic",
+   "views": 237117,
+   "likes": 25995,
+   "comments": 544,
+   "shares": 613,
+   "bookmarks": 3980,
+   "hashtags": [
+    "liszt",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1732678200,
+   "uploadedAtFormatted": "2024-11-27 03:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 30.48,
+    "url": "https://example.invalid/v/740000000000000045.mp4",
+    "cover": "https://example.invalid/c/740000000000000045.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000045.jpg"
+   },
+   "song": {
+    "id": "690000000000000045",
+    "title": "Liebestraum - Liszt",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 31.6,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000045",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000046",
+   "title": "I played this at 6am and could not stop #bach #piano #classicalmusic",
+   "views": 50860,
+   "likes": 3757,
+   "comments": 46,
+   "shares": 126,
+   "bookmarks": 335,
+   "hashtags": [
+    "bach",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1733175000,
+   "uploadedAtFormatted": "2024-12-02 21:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 44.26,
+    "url": "https://example.invalid/v/740000000000000046.mp4",
+    "cover": "https://example.invalid/c/740000000000000046.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000046.jpg"
+   },
+   "song": {
+    "id": "690000000000000046",
+    "title": "Prelude in C - Bach",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 20.4,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000046",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000047",
+   "title": "POV: you hear this for the first time #beethoven #piano #classicalmusic",
+   "views": 171650,
+   "likes": 14924,
+   "comments": 689,
+   "shares": 682,
+   "bookmarks": 2091,
+   "hashtags": [
+    "beethoven",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1733693400,
+   "uploadedAtFormatted": "2024-12-08 21:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 51.9,
+    "url": "https://example.invalid/v/740000000000000047.mp4",
+    "cover": "https://example.invalid/c/740000000000000047.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000047.jpg"
+   },
+   "song": {
+    "id": "690000000000000047",
+    "title": "Moonlight, 1st movement - Beethoven",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 32.3,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000047",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000048",
+   "title": "This took me 11 years to learn #ravel #piano #classicalmusic",
+   "views": 208591,
+   "likes": 19861,
+   "comments": 794,
+   "shares": 1512,
+   "bookmarks": 3119,
+   "hashtags": [
+    "ravel",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1734208200,
+   "uploadedAtFormatted": "2024-12-14 20:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 53.16,
+    "url": "https://example.invalid/v/740000000000000048.mp4",
+    "cover": "https://example.invalid/c/740000000000000048.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000048.jpg"
+   },
+   "song": {
+    "id": "690000000000000048",
+    "title": "Pavane - Ravel",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 38.9,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000048",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000049",
+   "title": "Nobody talks about this passage #einaudi #piano #classicalmusic",
+   "views": 245254,
+   "likes": 30531,
+   "comments": 1162,
+   "shares": 2584,
+   "bookmarks": 5434,
+   "hashtags": [
+    "einaudi",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1734730200,
+   "uploadedAtFormatted": "2024-12-20 21:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 57.42,
+    "url": "https://example.invalid/v/740000000000000049.mp4",
+    "cover": "https://example.invalid/c/740000000000000049.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000049.jpg"
+   },
+   "song": {
+    "id": "690000000000000049",
+    "title": "Nuvole Bianche - Einaudi",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 53.2,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000049",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000050",
+   "title": "The saddest chord in classical music #chopin #piano #classicalmusic",
+   "views": 58444,
+   "likes": 4916,
+   "comments": 55,
+   "shares": 274,
+   "bookmarks": 462,
+   "hashtags": [
+    "chopin",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1735245000,
+   "uploadedAtFormatted": "2024-12-26 20:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 18.15,
+    "url": "https://example.invalid/v/740000000000000050.mp4",
+    "cover": "https://example.invalid/c/740000000000000050.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000050.jpg"
+   },
+   "song": {
+    "id": "690000000000000050",
+    "title": "Nocturne in E-flat - Chopin",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 46.0,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000050",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000051",
+   "title": "I played this at 6am and could not stop #chopin #piano #classicalmusic",
+   "views": 224492,
+   "likes": 17849,
+   "comments": 260,
+   "shares": 1174,
+   "bookmarks": 3035,
+   "hashtags": [
+    "chopin",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1735788600,
+   "uploadedAtFormatted": "2025-01-02 03:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 18.35,
+    "url": "https://example.invalid/v/740000000000000051.mp4",
+    "cover": "https://example.invalid/c/740000000000000051.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000051.jpg"
+   },
+   "song": {
+    "id": "690000000000000051",
+    "title": "Ballade No. 1 - Chopin",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 27.7,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000051",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000052",
+   "title": "POV: you hear this for the first time #debussy #piano #classicalmusic",
+   "views": 94648,
+   "likes": 9805,
+   "comments": 264,
+   "shares": 727,
+   "bookmarks": 2360,
+   "hashtags": [
+    "debussy",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1736281800,
+   "uploadedAtFormatted": "2025-01-07 20:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 41.49,
+    "url": "https://example.invalid/v/740000000000000052.mp4",
+    "cover": "https://example.invalid/c/740000000000000052.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000052.jpg"
+   },
+   "song": {
+    "id": "690000000000000052",
+    "title": "Clair de Lune - Debussy",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 38.3,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000052",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000053",
+   "title": "This took me 11 years to learn #satie #piano #classicalmusic",
+   "views": 140721,
+   "likes": 16380,
+   "comments": 355,
+   "shares": 635,
+   "bookmarks": 1992,
+   "hashtags": [
+    "satie",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1736807400,
+   "uploadedAtFormatted": "2025-01-13 22:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 45.26,
+    "url": "https://example.invalid/v/740000000000000053.mp4",
+    "cover": "https://example.invalid/c/740000000000000053.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000053.jpg"
+   },
+   "song": {
+    "id": "690000000000000053",
+    "title": "Gymnopedie No. 1 - Satie",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 47.6,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000053",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000054",
+   "title": "Nobody talks about this passage #rachmaninoff #piano #classicalmusic",
+   "views": 72733,
+   "likes": 9066,
+   "comments": 92,
+   "shares": 444,
+   "bookmarks": 1887,
+   "hashtags": [
+    "rachmaninoff",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1737322200,
+   "uploadedAtFormatted": "2025-01-19 21:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 27.94,
+    "url": "https://example.invalid/v/740000000000000054.mp4",
+    "cover": "https://example.invalid/c/740000000000000054.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000054.jpg"
+   },
+   "song": {
+    "id": "690000000000000054",
+    "title": "Prelude in G minor - Rachmaninoff",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 66.3,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000054",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000055",
+   "title": "The saddest chord in classical music #liszt #piano #classicalmusic",
+   "views": 133865,
+   "likes": 18598,
+   "comments": 614,
+   "shares": 1604,
+   "bookmarks": 2922,
+   "hashtags": [
+    "liszt",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1737844200,
+   "uploadedAtFormatted": "2025-01-25 22:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 44.93,
+    "url": "https://example.invalid/v/740000000000000055.mp4",
+    "cover": "https://example.invalid/c/740000000000000055.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000055.jpg"
+   },
+   "song": {
+    "id": "690000000000000055",
+    "title": "Liebestraum - Liszt",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 40.0,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000055",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000056",
+   "title": "I played this at 6am and could not stop #bach #piano #classicalmusic",
+   "views": 219683,
+   "likes": 13818,
+   "comments": 471,
+   "shares": 567,
+   "bookmarks": 3136,
+   "hashtags": [
+    "bach",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1738369800,
+   "uploadedAtFormatted": "2025-02-01 00:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 49.57,
+    "url": "https://example.invalid/v/740000000000000056.mp4",
+    "cover": "https://example.invalid/c/740000000000000056.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000056.jpg"
+   },
+   "song": {
+    "id": "690000000000000056",
+    "title": "Prelude in C - Bach",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 27.0,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000056",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000057",
+   "title": "POV: you hear this for the first time #beethoven #piano #classicalmusic",
+   "views": 146842,
+   "likes": 13355,
+   "comments": 138,
+   "shares": 883,
+   "bookmarks": 1892,
+   "hashtags": [
+    "beethoven",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1738891800,
+   "uploadedAtFormatted": "2025-02-07 01:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 45.1,
+    "url": "https://example.invalid/v/740000000000000057.mp4",
+    "cover": "https://example.invalid/c/740000000000000057.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000057.jpg"
+   },
+   "song": {
+    "id": "690000000000000057",
+    "title": "Moonlight, 1st movement - Beethoven",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 43.1,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000057",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000058",
+   "title": "This took me 11 years to learn #ravel #piano #classicalmusic",
+   "views": 321488,
+   "likes": 43150,
+   "comments": 492,
+   "shares": 2740,
+   "bookmarks": 9304,
+   "hashtags": [
+    "ravel",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1739413800,
+   "uploadedAtFormatted": "2025-02-13 02:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 55.04,
+    "url": "https://example.invalid/v/740000000000000058.mp4",
+    "cover": "https://example.invalid/c/740000000000000058.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000058.jpg"
+   },
+   "song": {
+    "id": "690000000000000058",
+    "title": "Pavane - Ravel",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 32.7,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000058",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000059",
+   "title": "Nobody talks about this passage #einaudi #piano #classicalmusic",
+   "views": 131893,
+   "likes": 15338,
+   "comments": 634,
+   "shares": 746,
+   "bookmarks": 2534,
+   "hashtags": [
+    "einaudi",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1739917800,
+   "uploadedAtFormatted": "2025-02-18 22:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 41.84,
+    "url": "https://example.invalid/v/740000000000000059.mp4",
+    "cover": "https://example.invalid/c/740000000000000059.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000059.jpg"
+   },
+   "song": {
+    "id": "690000000000000059",
+    "title": "Nuvole Bianche - Einaudi",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 64.4,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000059",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000060",
+   "title": "The saddest chord in classical music #chopin #piano #classicalmusic",
+   "views": 141149,
+   "likes": 19513,
+   "comments": 858,
+   "shares": 1302,
+   "bookmarks": 4855,
+   "hashtags": [
+    "chopin",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1740425400,
+   "uploadedAtFormatted": "2025-02-24 19:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 33.71,
+    "url": "https://example.invalid/v/740000000000000060.mp4",
+    "cover": "https://example.invalid/c/740000000000000060.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000060.jpg"
+   },
+   "song": {
+    "id": "690000000000000060",
+    "title": "Nocturne in E-flat - Chopin",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 24.7,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000060",
+   "poi": null
+  },
+  {
+   "inputSource": "profile",
+   "id": "740000000000000061",
+   "title": "I played this at 6am and could not stop #chopin #piano #classicalmusic",
+   "views": 72986,
+   "likes": 8982,
+   "comments": 304,
+   "shares": 432,
+   "bookmarks": 1046,
+   "hashtags": [
+    "chopin",
+    "piano",
+    "classicalmusic"
+   ],
+   "channel": {
+    "id": "7000000000000000001",
+    "name": "Demo Pianist (fixture)",
+    "username": "demo_pianist",
+    "avatar": "https://example.invalid/avatar.jpg",
+    "verified": false,
+    "url": "https://www.tiktok.com/@demo_pianist",
+    "followers": 184300,
+    "following": 212,
+    "videos": 62,
+    "likes": 2940000
+   },
+   "collabInfo": null,
+   "uploadedAt": 1740961800,
+   "uploadedAtFormatted": "2025-03-03 00:30:00",
+   "video": {
+    "width": 1080,
+    "height": 1920,
+    "ratio": "9:16",
+    "duration": 17.11,
+    "url": "https://example.invalid/v/740000000000000061.mp4",
+    "cover": "https://example.invalid/c/740000000000000061.jpg",
+    "thumbnail": "https://example.invalid/t/740000000000000061.jpg"
+   },
+   "song": {
+    "id": "690000000000000061",
+    "title": "Ballade No. 1 - Chopin",
+    "artist": "Demo Pianist (fixture)",
+    "album": "",
+    "duration": 28.3,
+    "cover": "https://example.invalid/s.jpg"
+   },
+   "subtitleInformation": null,
+   "postPage": "https://www.tiktok.com/@demo_pianist/video/740000000000000061",
+   "poi": null
+  }
+ ]
+}

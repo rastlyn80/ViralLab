@@ -50,7 +50,11 @@ the instruction was to avoid speculative overengineering.
 
 ## 2. Discovery and provenance — Phase 4
 
-### `discovery_runs` *(planned)*
+### `discovery_jobs` *(implemented, `d9f4a2b76c81`)*
+
+Shipped as `discovery_jobs` rather than `discovery_runs`, to avoid
+confusion with the existing `collection_runs` for own-account collection.
+`coverage_notes` and `item_errors` are both populated on every job.
 
 One search. The unit of provenance for everything it produces.
 
@@ -78,7 +82,7 @@ Known entries from Phase 0A measurements:
   outlier boundaries;
 - one provider is **hard-capped at 10 items per run** on the free plan.
 
-### `creator_identities` + `creator_identity_members` *(planned)*
+### `creator_identities` + `creator_identity_members` *(tables implemented, unpopulated)*
 
 The vision requires one row per *person*, with per-platform accounts
 hanging off it. `creators` is per-account and the collectors depend on that
@@ -96,7 +100,7 @@ that rule is enforceable rather than aspirational: the strongest available
 evidence is cross-posted content detected by the existing fingerprint
 pipeline, which is exactly what Phase 2 built.
 
-### `videos.discovery_run_id` *(planned)*
+### `videos.discovery_job_id` *(implemented)*
 
 Nullable FK. NULL means the publication came from an official API.
 
@@ -104,7 +108,12 @@ Nullable FK. NULL means the publication came from an official API.
 
 ## 3. Baselines and breakthroughs — Phase 5
 
-### `creator_baselines` *(planned)*
+### `creator_baselines` *(still planned — computed live for now)*
+
+Baselines are currently derived on read in `server/research/baseline.py`,
+which is correct while a creator has tens of publications and one
+observation each. Materialising them becomes worthwhile once there are
+repeated observations to anchor at fixed ages.
 
 Rolling per-creator expectation. **Inferred, re-derivable, versioned.**
 
@@ -115,7 +124,12 @@ Rolling per-creator expectation. **Inferred, re-derivable, versioned.**
 | `median_views`, `mad_views`, `n_publications` | MAD not standard deviation: robust to the outliers we are hunting |
 | `method_version` | so a policy change adds rows rather than rewriting them |
 
-### `breakthroughs` *(planned)*
+### `breakthrough_candidates` *(implemented, `d9f4a2b76c81`)*
+
+Built in Phase 4 rather than Phase 5, because targeted creator research is
+not useful without it. The shipped table matches the design below, with
+`classification` carrying the three distinct claims and `missing_evidence`
+mandatory on an inference.
 
 | column | notes |
 |---|---|
@@ -279,9 +293,10 @@ updated model*, which is what makes the live experiment answerable at all.
 
 | phase | migration adds | depends on | acceptance |
 |---|---|---|---|
-| **done** | `cost_usd`, creator provenance, `creator_snapshots` | — | spending guard enforces the cap; 15 tests |
-| **4** | `discovery_runs`, `creator_identities`, `creator_identity_members`, `videos.discovery_run_id` | authorised budget | a discovery run is reproducible from its stored params; re-running updates and never duplicates |
-| **5** | `creator_baselines`, `breakthroughs` | Phase 4 corpus; ≥2 capture days | a detected breakthrough carries a cohort comparison and either full evidence or a named gap |
+| **done** (3) | `cost_usd`, creator provenance, `creator_snapshots` | — | spending guard enforces the cap; 15 tests |
+| **done** (4) | `budget_reservations` (`c3e8b47d105a`) | — | two concurrent callers cannot both exceed the cap; a retry reuses its reservation; 23 tests |
+| **done** (4) | `discovery_jobs`, `creator_identities`, `creator_identity_members`, `breakthrough_candidates`, `videos.discovery_job_id`/`music`/`provenance`/`is_fixture`, `creators.research_status`/`last_job_id`/`is_fixture` (`d9f4a2b76c81`) | — | a query is reproducible from stored params; re-running appends an observation without duplicating a publication; 75 tests |
+| **5** | `creator_baselines` (materialised), cohort tables | a multi-creator corpus | a detected breakthrough carries a cohort comparison and either full evidence or a named gap |
 | **6** | `video_features`, `feature_corrections` | GPU feature jobs | re-extraction adds rows; a correction never overwrites a machine value |
 | **7** | `trend_measurements`, `findings`, `model_runs`, `predictions` | Phase 6 features | V1–V5 reported separately; a finding can expire |
 | **8** | `recommendations`, `recommendation_evidence`, `creative_briefs` | Phase 7 models | every recommendation traces to evidence rows |

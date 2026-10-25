@@ -494,13 +494,23 @@ def test_deciding_a_missing_link_is_404(client):
 # capabilities — the anti-fabrication contract
 # ---------------------------------------------------------------------------
 
+def test_built_capabilities_are_reported_as_built(client):
+    """Phase 4 delivered targeted creator research and breakthrough
+    analysis, so they must stop claiming to be unavailable."""
+    caps = {c["key"]: c for c in client.get("/api/capabilities").json()[
+        "capabilities"]}
+    for key in ("own_accounts", "review", "creator_analysis",
+                "breakthrough"):
+        assert caps[key]["implemented"] is True, f"{key} should be built"
+    # Even a built capability states its remaining limits.
+    assert caps["breakthrough"]["blocked_by"], (
+        "breakthrough analysis must still say what it cannot establish")
+
+
 def test_unbuilt_capabilities_report_honestly_and_return_no_rows(client):
     caps = {c["key"]: c for c in client.get("/api/capabilities").json()[
         "capabilities"]}
-    assert caps["own_accounts"]["implemented"] is True
-    assert caps["review"]["implemented"] is True
-    for key in ("discovery", "creator_analysis", "breakthrough",
-                "multimodal", "recommendations"):
+    for key in ("discovery", "multimodal", "recommendations"):
         cap = caps[key]
         assert cap["implemented"] is False, f"{key} claims to be built"
         assert cap["blocked_by"], f"{key} gives no reason for being unavailable"

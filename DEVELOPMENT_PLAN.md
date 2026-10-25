@@ -545,8 +545,8 @@ destroys collected data.
 > | 0A/0B | Feasibility probes | ✅ complete |
 > | 1 | Infrastructure, queue, API | ✅ complete |
 > | 2 | Own-account collection, media, matching | ✅ substantially complete; 7-day acceptance pending |
-> | **3** | **Unified GUI + Phase 4 foundations** | **◐ in progress — this cycle** |
-> | 4 | Competitor discovery + targeted creator ingestion | planned |
+> | 3 | Unified GUI + Phase 4 foundations | ✅ complete |
+> | **4** | **Competitor discovery + targeted creator research** | **◐ research delivered; keyword discovery pending** |
 > | 5 | Breakthrough analysis + baselines | planned |
 > | 6 | Multimodal feature extraction | planned |
 > | 7 | Comparative analytics + temporal intelligence | planned |
@@ -835,6 +835,9 @@ a discovered creator is distinguishable from an own account in the same
 table. ✅ met.
 
 **Milestone 3.6 — Phase 2 reliability closure.** ◐ *partially met*
+*(Updated 2026-10-25: the unattended collector has now run successfully on
+2026-10-24 and 2026-10-25 for both platforms, giving a second capture day.
+The window still has to elapse.)*
 Media preservation audited: per-item commits, orphan adoption, `.part`
 sweeping, database-backed deduplication, cap no longer consuming attempts.
 A screen-veto recall bug was found and fixed (+31 genuine variant edges).
@@ -846,79 +849,139 @@ elapsed**, earliest legitimate completion **2026-10-31**.
 
 ---
 
-### Phase 4 — Competitor Discovery and Targeted Creator Ingestion
+### Phase 4 — Competitor Discovery and Targeted Creator Research  **(research delivered 2026-10-25)**
 
-The first capability that makes ViralLab more than a personal analytics
-tool. `[PRIMARY]` Official APIs expose no competitor data, so this is
-third-party collection under §2.3, and the pipeline shape is fixed by
-Phase 0A measurement:
+The capability that makes ViralLab more than a personal analytics tool.
+`[PRIMARY, ADR 0001]` Official APIs expose no competitor data, so this is
+third-party collection under §2.3, and the pipeline shape is fixed by Phase
+0A measurement:
 
 > **discover creators via hashtag/keyword → fetch each creator's
 > back-catalogue by profile → build the fixed-age corpus from the
 > back-catalogues.**
 
 Hashtag feeds returned 0 of 45 records aged ≥35 days, so they discover
-creators and never measure performance.
+creators and never measure them. `server/discovery/apify.py` encodes that
+choice rather than leaving it to the caller.
 
-**Milestone 4.1 — `DiscoveryAdapter` seam.** Behind the existing
-`DataSourceAdapter` pattern. Entry kinds: keyword, hashtag, niche, genre,
-composer, handle, trend. Writes into `creators`/`videos` with
-`source='discovery'`.
-*Acceptance:* a run is reproducible from its stored params; re-running
-updates rows and never duplicates; every row carries provenance and
-recorded coverage limits.
-*Depends on:* an authorised budget (3.4), `discovery_runs` migration.
+**Milestone 4.1 — `DiscoveryAdapter` seam.** ✅ *implemented*
+`server/discovery/` with a provider-agnostic interface, an Apify
+implementation, and a fixture implementation that runs the **same
+normalisers**. Supports creator / keyword / hashtag queries, pagination and
+incremental `since` collection, bounded retries with full jitter, 429
+handling, an aborting run timeout, a hard item cap, and per-item error
+surfacing.
 
-**Milestone 4.2 — Targeted creator analysis.** Enter a handle, get history
-and a strategy summary. Includes cross-platform account reconciliation via
-`creator_identities`, **evidence-gated**: bio link, cross-posted content
-detected by the Phase 2 fingerprint, or manual confirmation. A coincidental
-handle match is not evidence.
-*Acceptance:* a creator analysed by hand is indistinguishable in the
-database from one discovered automatically, except by `source`.
+Every mapped field was taken from a **recorded live response** from the
+Phase 0A probe, not from documentation. The capability declarations are the
+load-bearing part: `[PRIMARY]` the validated Instagram actors return **no
+follower count and no bio**, so those stay null rather than becoming zeros,
+and `clockworks` rounds counts to ~3 significant figures, which travels with
+the data.
+*Acceptance:* a query is reproducible from its stored parameters; re-running
+updates and never duplicates; every row carries provenance and recorded
+coverage limits. ✅ met, 48 tests.
 
-**Milestone 4.3 — Small-account outlier discovery.** Find unusually
-successful videos from small accounts, not just big accounts.
-*Acceptance:* the returned set is not rank-ordered by follower count.
+**Milestone 4.2 — Targeted creator research.** ✅ *implemented*
+`server/research/service.py`: resolve a handle or profile URL → find-or-
+create the account → reuse fresh research rather than re-collecting →
+reserve budget → collect → settle or release → store idempotently → append
+observations → detect change points → record research state.
+*Acceptance:* researching twice reuses and spends nothing; a forced refresh
+appends an observation without duplicating a publication (verified: 62
+publications stay 62 while snapshots go 62 → 124); a handle and its profile
+URL resolve to one creator. ✅ met.
 
-**Milestone 4.4 — Refresh scheduling.** An analysed account becomes a
-tracked account, refreshed within quota and budget.
-*Acceptance:* refresh respects the cap; a refusal is logged, not retried.
+**Milestone 4.3 — Breakthrough analysis, first version.** ✅ *implemented*
+`server/research/breakthrough.py`. A breakthrough is a **sustained change in
+the creator's own performance level**, not a high-view video. CUSUM locates
+the boundary; robust medians either side establish significance; a sustain
+test over everything after it rejects hot streaks.
 
-**Milestone 4.5 — Discovery UI.** Launch and review searches; cost and
-coverage shown **before** commitment.
-*Acceptance:* no control appears for a capability that does not work.
+Three classifications that are different claims rather than different
+wordings: `observed_outlier`, `inferred_breakthrough`, and
+`verified_trajectory_change` — the last of which **a single research pass
+cannot reach**, and the detector says so instead of settling for the
+strongest available word. Confidence is capped at 0.75 without longitudinal
+evidence.
+*Acceptance:* a gradual rise is not a breakthrough; a single spike is not a
+breakthrough; a **declining** series produces none (the specific failure
+mode where cumulative views are read as a trajectory); the planted boundary
+in the demonstration corpus is located exactly. ✅ met, 23 tests.
 
-**Blocked by:** owner authorisation of `monthly_cap_usd` and
-`providers_authorised`. Until then, discovery is architecturally ready and
-operationally refused — which is the correct state, not a defect.
+**Milestone 4.4 — Atomic budget enforcement.** ✅ *implemented*
+`server/budget.py` replaces the advisory read-and-compare guard, which
+failed four ways: time-of-check/time-of-use between concurrent callers,
+nothing actually reserved, a crash after the call losing the charge, and a
+retry paying twice. Reservations are taken under a per-provider-month
+advisory lock, keyed by idempotency key, and an unresolved reservation keeps
+holding budget — because assuming an unknown call was not billed is the
+assumption that overspends.
+*Acceptance:* two concurrent callers cannot both exceed the cap (tested with
+two real sessions); a retry reuses its reservation; a settled charge cannot
+be released. ✅ met, 23 tests.
 
----
+**Milestone 4.5 — Research interface.** ✅ *implemented*
+`webui/research.js` plus `/api/research/*`: creator search by handle or URL
+with platform selector, spending-authorisation state, research history with
+staleness and refresh cost, creator profile with caveats attached, a
+publication explorer sortable by **performance against the creator's own
+baseline**, and breakthrough analysis showing the classification alongside
+the evidence it lacks.
+*Acceptance:* fixture-backed records are labelled wherever they appear; no
+control exists for a capability that does not work. ✅ met, 27 tests.
 
-### Phase 5 — Breakthrough Analysis and Creator Baselines
+**Milestone 4.6 — Keyword and hashtag discovery UI.** ⬜ *not built*
+The adapter supports both query kinds and is tested, but there is no
+discovery surface and no scheduled sweep.
+*Depends on:* an authorised budget — a keyword sweep is the one workflow
+that cannot be meaningfully demonstrated on fixtures, because its purpose is
+to find creators nobody listed.
+
+**Milestone 4.7 — Cross-platform identity reconciliation.** ⬜ *not built*
+`creator_identities` and `creator_identity_members` exist with a closed
+`evidence_kind` set that deliberately omits "same handle", so a coincidental
+name match is unrepresentable rather than merely discouraged. Nothing
+populates them yet.
+*Depends on:* bio links (already extracted by the clockworks normaliser) and
+the Phase 2 fingerprint for cross-posted content.
+
+**Blocked:** nothing in this phase is blocked by us. Live collection is
+**refused rather than attempted** until the owner sets
+`spending.monthly_cap_usd` and `providers_authorised` in
+`config/settings.yaml` and provides `APIFY_TOKEN`. Until then everything
+runs against committed synthetic fixtures, labelled as such in the database,
+the API and the interface. That is the correct state, not a defect.
+
+### Phase 5 — Breakthrough Analysis at Scale
+
+> Milestones 5.1, 5.2 and 5.4 were **delivered early in Phase 4**
+> (`server/research/baseline.py`, `breakthrough.py`), because targeted
+> creator research is not useful without them. What remains here is what
+> needs a *corpus* rather than one creator.
 
 The most distinctive feature in the product, and the easiest to get
 scientifically wrong.
 
-**Milestone 5.1 — Rolling baselines.** Per-creator median/MAD at fixed
-anchor ages, with the window stored rather than assumed.
-*Acceptance:* a baseline is never computed across mixed ages.
+**Milestone 5.1 — Rolling baselines.** ✅ *delivered in Phase 4.* Local
+trailing median/MAD in log space, with the window age spread reported as
+the size of the confound that could not be removed.
 
-**Milestone 5.2 — Change-point detection.** A breakthrough is a shift in
-the creator's own performance distribution, not one high-view video.
-*Acceptance:* a single outlier does not produce a breakthrough; the
-detected shape distinguishes single / successive / gradual.
+**Milestone 5.2 — Change-point detection.** ✅ *delivered in Phase 4.*
+CUSUM localisation plus a robust median significance test and a sustain
+check.
+*Remaining:* distinguishing **successive** breakthroughs from a single one.
+The current detector reports the strongest boundary only.
 
 **Milestone 5.3 — Cohort control.** Niche-wide movement over the same
 period is computed and subtracted.
 *Acceptance:* a month in which the whole niche jumped is attributed to the
 platform, not to any creator.
 
-**Milestone 5.4 — Evidence gating.** Status defaults to
-`inferred_breakthrough`; promotion needs historical follower counts **and**
-age-normalised views, and `missing_evidence` names what is absent.
-*Acceptance:* **no output claims a video caused follower growth without
-both.**
+**Milestone 5.4 — Evidence gating.** ✅ *delivered in Phase 4.* Status
+defaults to `inferred_breakthrough`; promotion needs repeated observations
+**and** follower history; `missing_evidence` names what is absent on every
+inference.
 
 **Milestone 5.5 — Creator timeline visualisation.** Publication history,
 outliers against the rolling baseline, detected change points, and

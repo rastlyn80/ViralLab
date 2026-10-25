@@ -33,11 +33,13 @@ from fastapi import (APIRouter, Cookie, Depends, Header, HTTPException, Query,
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from server import config
 from server.api.deps import get_session
 from server.collectors.media_preservation import coverage as media_coverage
-from server.db.models import (CollectionRun, Creator, LocalMaster,
-                              MetricsSnapshot, OAuthToken, Performance,
-                              PublicationLink, Video, VideoMasterLink)
+from server.db.models import (BreakthroughCandidate, CollectionRun, Creator,
+                              LocalMaster, MetricsSnapshot, OAuthToken,
+                              Performance, PublicationLink, Video,
+                              VideoMasterLink)
 from shared.schemas.ui import (CapabilityList, CapabilityState,
                                CollectionRunSummary, DecisionRequest,
                                DecisionResult, MasterLinkView,
@@ -672,6 +674,22 @@ def build_capabilities(session: Session) -> CapabilityList:
     others = session.scalar(select(func.count(Creator.id))
                             .where(Creator.is_own_account.is_(False))) or 0
     pubs = session.scalar(select(func.count(Video.id))) or 0
+    discovered_pubs = session.scalar(
+        select(func.count(Video.id))
+        .where(Video.discovery_job_id.isnot(None))) or 0
+    fixture_creators = session.scalar(
+        select(func.count(Creator.id))
+        .where(Creator.is_fixture.is_(True))) or 0
+    discovered_by_search = session.scalar(
+        select(func.count(Creator.id))
+        .where(Creator.source == "discovery")) or 0
+    candidates = session.scalar(
+        select(func.count(BreakthroughCandidate.id))) or 0
+    inferred = session.scalar(
+        select(func.count(BreakthroughCandidate.id))
+        .where(BreakthroughCandidate.classification
+               == "inferred_breakthrough")) or 0
+    budget_ok = config.settings().spending.any_authorised
 
     return CapabilityList(capabilities=[
         CapabilityState(
@@ -693,37 +711,47 @@ def build_capabilities(session: Session) -> CapabilityList:
                     select(func.count(PublicationLink.id))
                     .where(PublicationLink.status == "proposed")) or 0}),
         CapabilityState(
-            key="discovery", title="Automatic competitor discovery",
-            summary="Find creators and videos by keyword, hashtag, niche, "
-                    "genre, composer or trend, on TikTok and Instagram.",
+            key="creator_analysis", title="Targeted creator analysis",
+            summary="Enter a TikTok or Instagram handle and analyse that "
+                    "creator: publication history, performance against "
+                    "their own baseline, and change points.",
+            implemented=True, phase="4",
+            blocked_by=([] if budget_ok else [
+                "runs against synthetic fixtures until a provider and a "
+                "monthly cap are authorised in config/settings.yaml",
+            ]),
+            counts={"creators_researched": others,
+                    "publications": discovered_pubs,
+                    "fixture_creators": fixture_creators}),
+        CapabilityState(
+            key="breakthrough", title="Breakthrough analysis",
+            summary="Where a creator's performance level changed, "
+                    "classified as an observed outlier, an inferred "
+                    "breakthrough, or a verified trajectory change.",
+            implemented=True, phase="4",
+            blocked_by=[
+                "a verified trajectory change needs repeated observations "
+                "of the same publications over time, which a single "
+                "research pass cannot produce - research again later and "
+                "the evidence accumulates",
+            ],
+            counts={"candidates": candidates,
+                    "inferred_breakthroughs": inferred}),
+        CapabilityState(
+            key="discovery", title="Keyword and hashtag discovery",
+            summary="Find creators nobody told us about, by keyword, "
+                    "hashtag, niche, genre or composer.",
             implemented=False, phase="4",
             blocked_by=[
-                "no discovery adapter implemented yet",
+                "the adapter supports hashtag and keyword queries, but no "
+                "discovery UI or scheduled sweep is built yet",
                 "official APIs expose no competitor data, so this needs the "
                 "validated third-party provider",
-                "spending cap must be authorised: monthly_cap_usd is 0.0 and "
+            ] + ([] if budget_ok else [
+                "spending is not authorised: monthly_cap_usd is 0.00 and "
                 "providers_authorised is empty",
-            ],
-            counts={"discovered_creators": others}),
-        CapabilityState(
-            key="creator_analysis", title="Targeted creator analysis",
-            summary="Enter a handle and analyse that creator's history, "
-                    "strategy and cross-platform presence.",
-            implemented=False, phase="4",
-            blocked_by=["depends on the discovery adapter",
-                        "cross-platform account reconciliation not built"],
-            counts={"tracked_creators": others}),
-        CapabilityState(
-            key="breakthrough", title="Breakthrough timelines",
-            summary="Detect where a creator's performance trajectory "
-                    "changed, and what changed with it.",
-            implemented=False, phase="5",
-            blocked_by=[
-                "needs rolling per-creator baselines (Phase 4)",
-                "needs competitor publication history",
-                "every snapshot so far was captured on one day, so no "
-                "fixed-age series exists yet",
             ]),
+            counts={"discovered_creators": discovered_by_search}),
         CapabilityState(
             key="multimodal", title="Multimodal video intelligence",
             summary="Structured musical, visual, editing and language "

@@ -73,6 +73,17 @@ class Creator(Base):
     #: Coverage and restrictions of whatever produced this row, so a partial
     #: back-catalogue is never mistaken for a complete one.
     provenance: Mapped[dict | None] = mapped_column(JSONB)
+    #: none | pending | collected | partial | failed
+    research_status: Mapped[str] = mapped_column(String(16), default="none")
+    publications_collected: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    last_job_id: Mapped[int | None] = mapped_column(
+        ForeignKey("discovery_jobs.id"))
+    collection_cost_usd: Mapped[float | None] = mapped_column(Float)
+    #: True when this creator came from synthetic fixtures. Reaches the
+    #: interface, so a demonstration is never mistaken for collected data.
+    is_fixture: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now())
 
@@ -85,6 +96,9 @@ class Creator(Base):
         CheckConstraint(
             "source in ('own_api','discovery','manual_lookup',"
             "'cross_reference')", name="ck_creator_source"),
+        CheckConstraint(
+            "research_status in ('none','pending','collected','partial',"
+            "'failed')", name="ck_creator_research_status"),
         Index("ix_creators_source", "source"),
     )
 
@@ -167,6 +181,19 @@ class Video(Base):
     cover_hash: Mapped[str | None] = mapped_column(String(32))
     cover_fetched_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True))
+    #: Which discovery job produced this row. NULL for own-account
+    #: publications, which come from the official APIs.
+    discovery_job_id: Mapped[int | None] = mapped_column(
+        ForeignKey("discovery_jobs.id"))
+    thumbnail_url: Mapped[str | None] = mapped_column(Text)
+    #: Music as the provider reported it: title, artist, id, whether it is
+    #: original audio. A JSONB blob because the shape differs per provider
+    #: and the structured feature vocabulary is Phase 6.
+    music: Mapped[dict | None] = mapped_column(JSONB)
+    #: Source, coverage limits and observation time for this row.
+    provenance: Mapped[dict | None] = mapped_column(JSONB)
+    is_fixture: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now())
 
@@ -603,6 +630,265 @@ class CollectionRun(Base):
         CheckConstraint("status in ('running','ok','failed','deferred')",
                         name="ck_run_status"),
         Index("ix_runs_platform_started", "platform", "started_at"),
+    )
+
+
+class DiscoveryJob(Base):
+    """One competitor search, and everything it did or could not do.
+
+    The unit of provenance: every creator and publication a search produces
+    points back here, so "where did this row come from, under what limits,
+    at what cost" has one answer.
+    """
+
+    __tablename__ = "discovery_jobs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    #: creator | keyword | hashtag
+    kind: Mapped[str] = mapped_column(String(16))
+    platform: Mapped[str] = mapped_column(String(32))
+    #: The normalised query, so a repeat is recognisable as the same request
+    #: and does not pay twice.
+    query_value: Mapped[str] = mapped_column(Text)
+    requested_limit: Mapped[int] = mapped_column(
+        Integer, default=50, server_default=text("50"))
+    provider: Mapped[str] = mapped_column(String(64))
+    is_fixture: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"))
+    #: queued | running | ok | failed | refused.
+    #: `refused` is its own state: a budget refusal is not a failure, it is
+    #: the system working as configured.
+    status: Mapped[str] = mapped_column(String(16), default="queued")
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    estimated_usd: Mapped[float | None] = mapped_column(Float)
+    #: Billed, not projected (CLAUDE.md 5.3).
+    actual_usd: Mapped[float | None] = mapped_column(Float)
+    reservation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("budget_reservations.id"))
+    creators_seen: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    creators_new: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    publications_seen: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    publications_new: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    snapshots_written: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    #: What the source could NOT see. A partial result silently treated as
+    #: complete is the most dangerous kind of data in this system.
+    coverage_notes: Mapped[dict | None] = mapped_column(JSONB)
+    #: Per-item provider failures, kept rather than dropped: a private
+    #: account must not look like an empty one.
+    item_errors: Mapped[dict | None] = mapped_column(JSONB)
+    provenance: Mapped[dict | None] = mapped_column(JSONB)
+    error: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        CheckConstraint("kind in ('creator','keyword','hashtag')",
+                        name="ck_discovery_job_kind"),
+        CheckConstraint(
+            "status in ('queued','running','ok','failed','refused')",
+            name="ck_discovery_job_status"),
+        Index("ix_discovery_jobs_lookup",
+              "platform", "kind", "query_value", "started_at"),
+    )
+
+
+class CreatorIdentity(Base):
+    """One person, who may hold several platform accounts.
+
+    Sits ABOVE `creators` rather than replacing it: every collector depends
+    on `creators` being one account on one platform, and the product vision
+    needs one row per person. Both are true at once this way.
+    """
+
+    __tablename__ = "creator_identities"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    display_name: Mapped[str] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+    #: inferred | confirmed
+    status: Mapped[str] = mapped_column(String(16), default="inferred")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+
+    members: Mapped[list["CreatorIdentityMember"]] = relationship(
+        back_populates="identity")
+
+    __table_args__ = (
+        CheckConstraint("status in ('inferred','confirmed')",
+                        name="ck_creator_identity_status"),
+    )
+
+
+class CreatorIdentityMember(Base):
+    """One account tied to one identity, with the evidence for it.
+
+    `evidence_kind` is a closed set that deliberately omits "same handle".
+    A coincidental name match is not evidence, and leaving it unrepresentable
+    is stronger than documenting that it should not be used.
+    """
+
+    __tablename__ = "creator_identity_members"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    identity_id: Mapped[int] = mapped_column(
+        ForeignKey("creator_identities.id"))
+    creator_id: Mapped[int] = mapped_column(ForeignKey("creators.id"))
+    #: bio_link | cross_posted_content | name_and_content | manual |
+    #: self_declared
+    evidence_kind: Mapped[str] = mapped_column(String(32))
+    evidence: Mapped[dict | None] = mapped_column(JSONB)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    decided_by: Mapped[str | None] = mapped_column(String(16))
+    decided_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+
+    identity: Mapped[CreatorIdentity] = relationship(
+        back_populates="members")
+
+    __table_args__ = (
+        UniqueConstraint("creator_id", name="uq_identity_member_creator"),
+        CheckConstraint(
+            "evidence_kind in ('bio_link','cross_posted_content',"
+            "'name_and_content','manual','self_declared')",
+            name="ck_identity_evidence_kind"),
+        CheckConstraint("decided_by is null or "
+                        "decided_by in ('human','matcher')",
+                        name="ck_identity_decided_by"),
+        Index("ix_identity_members_identity", "identity_id"),
+    )
+
+
+class BreakthroughCandidate(Base):
+    """Where a creator's trajectory may have changed.
+
+    The classification is the whole point, and the three states are not
+    synonyms:
+
+      * `observed_outlier` - this publication beat the creator's own
+        baseline. A fact about one post, nothing more.
+      * `inferred_breakthrough` - the trajectory appears to shift here, but
+        the longitudinal evidence to establish it does not exist.
+        `missing_evidence` records exactly what was absent.
+      * `verified_trajectory_change` - repeated observations over time show
+        a sustained change. Requires real history, which for a
+        newly-discovered creator does not exist yet.
+
+    The product vision forbids claiming a video caused growth without
+    historical follower counts or age-normalised views. Defaulting to
+    `inferred_breakthrough` and naming the gap is how that rule is kept.
+    """
+
+    __tablename__ = "breakthrough_candidates"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    creator_id: Mapped[int] = mapped_column(ForeignKey("creators.id"))
+    #: Nullable: a gradual regime change has no single video.
+    video_id: Mapped[int | None] = mapped_column(ForeignKey("videos.id"))
+    classification: Mapped[str] = mapped_column(String(32))
+    detected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+    method_version: Mapped[str] = mapped_column(String(32))
+    publication_index: Mapped[int | None] = mapped_column(Integer)
+    baseline_views: Mapped[float | None] = mapped_column(Float)
+    #: Median absolute deviation, not standard deviation: robust to the
+    #: outliers this is looking for.
+    baseline_mad: Mapped[float | None] = mapped_column(Float)
+    observed_views: Mapped[int | None] = mapped_column(BigInteger)
+    relative_performance: Mapped[float | None] = mapped_column(Float)
+    robust_z: Mapped[float | None] = mapped_column(Float)
+    window_before: Mapped[int | None] = mapped_column(Integer)
+    window_after: Mapped[int | None] = mapped_column(Integer)
+    median_after: Mapped[float | None] = mapped_column(Float)
+    sustained: Mapped[bool | None] = mapped_column(Boolean)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    evidence: Mapped[dict | None] = mapped_column(JSONB)
+    #: Required when the classification is `inferred_breakthrough`, so
+    #: nobody later reads it as established.
+    missing_evidence: Mapped[dict | None] = mapped_column(JSONB)
+    decided_by: Mapped[str | None] = mapped_column(String(16))
+    decided_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        UniqueConstraint("creator_id", "video_id", "method_version",
+                         name="uq_breakthrough_candidate"),
+        CheckConstraint(
+            "classification in ('observed_outlier','inferred_breakthrough',"
+            "'verified_trajectory_change','rejected')",
+            name="ck_breakthrough_classification"),
+        CheckConstraint("decided_by is null or "
+                        "decided_by in ('human','matcher')",
+                        name="ck_breakthrough_decided_by"),
+        Index("ix_breakthrough_creator", "creator_id", "classification"),
+    )
+
+
+class BudgetReservation(Base):
+    """One claim on the monthly provider budget.
+
+    Taken BEFORE a paid call and settled after, so the budget is enforced
+    rather than merely observed. See migration c3e8b47d105a for the four
+    failure modes this replaces.
+
+    The state machine is deliberately small:
+
+        reserved ──settle(actual)──> settled     the call happened, cost known
+                 ──release(reason)─> released    the call never happened
+                 ──(timeout)───────> expired     outcome unknown
+
+    `expired` still counts against the budget. That is the conservative
+    direction on purpose: a reservation whose outcome we do not know may
+    well have been billed, and assuming it was not is the assumption that
+    overspends. It stays visible until a human settles or releases it.
+    """
+
+    __tablename__ = "budget_reservations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider: Mapped[str] = mapped_column(String(64))
+    #: The caller's identifier for this unit of work. A retry presenting the
+    #: same key gets the original reservation rather than a second charge.
+    idempotency_key: Mapped[str] = mapped_column(String(200))
+    estimated_usd: Mapped[float] = mapped_column(Float)
+    actual_usd: Mapped[float | None] = mapped_column(Float)
+    #: reserved | settled | released | expired
+    status: Mapped[str] = mapped_column(String(16), default="reserved")
+    #: "YYYY-MM". Stored rather than derived so settling after a month
+    #: boundary cannot move the charge into the wrong period.
+    period: Mapped[str] = mapped_column(String(7))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    settled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("collection_runs.id"))
+    notes: Mapped[str | None] = mapped_column(Text)
+    detail: Mapped[dict | None] = mapped_column(JSONB)
+
+    __table_args__ = (
+        UniqueConstraint("provider", "idempotency_key",
+                         name="uq_budget_reservation_key"),
+        CheckConstraint(
+            "status in ('reserved','settled','released','expired')",
+            name="ck_budget_reservation_status"),
+        CheckConstraint("estimated_usd >= 0",
+                        name="ck_budget_reservation_estimate"),
+        CheckConstraint("actual_usd is null or actual_usd >= 0",
+                        name="ck_budget_reservation_actual"),
+        CheckConstraint("status <> 'settled' or actual_usd is not null",
+                        name="ck_budget_reservation_settled_has_actual"),
+        Index("ix_budget_reservations_period",
+              "provider", "period", "status"),
     )
 
 

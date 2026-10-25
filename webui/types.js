@@ -26,6 +26,43 @@
  */
 
 /**
+ * @typedef {Object} BreakthroughReportView
+ * @property {number} creator_id
+ * @property {string} method_version
+ * @property {number} publications_considered
+ * @property {BreakthroughView|null=} breakthrough
+ * @property {Array<BreakthroughView>=} outliers
+ * @property {Array<string>=} refusals
+ * @property {Array<string>=} caveats
+ * @property {boolean=} has_follower_history
+ * @property {boolean=} has_repeated_observations
+ */
+
+/**
+ * @typedef {Object} BreakthroughView
+ * @property {number} id
+ * @property {string} classification
+ * @property {number|null=} video_id
+ * @property {string|null=} external_id
+ * @property {string|null=} posted_at
+ * @property {string|null=} caption
+ * @property {number|null=} publication_index
+ * @property {number|null=} publications_total
+ * @property {number|null=} observed_views
+ * @property {number|null=} baseline_views
+ * @property {number|null=} median_after
+ * @property {number|null=} relative_performance
+ * @property {number|null=} robust_z
+ * @property {number|null=} step_ratio
+ * @property {boolean|null=} sustained
+ * @property {number|null=} confidence
+ * @property {Object=} evidence
+ * @property {Array<string>=} missing_evidence
+ * @property {string|null=} decided_by
+ * @property {string} method_version
+ */
+
+/**
  * @typedef {Object} CapabilityList
  * @property {Array<CapabilityState>} capabilities
  */
@@ -186,6 +223,23 @@
  */
 
 /**
+ * @typedef {Object} PerformanceSummary
+ * Typical performance, with the caveats as part of the payload.
+ * @property {number} publications
+ * @property {number} with_views
+ * @property {string|null=} first_published
+ * @property {string|null=} last_published
+ * @property {string|null=} observed_at
+ * @property {number|null=} median_views
+ * @property {number|null=} median_views_recent
+ * @property {number|null=} top_views
+ * @property {number|null=} median_likes
+ * @property {number|null=} age_span_days
+ * @property {boolean=} counts_rounded
+ * @property {Array<string>=} caveats
+ */
+
+/**
  * @typedef {Object} PlatformSummary
  * @property {string} platform
  * @property {string|null=} account_ref
@@ -197,6 +251,22 @@
  * @property {number} snapshots
  * @property {string|null=} first_published
  * @property {string|null=} last_published
+ */
+
+/**
+ * @typedef {Object} ProviderCapabilityView
+ * @property {string} platform
+ * @property {string} provider
+ * @property {Array<string>=} supported_queries
+ * @property {boolean} follower_count
+ * @property {boolean} creator_bio
+ * @property {boolean} view_count
+ * @property {boolean} views_rounded
+ * @property {boolean} saves_count
+ * @property {boolean} media_url
+ * @property {boolean} full_history
+ * @property {Array<string>=} missing_creator_fields
+ * @property {Array<string>=} coverage_notes
  */
 
 /**
@@ -227,6 +297,123 @@
  * @property {Object|null=} evidence
  * @property {PairSide} a
  * @property {PairSide} b
+ */
+
+/**
+ * @typedef {Object} ResearchJobView
+ * @property {number} id
+ * @property {string} kind
+ * @property {string} platform
+ * @property {string} query_value
+ * @property {string} provider
+ * @property {boolean} is_fixture
+ * @property {string} status
+ * @property {string} started_at
+ * @property {string|null=} finished_at
+ * @property {number|null=} estimated_usd
+ * @property {number|null=} actual_usd
+ * @property {number=} creators_new
+ * @property {number=} publications_seen
+ * @property {number=} publications_new
+ * @property {number=} snapshots_written
+ * @property {Array<string>=} coverage_notes
+ * @property {Array<Object>=} item_errors
+ * @property {string|null=} error
+ */
+
+/**
+ * @typedef {Object} ResearchPublicationPage
+ * @property {number} total
+ * @property {number} offset
+ * @property {number} limit
+ * @property {Array<ResearchPublicationRow>=} items
+ * @property {Array<string>=} notes
+ */
+
+/**
+ * @typedef {Object} ResearchPublicationRow
+ * @property {number} video_id
+ * @property {string} external_id
+ * @property {string|null=} posted_at
+ * @property {string|null=} caption
+ * @property {Array<string>=} hashtags
+ * @property {number|null=} duration_s
+ * @property {string|null=} url
+ * @property {string|null=} thumbnail_url
+ * @property {number|null=} views
+ * @property {number|null=} likes
+ * @property {number|null=} comments
+ * @property {number|null=} shares
+ * @property {number|null=} saves
+ * @property {boolean=} counts_rounded
+ * @property {string|null=} observed_at
+ * @property {number|null=} age_days
+ * @property {number|null=} relative_performance
+ * @property {number|null=} robust_z
+ * @property {string|null=} music_title
+ * @property {string|null=} music_artist
+ * @property {string|null=} breakthrough
+ * @property {boolean=} is_fixture
+ */
+
+/**
+ * @typedef {Object} ResearchRequest
+ * @property {string} platform
+ * @property {string} handle
+ * @property {number=} limit
+ * @property {boolean=} refresh
+ */
+
+/**
+ * @typedef {Object} ResearchResultView
+ * @property {string} status
+ * @property {string|null=} message
+ * @property {number|null=} creator_id
+ * @property {ResearchJobView|null=} job
+ * @property {boolean=} reused
+ * @property {boolean=} is_fixture
+ * @property {number=} breakthroughs_found
+ */
+
+/**
+ * @typedef {Object} ResearchedCreatorDetail
+ * @property {number} creator_id
+ * @property {string} platform
+ * @property {string} handle
+ * @property {string|null=} display_name
+ * @property {string|null=} profile_url
+ * @property {string|null=} bio
+ * @property {number|null=} follower_count
+ * @property {Array<Object>=} follower_observations
+ * @property {string} research_status
+ * @property {string|null=} last_refreshed_at
+ * @property {boolean=} is_stale
+ * @property {boolean=} is_fixture
+ * @property {string} source
+ * @property {string|null=} discovered_via
+ * @property {number|null=} refresh_cost_usd
+ * @property {PerformanceSummary} summary
+ * @property {ProviderCapabilityView|null=} capabilities
+ * @property {ResearchJobView|null=} last_job
+ */
+
+/**
+ * @typedef {Object} ResearchedCreatorRow
+ * One researched account, for the research-history list.
+ * @property {number} creator_id
+ * @property {string} platform
+ * @property {string} handle
+ * @property {string|null=} display_name
+ * @property {number|null=} follower_count
+ * @property {number=} publications_collected
+ * @property {string} research_status
+ * @property {string|null=} last_refreshed_at
+ * @property {boolean=} is_stale
+ * @property {number|null=} refresh_cost_usd
+ * @property {boolean=} is_fixture
+ * @property {string} source
+ * @property {number=} breakthrough_count
+ * @property {number|null=} collection_cost_usd
  */
 
 /**
@@ -261,6 +448,20 @@
  * @typedef {Object} SessionState
  * @property {boolean} authenticated
  * @property {boolean} auth_configured
+ */
+
+/**
+ * @typedef {Object} SpendingState
+ * Whether research may cost money, and how much is left.
+ * @property {boolean} spending_blocked
+ * @property {number} monthly_cap_usd
+ * @property {number} committed_usd
+ * @property {number} available_usd
+ * @property {Array<string>=} providers_authorised
+ * @property {string} period
+ * @property {string} active_provider
+ * @property {boolean} fixture_mode
+ * @property {Array<Object>=} available_fixtures
  */
 
 /** @typedef {"1"|"2"|"3"} Tier */
