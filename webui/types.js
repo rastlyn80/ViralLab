@@ -459,6 +459,15 @@
  * @property {number=} monthly_cap_usd
  * @property {number|null=} remaining_usd
  * @property {Array<string>=} coverage_warnings
+ * @property {string=} recommendation
+ * @property {number|null=} observed_new_ratio
+ * @property {number=} observed_from_jobs
+ * @property {number|null=} likely_new
+ * @property {number|null=} likely_already_held
+ * @property {number|null=} wasted_usd_estimate
+ * @property {Object=} already_held
+ * @property {Array<string>=} preflight_reasons
+ * @property {Array<string>=} preflight_warnings
  */
 
 /**
@@ -1070,6 +1079,7 @@
  * @typedef {Object} SpendingStatus
  * @property {number=} monthly_cap_usd
  * @property {Array<string>=} providers_authorised
+ * @property {Object<string, number>=} category_caps_usd
  * @property {boolean=} any_authorised
  * @property {string=} research_provider
  * @property {string=} research_reason
@@ -1080,6 +1090,7 @@
  * Authorising money. Both fields are required, deliberately.
  * @property {number} monthly_cap_usd
  * @property {Array<string>=} providers_authorised
+ * @property {Object<string, number>|null=} category_caps_usd
  * @property {boolean=} confirm
  */
 

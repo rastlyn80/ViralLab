@@ -204,3 +204,105 @@ Pre-committed, so a surprising result is not reinterpreted afterwards:
   validated exact-count actor *and* rounds view counts to ~3 significant
   figures, which blurs the outlier boundary the whole analysis depends on.
   It stays implemented for provider redundancy and is not the default.
+
+---
+
+# RESULTS — executed 2026-10-26
+
+All five operations ran live against Apify with the owner's token and an
+explicit **$5.00/month** authorisation set through the credentials
+dashboard. `[PRIMARY]` throughout: every figure below is from the provider's
+own run records, not an estimate.
+
+## What it cost
+
+| Op | Query | Platform | Publications | Creators | Estimated | **Actual** |
+|---|---|---|---|---|---|---|
+| 1 | keyword `classical piano` | TikTok | 10 | 7 | $0.0500 | **$0.0030** |
+| 2 | keyword `Chopin` | TikTok | 10 | 8 | $0.0500 | **$0.0030** |
+| 3 | hashtag `pianotok` | TikTok | 10 | 8 | $0.0500 | **$0.0030** |
+| 4 | keyword `piano tutorial` | TikTok | **0** | 0 | $0.0500 | **$0.0030** |
+| 5 | hashtag `classicalpiano` | Instagram | 30 | 30 | $0.1920 | **$0.0780** |
+| | | | **60** | **53** | $0.3920 | **$0.0900** |
+
+Month-to-date Apify usage including the Phase 0A probe runs:
+**$0.4605** against the $5.00 cap.
+
+Every estimate was **above** the actual charge, which is the correct
+direction for a reservation. The plan's $0.4170 total overstated the real
+$0.0900 by 4.6×, almost entirely because the free plan caps a TikTok run at
+10 items whatever `maxItems` asks for.
+
+## Five things the live run established that the plan could not
+
+**1. The free plan's 10-item cap is real and binding.** Operations 1–3
+requested 60 items and received 10. Any claim about niche size, creator
+coverage or ranking quality from a single run rests on ten posts.
+
+**2. Vocabulary sensitivity is severe.** `classical piano` (7 creators) and
+`Chopin` (8 creators) overlapped on **one** creator. On this evidence a
+single keyword is not a view of the niche, and the expansion sweep the plan
+describes is a prerequisite for any cohort claim rather than a refinement.
+
+**3. An empty search costs the same as a full one.** `piano tutorial`
+returned ten `{"noResults": true}` sentinel rows and was billed $0.0030 —
+identical to a query that returned ten real posts. The adapter now
+recognises the sentinel and reports `provider_found_nothing` instead of
+storing an empty success, but the charge is unavoidable. Budget for failed
+queries.
+
+**4. Actual cost was not being captured at all.** Apify settles
+`usageTotalUsd` *after* the run reaches SUCCEEDED; the adapter read it from
+the final status poll and recorded **$0.00 for runs that really cost
+$0.0030**. A monthly cap counting zero for real charges is decorative.
+Fixed by polling until the figure settles, and `chargedEventCounts` alone
+could not fix it — that field is also empty at the same moment, so the item
+count is the discriminator.
+
+**5. Costs could not be reconciled afterwards.** `discovery_jobs` stored no
+provider run id, so attributing three $0.0030 charges meant matching on
+timestamps, and four candidate runs fell inside the window. The
+reconciliation **refused to guess** and the jobs still read $0.00. The run
+id is now persisted so this is exact next time; the three historical rows
+remain under-recorded and are counted here instead.
+
+## Pricing, re-verified against the provider
+
+Every actor has migrated from Pay Per Result to **`PAY_PER_EVENT`** since
+Phase 0A, so the measured per-1k constants describe a model that no longer
+exists. Re-verified from `/v2/acts/{actor}`:
+
+| actor | advertised now | adapter assumes | verdict |
+|---|---|---|---|
+| `apidojo/tiktok-scraper` | **$0.0003** per `apify-default-dataset-item` | $0.30/1k | **exact match** |
+| `apify/instagram-hashtag-scraper` | per-event price not exposed to a free account | $2.56/1k | `[SECONDARY]` — but a 36-reel Phase 0A run billed $0.0946, i.e. $2.63/1k |
+| `apify/instagram-reel-scraper` | not exposed | $2.56/1k | `[SECONDARY]` |
+| `clockworks/free-tiktok-scraper` | not exposed | $3.00/1k | `[SECONDARY]` — a 45-result run billed $0.1170, i.e. $2.60/1k |
+
+The TikTok constant is confirmed. The others are consistent with observed
+billing but are not provider-advertised and stay tagged.
+
+## What the corpus now contains
+
+53 competitor creators and 60 publications, spanning the range the sampling
+design requires rather than only successes:
+
+- **Large**: `@rabanmusic` 853k followers, `@pianopaus` 195k,
+  `@bastianosis` 123k
+- **Medium**: `@danielanastasio2` 36k, `@tranquilstreamsmusic` 32k,
+  `@classicalmusichubb` 17k
+- **Small**: `@thekaviani` 1.7k, `@este.pianooo` 2.1k, `@cirruspiano` **61**
+- **Publications**: 11,136,542 views (`@pianoarchivee`) down to **370**
+  (`@cirruspiano`)
+
+Eight TikTok creators carry **no follower count** — the actor did not
+return one. Stored as unknown, never as zero.
+
+## What none of this establishes
+
+Nothing about performance. Every figure is a single observation taken at
+whatever age each publication happened to be, from feeds that skew recent
+and popular. `[PRIMARY, measured 0A]` a hashtag feed returned 0 of 45
+records aged ≥ 35 days. These creators are a **discovery sample**, not a
+measured cohort, and a within-creator baseline needs the per-creator
+back-catalogue operation that has not been run.

@@ -91,3 +91,35 @@ def assert_disposable(url: str) -> None:
     """Belt-and-braces check callable from inside a test module."""
     assert _dbname(url).endswith(REQUIRED_SUFFIX), (
         f"refusing to truncate {_dbname(url)!r}: not a disposable test database")
+
+
+@pytest.fixture(autouse=True)
+def _no_host_spending_authorisation(monkeypatch, tmp_path_factory):
+    """Tests must never read the machine's real spending authorisation.
+
+    `config/spending.local.yaml` holds what a person actually approved on
+    this deployment. The server has $5.00 and `apify` authorised, so six
+    tests asserting "nothing is authorised by default" began failing the
+    moment that file existed - not because the guard broke, but because the
+    suite was reading production state.
+
+    Pointing the override at an empty path restores the property those
+    tests are actually about: with no configured authorisation, nothing is
+    authorised. A test that wants authorisation sets it explicitly.
+    """
+    from server import config
+
+    def clear_cache() -> None:
+        # Several test modules replace `config.settings` with a plain
+        # stub function, which has no `cache_clear`. Calling it
+        # unconditionally turned a passing test into a teardown ERROR.
+        clear = getattr(config.settings, "cache_clear", None)
+        if callable(clear):
+            clear()
+
+    empty = tmp_path_factory.mktemp("no-spending") / "absent.yaml"
+    monkeypatch.setattr(config, "SPENDING_OVERRIDE_PATH", empty,
+                        raising=False)
+    clear_cache()
+    yield
+    clear_cache()

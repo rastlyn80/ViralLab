@@ -40,6 +40,27 @@ ROOT = Path(__file__).resolve().parent.parent
 SETTINGS_PATH = Path(os.environ.get(
     "VIRALLAB_SETTINGS", str(ROOT / "config" / "settings.yaml")))
 
+#: Operator-authorised spending, kept OUT of the repository and out of the
+#: deployment sync.
+#:
+#: `settings.yaml` is code configuration: it is committed, and `deploy.py`
+#: copies `config/` to the server on every deploy. Spending authorisation is
+#: not code configuration - it is a decision a person made about money, at
+#: runtime, through the dashboard. Keeping it in the committed file meant a
+#: deploy overwrote the server's `monthly_cap_usd: 5.0` with the repository's
+#: `0.0`, silently de-authorising a provider the owner had approved.
+#:
+#: The reverse is the dangerous direction and is what this really guards
+#: against: a non-zero cap committed to the repository would be pushed to
+#: every deployment and silently GRANT spending nobody approved there.
+#:
+#: This file overlays the `spending` section of `settings.yaml`. It is
+#: gitignored, excluded from the deploy sync, and written only by
+#: `PUT /api/credentials/spending`.
+SPENDING_OVERRIDE_PATH = Path(os.environ.get(
+    "VIRALLAB_SPENDING_FILE",
+    str(ROOT / "config" / "spending.local.yaml")))
+
 
 class SpendRefused(RuntimeError):
     """A paid call was refused. Not transient - a human must authorise it.
@@ -109,7 +130,16 @@ def load_settings(path: Path | None = None) -> Settings:
         logger.warning("no settings file at %s; defaults apply and no "
                        "spending is authorised", p)
         raw = {}
-    sp = raw.get("spending") or {}
+    sp = dict(raw.get("spending") or {})
+
+    # Overlay the operator's runtime authorisation, if any. Read after the
+    # committed file so a deploy cannot change what was approved on this
+    # machine - in either direction.
+    override = _load_spending_override()
+    if override:
+        sp.update(override)
+        raw = {**raw, "spending": sp}
+
     providers = sp.get("providers_authorised") or []
     if isinstance(providers, str):
         providers = [providers]
@@ -117,7 +147,104 @@ def load_settings(path: Path | None = None) -> Settings:
         raw=raw,
         spending=Spending(
             monthly_cap_usd=float(sp.get("monthly_cap_usd") or 0.0),
-            providers_authorised=tuple(str(x) for x in providers)))
+            providers_authorised=tuple(str(x) for x in providers),
+            category_caps_usd=_category_caps(sp.get("category_caps_usd"))))
+
+
+def _load_spending_override() -> dict:
+    """The operator's runtime spending authorisation, or {}.
+
+    Deliberately forgiving about absence - no file means "nothing has been
+    authorised at runtime, use the committed configuration" - and strict
+    about corruption: an unreadable override returns {} and logs loudly
+    rather than guessing, because guessing here either blocks approved work
+    or permits unapproved charges.
+    """
+    path = SPENDING_OVERRIDE_PATH
+    if not path.exists():
+        return {}
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except Exception as exc:                        # noqa: BLE001
+        logger.error("spending override at %s could not be read (%s); "
+                     "falling back to the committed configuration", path,
+                     exc)
+        return {}
+    if not isinstance(data, dict):
+        logger.error("spending override at %s is not a mapping; ignoring",
+                     path)
+        return {}
+    section = data.get("spending", data)
+    if not isinstance(section, dict):
+        logger.error("spending override at %s has no usable spending "
+                     "section; ignoring", path)
+        return {}
+    return section
+
+
+def _category_caps(value) -> tuple:
+    """Parse per-category ceilings into `((name, usd), ...)`.
+
+    `Spending.cap_for` has always honoured this field; nothing ever filled
+    it, so every per-category cap written in `settings.yaml` was silently
+    ignored and only the global cap applied. That is the defect this
+    function exists to close.
+
+    **Every failure mode resolves to 0.0, never to the global cap.** A
+    malformed, negative or non-numeric entry means "not permitted" - the
+    same as absent - because the one thing a spending guard must never do
+    is read a configuration mistake as authorisation. A cap above the
+    global ceiling is not rejected here; `cap_for` already bounds it with
+    `min()`, so the global cap stays the hard limit.
+
+    Accepts the natural YAML mapping::
+
+        category_caps_usd:
+          discovery: 5.00
+          cloud_vision: 2.00
+
+    and a list of pairs, which is what `yaml.safe_dump` produces if the
+    value is ever written back as tuples.
+    """
+    if not value:
+        return ()
+    items: list[tuple[str, float]] = []
+
+    if isinstance(value, dict):
+        pairs = list(value.items())
+    elif isinstance(value, (list, tuple)):
+        pairs = []
+        for entry in value:
+            if isinstance(entry, dict) and len(entry) == 1:
+                pairs.extend(entry.items())
+            elif isinstance(entry, (list, tuple)) and len(entry) == 2:
+                pairs.append((entry[0], entry[1]))
+            else:
+                logger.warning(
+                    "spending.category_caps_usd: ignoring malformed entry "
+                    "%r; it authorises nothing", entry)
+    else:
+        logger.warning(
+            "spending.category_caps_usd should be a mapping of category to "
+            "USD, got %s; no per-category cap is authorised",
+            type(value).__name__)
+        return ()
+
+    for name, usd in pairs:
+        try:
+            amount = float(usd)
+        except (TypeError, ValueError):
+            logger.warning(
+                "spending.category_caps_usd[%s] = %r is not a number; "
+                "treating the category as NOT authorised", name, usd)
+            amount = 0.0
+        if amount < 0:
+            logger.warning(
+                "spending.category_caps_usd[%s] = %s is negative; treating "
+                "the category as NOT authorised", name, amount)
+            amount = 0.0
+        items.append((str(name), amount))
+    return tuple(items)
 
 
 @lru_cache(maxsize=1)

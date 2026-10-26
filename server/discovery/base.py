@@ -247,6 +247,12 @@ class DiscoveryResult:
     creators: list[DiscoveredCreator] = field(default_factory=list)
     publications: list[DiscoveredPublication] = field(default_factory=list)
     next_cursor: str | None = None
+    #: The provider's own identifier for the run that produced this.
+    #: Without it, reconciling a recorded cost against the
+    #: provider's billing means matching on timestamps, which is
+    #: ambiguous as soon as two runs start close together - and it
+    #: was, so three real charges could not be attributed.
+    provider_run_id: str | None = None
     #: Costs. The estimate is what the budget reserved; the actual is what
     #: the provider billed, and only the actual may be reported as cost
     #: (CLAUDE.md 5.3).

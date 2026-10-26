@@ -272,6 +272,62 @@ class ApifyClient:
                 return float(v)
         return None
 
+    def settled_cost_usd(self, run_id: str, *, expected_items: int = 0,
+                         attempts: int = 8,
+                         delay: float = 4.0) -> float | None:
+        """The billed cost, after Apify has finished accounting for it.
+
+        MEASURED 2026-10-26: the run object returned by the final status
+        poll carries `usageTotalUsd: 0`, and the real figure appears up to
+        half a minute later. Reading it from that poll recorded $0.00 for a
+        run Apify actually billed $0.0030 - so every discovery job looked
+        free and the monthly cap had nothing real to count.
+
+        A zero total is only believed when the run also charged **no
+        events**. `chargedEventCounts` is the discriminator: a run that
+        charged ten `apify-default-dataset-item` events and reports $0.00
+        has not settled yet, whereas a genuinely free run has neither. That
+        distinction is what stops "not reported yet" being recorded as
+        "free", which is the error that makes a spending cap decorative.
+
+        `None` means Apify never reported one. The caller must not turn
+        that into zero.
+        """
+        last: float | None = None
+        for attempt in range(attempts):
+            try:
+                data = self._request("GET", f"actor-runs/{run_id}")
+                run = (data or {}).get("data") or {}
+            except DiscoveryError:
+                break
+
+            cost = self.run_cost_usd(run)
+            charged = run.get("chargedEventCounts") or {}
+            billable = sum(v for v in charged.values()
+                           if isinstance(v, (int, float)))
+
+            if cost:
+                return cost
+            # A zero is only believed when the run cannot have been
+            # charged. `chargedEventCounts` is empty immediately after a
+            # run finishes - the same moment `usageTotalUsd` is still 0 -
+            # so it cannot distinguish "free" from "not settled" on its
+            # own. The item count can: a run that returned rows billed for
+            # them.
+            if cost == 0.0 and not billable and expected_items <= 0:
+                return 0.0
+            last = cost if cost is not None else last
+            if attempt < attempts - 1:
+                logger.debug("apify run %s charged %d event(s) but reports "
+                             "no cost yet; waiting", run_id, billable)
+                time.sleep(delay)
+
+        logger.warning(
+            "apify run %s returned %d item(s) but never settled a cost "
+            "after %.0fs; recording it as unknown rather than free",
+            run_id, expected_items, attempts * delay)
+        return None
+
 
 # ---------------------------------------------------------------------------
 # normalisers - only fields present in the recorded responses
@@ -556,9 +612,19 @@ class ApifyDiscoveryAdapter(DiscoveryAdapter):
         items = (self.client.dataset_items(dataset_id, limit=limit)
                  if dataset_id else [])
 
+        # Re-read after the dataset fetch: by then Apify has settled the
+        # usage figure that the final status poll reports as zero.
+        billed = self.client.settled_cost_usd(
+            run_id, expected_items=len(items))
+        if billed is None:
+            logger.warning(
+                "apify reported no cost for run %s; the estimate is NOT "
+                "substituted - the job records an unknown actual cost",
+                run_id)
         result = self.normalise(query, actor, items, observed_at,
-                                actual_usd=self.client.run_cost_usd(finished))
+                                actual_usd=billed)
         result.estimated_usd = self.estimate_usd(query)
+        result.provider_run_id = run_id
         return result
 
     def normalise(self, query: DiscoveryQuery, actor: str,
@@ -579,6 +645,20 @@ class ApifyDiscoveryAdapter(DiscoveryAdapter):
 
         for item in items:
             if not isinstance(item, dict):
+                continue
+            # MEASURED 2026-10-26: `apidojo/tiktok-scraper` answers a query
+            # it found nothing for with sentinel rows `{"noResults": true}`
+            # - and Apify BILLS for them. A search that returns nothing
+            # costs the same $0.0030 as one that returns ten posts, so an
+            # empty result has to be reported as a provider answer rather
+            # than silently stored as an empty success.
+            if item.get("noResults"):
+                item_errors.append({
+                    "reason": "provider_found_nothing",
+                    "detail": ("the actor returned its no-results sentinel: "
+                               "this query matched nothing. The run was "
+                               "still billed."),
+                })
                 continue
             # The Instagram reel actor reports inaccessible accounts as an
             # item with `error`. Dropping those would turn a private account

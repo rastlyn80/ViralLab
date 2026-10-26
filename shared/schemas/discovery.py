@@ -63,6 +63,22 @@ class DiscoveryEstimate(BaseModel):
     remaining_usd: float | None = None
     coverage_warnings: list[str] = Field(default_factory=list)
 
+    # What this would buy that is not already held. The provider bills per
+    # returned item, not per NEW item, so a run that returns forty already-
+    # known publications costs exactly as much as forty new ones.
+    #: free | reuse | refresh | new
+    recommendation: str = "new"
+    #: Measured share of past comparable runs that returned new rows.
+    observed_new_ratio: float | None = None
+    observed_from_jobs: int = 0
+    likely_new: int | None = None
+    likely_already_held: int | None = None
+    #: Share of the estimate that would buy rows already in the database.
+    wasted_usd_estimate: float | None = None
+    already_held: dict = Field(default_factory=dict)
+    preflight_reasons: list[str] = Field(default_factory=list)
+    preflight_warnings: list[str] = Field(default_factory=list)
+
 
 class CandidateSignalView(BaseModel):
     key: str

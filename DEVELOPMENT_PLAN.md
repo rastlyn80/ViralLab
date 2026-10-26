@@ -1565,6 +1565,83 @@ separate, separately-confirmed action from storing a token.
 
 ---
 
+### Phase 6D — Real competitors, real costs  **(delivered 2026-10-26)**
+
+The first phase where ViralLab looks at somebody else's work.
+
+**Apify is live.** The owner pasted a token and authorised **$5.00/month**
+through the credentials dashboard. Five documented operations ran against
+the real provider: **60 publications, 53 competitor creators, $0.0900
+actual** against a $0.3920 estimate. Full results, including what each
+operation established and what it cannot, in `docs/LIVE_VALIDATION_PLAN.md`.
+
+The corpus spans the range the sampling design requires rather than only
+successes: `@rabanmusic` at 853k followers down to `@cirruspiano` at **61**,
+and publications from 11,136,542 views down to **370**.
+
+**Four money defects, all found by running it for real.**
+
+1. *`category_caps_usd` was never read.* `Spending.cap_for` always honoured
+   it; `load_settings` never populated it. Every per-category cap written in
+   `settings.yaml` was silently ignored and only the global cap applied.
+2. *Deploying changed what was authorised.* Authorisation lived in
+   `config/settings.yaml`, which `deploy.py` copies to the server. A deploy
+   pushed the repository's `0.0` over the owner's approved `5.0` - and in
+   the dangerous direction, a non-zero cap committed to the repository would
+   have been deployed everywhere, authorising charges nobody approved there.
+   Moved to `config/spending.local.yaml`: gitignored, never deployed.
+3. *Deploying deleted pasted credentials.* `.env` was written wholesale from
+   a template, so the dashboard-set `APIFY_TOKEN` vanished on the next
+   deploy and research silently fell back to fixture data. Deploy now owns
+   its template keys and preserves everything else.
+4. *Actual cost was never captured.* Apify settles `usageTotalUsd` after a
+   run reaches SUCCEEDED; the adapter read it from the final status poll and
+   recorded **$0.00 for runs billed $0.0030**. A cap counting zero for real
+   charges is decorative. `chargedEventCounts` could not fix it either -
+   that field is empty at the same moment - so the returned item count is
+   the discriminator between "free" and "not settled yet".
+
+**Preflight: what a paid run would actually buy.** Providers bill per
+returned item, not per *new* item, so researching a creator already held
+costs full price for rows already in the database. `server/research/
+preflight.py` reports, before spending: what is held, how old it is, and -
+from the **measured** new-vs-seen ratio of comparable past runs, never a
+guess - how much would be new. On live data it correctly returns REUSE
+(free) for a repeated search, a measured 95% new-ratio for an unseen term,
+and a REFRESH warning for a creator researched within 14 days.
+
+**Own TikTok archive complete.** 225 of 234 publications, 716 MB added in
+one 24-minute resumable pass. The 9 failures are honest: 5 geo-blocked, 1
+deleted (404), 3 transient timeouts. H.264 is preferred where the platform
+offers it, with ffmpeg transcoding only as a fallback - measured, because
+transcoding instead of re-downloading produced files **4x larger** with a
+generation of quality lost, and edge density is a measurement this project
+depends on.
+
+**Provider facts verified against the provider, not a pricing page.**
+Every actor has migrated from Pay Per Result to `PAY_PER_EVENT` since Phase
+0A. `apidojo/tiktok-scraper` is **$0.0003 per dataset item**, exactly the
+$0.30/1k the adapter assumed; the Instagram actors do not expose per-event
+prices to a free account and stay `[SECONDARY]`. The free plan caps a TikTok
+run at **10 items** whatever `maxItems` requests, which is why the estimates
+overshot by 4.6x. An empty search is billed in full: `piano tutorial`
+returned ten `{"noResults": true}` sentinels and cost the same $0.0030 as a
+query returning ten real posts.
+
+**Known gaps at delivery.**
+
+- Three discovery jobs still record `$0.00` for runs that cost $0.0030. The
+  reconciliation **refused to guess** between four candidate runs in the
+  time window; the provider run id is now stored so this is exact next time.
+- Competitor media acquisition and analysis (Stage 3) is **not started**.
+  No competitor video has been downloaded or analysed.
+- The Creator Intelligence Report, cross-creator comparison and the
+  Creative Opportunities engine are **not started**.
+- Eight discovered TikTok creators carry no follower count; the actor did
+  not return one. Stored as unknown, never zero.
+
+---
+
 ### Phase 6 — Multimodal Feature Extraction
 
 Structured musical, visual, editing and language characteristics, per

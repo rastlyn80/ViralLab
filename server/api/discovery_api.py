@@ -29,6 +29,7 @@ from server.discovery.base import DiscoveryQuery, Platform, QueryKind
 from server.research import analysis_seam as seam
 from server.research import collections as coll
 from server.research import discover as disc
+from server.research import preflight
 from server.research import report as rep
 from server.research import service
 from server.research import timeline as tlmod
@@ -72,8 +73,9 @@ def estimate(kind: str = Query(...), platform: str = Query(...),
              value: str = Query(...), limit: int = Query(50, ge=1, le=500),
              session: Session = Depends(get_session)) -> DiscoveryEstimate:
     """What this search would cost. Reads only; never calls a provider."""
-    if kind not in ("keyword", "hashtag"):
-        raise HTTPException(400, "kind must be keyword or hashtag")
+    if kind not in ("keyword", "hashtag", "creator"):
+        raise HTTPException(
+            400, "kind must be keyword, hashtag or creator")
     if platform not in ("tiktok", "instagram"):
         raise HTTPException(400, "platform must be tiktok or instagram")
     value = (value or "").strip()
@@ -112,6 +114,31 @@ def estimate(kind: str = Query(...), platform: str = Query(...),
     if recent is not None:
         out.reusable_job_id = recent.id
         out.reusable_started_at = recent.started_at
+
+    # What this actually buys, as opposed to what it costs. These are
+    # different questions and only the second one was being answered.
+    pf = preflight.check(
+        session, kind=kind, platform=platform, value=value, limit=limit,
+        estimated_usd=out.estimated_usd, is_fixture=adapter.is_fixture,
+        reusable_job=recent)
+    out.recommendation = pf.recommendation
+    out.observed_new_ratio = pf.observed_new_ratio
+    out.observed_from_jobs = pf.observed_from_jobs
+    out.likely_new = pf.likely_new
+    out.likely_already_held = pf.likely_already_held
+    out.wasted_usd_estimate = pf.wasted_usd_estimate
+    out.preflight_reasons = list(pf.reasons)
+    out.preflight_warnings = list(pf.warnings)
+    if pf.holding.publications:
+        out.already_held = {
+            "creator_id": pf.holding.creator_id,
+            "handle": pf.holding.handle,
+            "publications": pf.holding.publications,
+            "with_media": pf.holding.with_media,
+            "analysed": pf.holding.analysed,
+            "age_days": pf.holding.age_days,
+            "follower_count": pf.holding.follower_count,
+        }
 
     out.coverage_warnings = list(disc.SAMPLING_NOTES)
     for note in caps.coverage_notes:

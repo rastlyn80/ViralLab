@@ -122,6 +122,21 @@ RETRY_AFTER = timedelta(hours=20)
 
 DOWNLOAD_TIMEOUT_S = 180
 
+#: Transcoding a 40-second vertical clip to H.264 takes a few seconds on the
+#: server's CPU; this is generous enough for a long one on a busy machine.
+TRANSCODE_TIMEOUT_S = 300
+
+#: Codecs a browser will not play in an MP4 container. TikTok's default
+#: rendition is `bytevc1`, which ffprobe reports as `hevc`.
+UNPLAYABLE_CODECS = {"hevc", "h265", "vp9", "av1"}
+
+#: Quality for the transcode fallback. 20 is visually near-transparent for
+#: 1080x1920 social video and keeps files small enough for the store cap.
+TRANSCODE_CRF = "20"
+
+FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
+FFPROBE = os.environ.get("FFPROBE", "ffprobe")
+
 #: Hosts whose video URLs this module will parse. Anything else is rejected
 #: before a subprocess is started, so a mistyped or hostile URL cannot be
 #: handed to the downloader at all.
@@ -152,6 +167,8 @@ class SyncStatus:
     BAD_URL = "bad_url"
     TIMEOUT = "timeout"
     FAILED = "failed"
+    #: Archived, but the file needs a transcode before a browser can play it.
+    NEEDS_TRANSCODE = "needs_transcode"
 
     #: Which states are worth trying again later, and which are terminal.
     TRANSIENT = {RATE_LIMITED, TIMEOUT, FAILED}
@@ -194,6 +211,8 @@ class FetchOutcome:
     bytes_written: int = 0
     duration_s: float | None = None
     sha256: str | None = None
+    #: What the stored file actually is, after any transcode.
+    codec: str | None = None
 
     @property
     def ok(self) -> bool:
@@ -446,9 +465,76 @@ def _classify(stderr: str, returncode: int) -> tuple[str, str]:
             (stderr or f"yt-dlp exited {returncode}").strip()[:400])
 
 
+def codec_of(path: Path) -> str | None:
+    """The video stream's codec name, or None if it cannot be determined."""
+    try:
+        out = subprocess.run(
+            [FFPROBE, "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=codec_name", "-of",
+             "default=nw=1:nk=1", str(path)],
+            capture_output=True, text=True, timeout=60)
+    except Exception as exc:                        # noqa: BLE001
+        logger.warning("could not probe codec of %s: %s", path.name, exc)
+        return None
+    name = (out.stdout or "").strip().splitlines()
+    return name[0].strip().lower() if name else None
+
+
+def needs_transcode(path: Path) -> bool:
+    codec = codec_of(path)
+    return bool(codec and codec in UNPLAYABLE_CODECS)
+
+
+def transcode_to_h264(path: Path) -> tuple[bool, str]:
+    """Re-encode in place to H.264, so a browser can play it.
+
+    Only used when the platform offered no H.264 rendition. Preferring an
+    existing H.264 download is always better - this is a re-encode, so it
+    loses a generation of quality - but a file the owner cannot play in
+    their own dashboard is worse.
+
+    Writes to a sibling temporary file and replaces atomically: a transcode
+    interrupted half way must never leave a truncated video where a working
+    one used to be.
+    """
+    tmp = path.with_suffix(".h264.mp4")
+    cmd = [
+        FFMPEG, "-v", "error", "-nostdin", "-y",
+        "-i", str(path),
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", TRANSCODE_CRF,
+        "-pix_fmt", "yuv420p",
+        # Audio is already AAC in these; copy rather than re-encode.
+        "-c:a", "copy",
+        "-movflags", "+faststart",
+        str(tmp),
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              timeout=TRANSCODE_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        tmp.unlink(missing_ok=True)
+        return False, f"transcode exceeded {TRANSCODE_TIMEOUT_S}s"
+    except Exception as exc:                        # noqa: BLE001
+        tmp.unlink(missing_ok=True)
+        return False, f"transcode failed: {exc}"
+
+    if proc.returncode != 0 or not tmp.exists() or tmp.stat().st_size == 0:
+        tmp.unlink(missing_ok=True)
+        return False, (proc.stderr or "ffmpeg produced nothing").strip()[:300]
+
+    playable, _ = probe(tmp)
+    if not playable:
+        tmp.unlink(missing_ok=True)
+        return False, "the transcoded file would not probe as playable"
+
+    tmp.replace(path)
+    return True, "transcoded to H.264"
+
+
 def fetch_one(target: UrlTarget, dest: Path, *,
               timeout_s: int = DOWNLOAD_TIMEOUT_S,
-              cookies: Path | None = None) -> FetchOutcome:
+              cookies: Path | None = None,
+              transcode: bool = True) -> FetchOutcome:
     """Download one validated URL to `dest`. Assumes ownership is settled.
 
     The caller is responsible for the ownership gate; this function does not
@@ -533,12 +619,30 @@ def fetch_one(target: UrlTarget, dest: Path, *,
         return out
 
     tmp.replace(dest)
+    out.detail = "archived"
+
+    # The format selector prefers H.264, but not every video has one. When
+    # the result is something a browser will not play, re-encode rather than
+    # leave the owner a file that works for analysis and shows a black box
+    # in their own dashboard.
+    if transcode and needs_transcode(dest):
+        codec = codec_of(dest)
+        ok, why = transcode_to_h264(dest)
+        if ok:
+            out.detail = f"archived; re-encoded from {codec} to H.264"
+            playable, duration = probe(dest)
+        else:
+            logger.warning("could not transcode %s from %s: %s",
+                           dest.name, codec, why)
+            out.detail = (f"archived as {codec}, which browsers will not "
+                          f"play; transcode failed: {why}")
+
     out.status = SyncStatus.OK
     out.path = str(dest)
     out.bytes_written = dest.stat().st_size
     out.duration_s = duration
     out.sha256 = sha256_of(dest)
-    out.detail = "archived"
+    out.codec = codec_of(dest)
     return out
 
 
@@ -790,6 +894,13 @@ def archive_own_tiktok(session: Session, media_root: Path, *,
         outcome.video_id = video.id
         outcome.external_id = video.external_id
         res.note(outcome)
+        # Per video, so a 234-item backfill is observable while it runs
+        # rather than silent until it finishes.
+        logger.info("[%d/%d] %s %s -> %s (%s, %.1f MiB, store %.0f MiB)",
+                    res.considered, len(candidates), video.external_id,
+                    target.handle, outcome.status, outcome.codec or "?",
+                    outcome.bytes_written / 1024 ** 2,
+                    store_size(media_root) / 1024 ** 2)
 
         if outcome.ok:
             res.saved += 1
@@ -1053,3 +1164,135 @@ def fetch_private_owned(session: Session, raw_url: str, media_root: Path, *,
     if outcome.ok:
         _attach_to_video(session, target.video_id, outcome)
     return outcome
+
+
+def repair_unplayable(session: Session, media_root: Path, *,
+                      limit: int = 50, dry_run: bool = False,
+                      adapter=None, redownload: bool = True,
+                      force_video_ids: set[int] | None = None) -> dict:
+    """Make already-archived files browser-playable.
+
+    **Re-downloads by preference, transcodes only as a fallback.** These
+    particular files are HEVC because they were fetched before the format
+    selector learned to prefer H.264, and TikTok publishes a native H.264
+    rendition for them. Transcoding instead produced files roughly four
+    times larger with a generation of quality lost - measured: 1.95 MB of
+    HEVC became 7.1 MB of re-encoded H.264, where the native rendition is
+    about 3.4 MB. Re-encoding is the right answer only when the platform
+    offers nothing playable.
+
+    "Do not re-download unnecessarily" still holds: a file already in a
+    playable codec is skipped without touching the network, and one fetch
+    per broken file is the minimum that yields a correct result.
+
+    Idempotent and safe to interrupt - both the download and the transcode
+    replace atomically.
+    """
+    profiles = owned_profiles(session)
+    creator_ids = [p.creator_id for p in profiles if p.creator_id]
+    if not creator_ids:
+        return {"checked": 0, "repaired": 0, "failed": 0,
+                "reason": "no owned profiles"}
+
+    rows = session.scalars(select(Video).where(
+        Video.platform == PLATFORM,
+        Video.creator_id.in_(creator_ids),
+        Video.media_status == "available",
+        Video.media_path.isnot(None))).all()
+
+    # TikTok's own URL for each owned video, so a re-download needs no
+    # reconstruction and stays inside the ownership gate.
+    index: dict[str, str] = {}
+    if redownload and not dry_run:
+        if adapter is None:
+            try:
+                adapter = build_adapter(session)
+            except Exception as exc:                # noqa: BLE001
+                logger.warning("no TikTok adapter (%s); falling back to "
+                               "transcoding instead of re-downloading", exc)
+                redownload = False
+        if redownload:
+            for profile in profiles:
+                if not profile.strong:
+                    continue
+                try:
+                    index.update(
+                        oauth_video_index(adapter, profile.account_ref))
+                except Exception as exc:            # noqa: BLE001
+                    logger.warning("could not list %s (%s); falling back to "
+                                   "transcoding", profile.handle, exc)
+                    redownload = False
+                    break
+
+    out = {"checked": 0, "already_ok": 0, "redownloaded": 0, "repaired": 0,
+           "failed": 0, "missing": 0, "details": []}
+    last_fetch = 0.0
+    for video in rows:
+        if out["repaired"] + out["redownloaded"] >= limit:
+            break
+        path = Path(video.media_path)
+        if not path.exists():
+            out["missing"] += 1
+            continue
+        out["checked"] += 1
+        codec = codec_of(path)
+        forced = bool(force_video_ids and video.id in force_video_ids)
+        if not forced and (not codec or codec not in UNPLAYABLE_CODECS):
+            out["already_ok"] += 1
+            continue
+        # `force_video_ids` exists for files that are playable but wrong:
+        # a re-encode where the platform offers a native rendition. Those
+        # carry an extra compression generation, and edge density is one of
+        # the measurements this project actually depends on.
+        if dry_run:
+            out["details"].append(
+                {"video_id": video.id, "codec": codec, "action": "would"})
+            continue
+
+        before = path.stat().st_size
+        share = index.get(str(video.external_id))
+
+        # 1. Native H.264 from the platform, if it has one.
+        if share:
+            target, why = normalise_url(share, resolve_short=False)
+            if target is not None:
+                wait = MIN_SECONDS_BETWEEN - (time.monotonic() - last_fetch)
+                if wait > 0:
+                    time.sleep(wait)
+                last_fetch = time.monotonic()
+                fresh = path.with_suffix(".redl.mp4")
+                got = fetch_one(target, fresh, transcode=False)
+                if got.ok and not needs_transcode(fresh):
+                    fresh.replace(path)
+                    out["redownloaded"] += 1
+                    video.media_sha256 = sha256_of(path)
+                    session.commit()
+                    out["details"].append({
+                        "video_id": video.id, "codec": codec,
+                        "action": "redownloaded",
+                        "now": codec_of(path),
+                        "bytes_before": before,
+                        "bytes_after": path.stat().st_size})
+                    continue
+                # Nothing better on offer; keep what we have and transcode.
+                fresh.unlink(missing_ok=True)
+
+        # 2. Fallback: re-encode what is already here.
+        ok, why = transcode_to_h264(path)
+        if ok:
+            out["repaired"] += 1
+            # The bytes changed, so the stored hash is now wrong. Leaving a
+            # stale hash would break every provenance check that compares a
+            # feature's media_sha256 against the file it was measured from.
+            video.media_sha256 = sha256_of(path)
+            session.commit()
+            out["details"].append({
+                "video_id": video.id, "codec": codec, "action": "transcoded",
+                "bytes_before": before, "bytes_after": path.stat().st_size})
+        else:
+            out["failed"] += 1
+            out["details"].append({"video_id": video.id, "codec": codec,
+                                   "action": "failed", "error": why[:200]})
+    logger.info("tiktok transcode repair: %s",
+                {k: v for k, v in out.items() if k != "details"})
+    return out

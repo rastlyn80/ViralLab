@@ -28,11 +28,17 @@ INCLUDE_DIRS = ["server", "shared", "config", "tests", "webui"]
 #: gpu_worker is NOT synced: it runs on Windows only.
 INCLUDE_FILES = ["alembic.ini", "pytest.ini", "requirements-server.txt"]
 EXCLUDE_PARTS = {"__pycache__", ".pytest_cache", "node_modules"}
+#: Never deployed. `config/spending.local.yaml` is the operator's
+#: runtime money authorisation for THAT machine; shipping it would
+#: either wipe an approved cap or grant one nobody approved.
+EXCLUDE_NAMES = {"spending.local.yaml"}
 
 
 def walk(root: Path):
     for p in sorted(root.rglob("*")):
         if any(part in EXCLUDE_PARTS for part in p.parts):
+            continue
+        if p.name in EXCLUDE_NAMES:
             continue
         if p.is_file() and p.suffix not in (".pyc",):
             yield p
@@ -41,6 +47,10 @@ def walk(root: Path):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-migrate", action="store_true")
+    ap.add_argument("--full", action="store_true",
+                    help="upload every file and reinstall dependencies, "
+                         "ignoring the size/mtime and requirements-hash "
+                         "shortcuts")
     ap.add_argument("--test", action="store_true",
                     help="run the test suite on the server after deploying")
     args = ap.parse_args()
@@ -61,15 +71,45 @@ def main() -> int:
                     sftp.mkdir(cur)
 
         mkdirs(REMOTE_ROOT)
-        sent = 0
+
+        def changed(local_file: Path, remote_path: str) -> bool:
+            """Upload only what differs.
+
+            Pushing all 145 files for a one-line edit made every deploy a
+            round of SFTP writes, and a deploy happens many times an hour
+            during development. Size plus mtime is the cheap comparison
+            rsync uses; it can miss a same-size same-mtime edit, which is
+            why `--full` exists.
+            """
+            if args.full:
+                return True
+            try:
+                st = sftp.stat(remote_path)
+            except FileNotFoundError:
+                return True
+            local_st = local_file.stat()
+            if st.st_size != local_st.st_size:
+                return True
+            # One second of slack: SFTP mtimes are whole seconds.
+            return abs((st.st_mtime or 0) - local_st.st_mtime) > 1
+
+        sent = skipped = 0
         for d in INCLUDE_DIRS:
             src = local_root / d
             if not src.is_dir():
                 continue
             for f in walk(src):
                 rel = f.relative_to(local_root).as_posix()
+                remote = f"{REMOTE_ROOT}/{rel}"
+                if not changed(f, remote):
+                    skipped += 1
+                    continue
                 mkdirs(f"{REMOTE_ROOT}/{Path(rel).parent.as_posix()}")
-                sftp.put(str(f), f"{REMOTE_ROOT}/{rel}")
+                sftp.put(str(f), remote)
+                # Carry the mtime across, or every file looks changed next
+                # time and the comparison buys nothing.
+                st = f.stat()
+                sftp.utime(remote, (st.st_atime, st.st_mtime))
                 sent += 1
         # The systemd service launcher lives next to the code it starts.
         # Shipped explicitly because scripts/ as a whole is not deployed.
@@ -82,7 +122,7 @@ def main() -> int:
             if f.is_file():
                 sftp.put(str(f), f"{REMOTE_ROOT}/{name}")
                 sent += 1
-        print(f"synced {sent} files -> {REMOTE_ROOT}")
+        print(f"synced {sent} changed file(s), skipped {skipped} unchanged -> {REMOTE_ROOT}")
 
         # Server-side .env, written with restrictive permissions. Only the
         # values the server half needs; the worker's own secrets stay local.
@@ -127,9 +167,54 @@ def main() -> int:
             f"TIKTOK_CLIENT_KEY={e.get('TIKTOK_CLIENT_KEY','')}",
             f"TIKTOK_CLIENT_SECRET={e.get('TIKTOK_CLIENT_SECRET','')}",
             f"TIKTOK_REDIRECT_URI={e.get('TIKTOK_REDIRECT_URI','')}",
+            # Meta app credentials. The server is the authoritative
+            # collector and needs these to refresh the Instagram token;
+            # without them collection dies silently at the next refresh.
+            f"META_APP_ID={e.get('META_APP_ID','')}",
+            f"META_APP_SECRET={e.get('META_APP_SECRET','')}",
+            # Third-party research provider. Only ever USED when the owner
+            # has also authorised apify and a non-zero cap in the spending
+            # override - a token alone buys nothing.
+            f"APIFY_TOKEN={e.get('APIFY_TOKEN','')}",
             "VIRALLAB_COLLECTION_ENABLED=1",
             "",
         ])
+        # Preserve keys this script does not manage.
+        #
+        # `.env` used to be written wholesale from the template above, which
+        # silently deleted anything set another way - and the credentials
+        # dashboard writes straight into this file. The owner pasted an
+        # APIFY_TOKEN, the next deploy removed it, and research fell back to
+        # fixture data with only a log line to say why.
+        #
+        # Deploy owns the template keys; everything else belongs to whoever
+        # put it there and is carried across untouched.
+        managed = {line.split("=", 1)[0] for line in envfile.splitlines()
+                   if "=" in line and not line.lstrip().startswith("#")}
+        preserved: list[str] = []
+        try:
+            with sftp.open(f"{REMOTE_ROOT}/.env", "r") as fh:
+                existing = fh.read().decode("utf-8", errors="replace")
+        except IOError:
+            existing = ""
+        for line in existing.splitlines():
+            if "=" not in line or line.lstrip().startswith("#"):
+                continue
+            key = line.split("=", 1)[0].strip()
+            if key and key not in managed:
+                preserved.append(line)
+        if preserved:
+            envfile = envfile.rstrip("\n") + "\n".join([
+                "",
+                "",
+                "# Set outside deploy.py - by the credentials dashboard or by",
+                "# hand - and preserved across deploys. deploy.py owns only",
+                "# the keys above.",
+            ] + preserved) + "\n"
+            # Names only. The values are credentials.
+            print(f"preserved {len(preserved)} externally-set key(s): "
+                  f"{', '.join(sorted(l.split('=', 1)[0] for l in preserved))}")
+
         with sftp.open(f"{REMOTE_ROOT}/.env", "w") as fh:
             fh.write(envfile)
         sftp.chmod(f"{REMOTE_ROOT}/.env", stat.S_IRUSR | stat.S_IWUSR)
@@ -142,10 +227,28 @@ def main() -> int:
         if rc:
             print(err or out, file=sys.stderr)
             return rc
-        rc, out, err = run(
-            c, f"{venv}/bin/pip install -q -r {REMOTE_ROOT}/requirements-server.txt",
-            timeout=900)
-        print("deps installed" if rc == 0 else (err or out))
+        # pip was re-resolving the whole requirements file on every
+        # deploy - tens of seconds for nothing, many times an hour. Only
+        # run it when the requirements actually changed, tracked by a hash
+        # stored next to the venv.
+        import hashlib
+        req_hash = hashlib.sha256(
+            (local_root / "requirements-server.txt").read_bytes()).hexdigest()
+        stamp = f"{REMOTE_ROOT}/.deps-hash"
+        rc, current, _ = run(c, f"cat {stamp} 2>/dev/null || true", timeout=60)
+        if args.full or current.strip() != req_hash:
+            rc, out, err = run(
+                c,
+                f"{venv}/bin/pip install -q -r "
+                f"{REMOTE_ROOT}/requirements-server.txt",
+                timeout=900)
+            if rc == 0:
+                run(c, f"printf %s {req_hash} > {stamp}", timeout=60)
+                print("deps installed")
+            else:
+                print(err or out)
+        else:
+            print("deps unchanged, skipped")
 
         if not args.no_migrate:
             rc, out, err = run(

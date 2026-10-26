@@ -168,6 +168,8 @@ class CredentialStatus(BaseModel):
 class SpendingStatus(BaseModel):
     monthly_cap_usd: float = 0.0
     providers_authorised: list[str] = Field(default_factory=list)
+    #: Effective ceiling per category, after the global cap is applied.
+    category_caps_usd: dict[str, float] = Field(default_factory=dict)
     any_authorised: bool = False
     #: Which features are live right now, and why not when they are not.
     research_provider: str = "fixture"
@@ -190,6 +192,11 @@ class SpendingWrite(BaseModel):
 
     monthly_cap_usd: float
     providers_authorised: list[str] = Field(default_factory=list)
+    #: Optional per-category ceilings. Omitted leaves existing caps alone;
+    #: an explicit {} clears them. A category with no cap is NOT authorised,
+    #: except `discovery`, which inherits the global cap for backward
+    #: compatibility - see Spending.cap_for.
+    category_caps_usd: dict[str, float] | None = None
     #: Must be true. A cap cannot be raised by a request that did not mean to.
     confirm: bool = False
 
@@ -293,6 +300,7 @@ def list_credentials() -> CredentialsView:
         spending=SpendingStatus(
             monthly_cap_usd=sp.monthly_cap_usd,
             providers_authorised=list(sp.providers_authorised),
+            category_caps_usd={c: sp.cap_for(c) for c in ("discovery", "cloud_vision", "cloud_audio", "strategy")},
             any_authorised=sp.any_authorised,
             research_provider=provider, research_reason=reason),
         env_path_writable=writable,
@@ -328,12 +336,24 @@ def set_spending(body: SpendingWrite) -> SpendingStatus:
     if unknown:
         raise HTTPException(400, f"unknown provider(s): {', '.join(unknown)}")
 
-    path = config.SETTINGS_PATH
-    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    # Written to the runtime override, NOT to the committed settings file.
+    # `deploy.py` syncs `config/`, so writing authorisation into
+    # settings.yaml meant the next deploy pushed the repository's 0.0 over
+    # the operator's approved cap - and, worse, would push a committed
+    # non-zero cap onto a machine where nobody had approved it.
+    path = config.SPENDING_OVERRIDE_PATH
+    before = dict(config.settings().spending.__dict__)
+    raw = {}
+    if path.exists():
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(raw, dict):
+        raw = {}
     raw.setdefault("spending", {})
-    before = dict(raw["spending"])
     raw["spending"]["monthly_cap_usd"] = float(body.monthly_cap_usd)
     raw["spending"]["providers_authorised"] = list(body.providers_authorised)
+    if body.category_caps_usd is not None:
+        raw["spending"]["category_caps_usd"] = {
+            str(k): float(v) for k, v in body.category_caps_usd.items()}
 
     fd, tmp_name = tempfile.mkstemp(dir=str(path.parent), prefix=".settings.",
                                     suffix=".tmp")
@@ -346,17 +366,18 @@ def set_spending(body: SpendingWrite) -> SpendingStatus:
     config.reload_settings()
 
     logger.warning("SPENDING AUTHORISATION CHANGED by web UI: cap "
-                   "$%.2f -> $%.2f, providers %s -> %s",
+                   "$%.2f -> $%.2f, providers %s -> %s (written to %s)",
                    float(before.get("monthly_cap_usd") or 0.0),
                    body.monthly_cap_usd,
                    before.get("providers_authorised") or [],
-                   body.providers_authorised)
+                   body.providers_authorised, path.name)
 
     from server.api.research_api import active_provider
     sp = config.settings().spending
     return SpendingStatus(
         monthly_cap_usd=sp.monthly_cap_usd,
         providers_authorised=list(sp.providers_authorised),
+        category_caps_usd={c: sp.cap_for(c) for c in ("discovery", "cloud_vision", "cloud_audio", "strategy")},
         any_authorised=sp.any_authorised,
         research_provider=active_provider(),
         research_reason="updated from the dashboard")

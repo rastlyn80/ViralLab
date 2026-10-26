@@ -464,6 +464,11 @@ def _store_discovery(session: Session, job: DiscoveryJob,
     job.creators_new = creators_new
     job.snapshots_written = len(result.publications)
     job.actual_usd = result.actual_usd
+    if result.provider_run_id:
+        # Kept so a later reconciliation against the provider's
+        # billing is exact rather than a timestamp guess.
+        job.params = {**(job.params or {}),
+                      "provider_run_id": result.provider_run_id}
     job.coverage_notes = notes
     job.item_errors = result.item_errors or []
     session.flush()

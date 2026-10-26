@@ -96,3 +96,8 @@ backups/
 .matching_payload.json
 probes/local_library/_bench/
 .llamacpp/
+
+# Operator's runtime spending authorisation. Machine-specific,
+# never committed: a cap in the repository would be deployed
+# everywhere and authorise charges nobody approved there.
+config/spending.local.yaml
