@@ -434,7 +434,20 @@ def _spectral_stats(frames: np.ndarray, spec: np.ndarray) -> dict:
     freqs = np.fft.rfftfreq(AUDIO_FRAME, d=1.0 / AUDIO_SR)
     voice = (freqs >= 300) & (freqs <= 3400)
     total = spec.sum(axis=1) + eps
-    centroid = float((spec * freqs[None, :]).sum() / spec.sum())
+    # `+ eps` for the same reason as `total` above, which had it and this
+    # line did not: on a silent clip `spec.sum()` is exactly 0 and the
+    # division yields NaN. A NaN here is worse than a wrong number — it
+    # passes every `isinstance(x, float)` check downstream and then
+    # silently corrupts any correlation it enters.
+    #
+    # METHOD_VERSION is deliberately NOT bumped for this. On any clip with
+    # sound the change is a relative perturbation of order 1e-13, far below
+    # the precision anything reports, so no existing measurement becomes
+    # different in any way a reader could observe. The only values that
+    # change are the NaNs, which were never measurements. Bumping would
+    # invalidate 258 videos of evidence to correct one degenerate row.
+    spec_total = float(spec.sum())
+    centroid = float((spec * freqs[None, :]).sum() / (spec_total + eps))
     return {
         "spectral_flatness_mean": float(flatness.mean()),
         "spectral_flatness_sd": float(flatness.std()),

@@ -125,6 +125,8 @@
  * @property {number|null=} p_adjusted
  * @property {number|null=} rho_partial_duration
  * @property {number|null=} rho_partial_duration_age
+ * @property {number|null=} rho_partial_duration_age_ad
+ * @property {number=} n_ad_controlled
  * @property {number|null=} ci_low
  * @property {number|null=} ci_high
  * @property {string=} effect_size_label
@@ -1009,6 +1011,12 @@
  * @property {string} method_version
  * @property {string} verdict
  * @property {Array<string>=} limitations
+ * @property {string|null=} ad_covariate_source
+ * @property {number=} ad_covariate_n
+ * @property {number=} ad_covariate_exposed
+ * @property {number|null=} ad_outcome_rho
+ * @property {number|null=} ad_outcome_p
+ * @property {string=} ad_covariate_note
  */
 
 /**

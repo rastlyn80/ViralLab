@@ -24,18 +24,36 @@ answered yet.
 
 | Capability | State | Evidence |
 |---|---|---|
-| Own Instagram corpus | 385 publications, **258 with media**, **48 with retention metrics** | `[PRIMARY]` |
+| Own Instagram corpus | 385 publications, **258 with media**, **286 with retention metrics** (49 before M1; the rest had simply never been requested) | `[PRIMARY, 2026-10-26]` |
 | Own TikTok corpus | 234 publications, **225 with media** (5 geo-blocked, 1 deleted, 3 transient) | `[PRIMARY]` |
 | Competitor corpus | **53 creators, 60 publications**, TikTok + Instagram, $0.09 spent | `[PRIMARY]` |
-| Deterministic hook features | 21 visual/audio measures on 258 videos + background structure on 48 | `[PRIMARY]` |
-| OCR | RapidOCR on 258; real text measurement; **no OCR measure relates to retention** | `[PRIMARY]` |
+| Deterministic hook features | 21 visual/audio measures on **258** videos and background structure on 258, after the 2026-10-26 backfill. Was 48 — the previous claim of 258 was wrong, and closing the gap took 385 s of CPU | `[PRIMARY, 2026-10-26]` |
+| OCR | RapidOCR on **258** after the 2026-10-26 backfill (was 48; it runs on CPU and never needed the GPU box); **no OCR measure relates to retention at n=258 either**, and the proxy is confirmed not to be reading text | `[PRIMARY, 2026-10-26]` |
 | Speech | Whisper small, gated; speech present in 4 of 48 | `[PRIMARY]` |
 | Local vision | Gemma 3 4B on the RTX 2070, 7.9 s/video, $0; **one reliable field of eight** (`text_overlay_present`) | `[PRIMARY]` |
-| Retention science | `text_region_score` −0.563 vs skip rate (q<0.001); it measures background structure, not text | `[PRIMARY]` |
+| Retention science | At n=258: **`background_edge_density` −0.401** and `edge_density` −0.389 vs skip rate (q<0.001); `text_region_score` is a weaker reading of the same thing (−0.292, and −0.096 once density is controlled). The n=48 figure of −0.563 was inflated by the small sample. | `[PRIMARY, 2026-10-26]` |
 | Spending control | Per-category caps enforced, runtime authorisation separated from code, real costs captured | `[PRIMARY]` |
 | Credentials dashboard | Write-only, whitelisted, live | `[PRIMARY]` |
 | Competitor media | **None downloaded, none analysed** | — |
 | Creator report, comparisons, opportunities, strategist | **Not started** | — |
+
+**Corrected and then closed, 2026-10-26.** The feature-coverage rows
+above said 258 and were wrong — `video_features` held the deterministic,
+OCR, background and speech sets for **48 videos each**. Feature
+extraction, not data access, was the binding constraint on every retention
+finding in the project.
+
+The two CPU-only extractors have since been backfilled across all 258
+preserved publications (290 s deterministic, 95 s background, 0 failures),
+and **Part 5 was re-run at n = 258**. The larger sample overturned part of
+its conclusion: `text_region_score` fell from −0.564 to −0.292 and lost
+the head-to-head against generic density, which it had appeared to win at
+n = 46. See `docs/benchmarks/6c-visual-density.md` §A.4–A.5.
+
+OCR was backfilled too, once it became clear RapidOCR runs on CPU where
+the media lives and never needed the GPU box: 207 publications, 0
+failures, 856 s. **Speech (48) and vision (54) are now the only coverage
+gap**, and they do need the Windows worker.
 
 Two platform limits bound everything that follows and must be designed
 around rather than wished away:
@@ -51,9 +69,25 @@ around rather than wished away:
 
 ## 1. The ad problem, and what it does to the science
 
-The owner has run a **$1/day Instagram ad that rotates to each new post**
-for several months. Every recent Instagram metric is therefore a blend of
-paid and organic exposure, and the blend differs per video.
+> **Corrected 2026-10-26 by M1.** Three claims in this section were wrong
+> and are struck through below rather than deleted, because the reasoning
+> that followed from them is still worth seeing. In short: Instagram's
+> organic metrics were **already organic**, so there was nothing to
+> subtract; the campaign is **three and a half months old and boosts a
+> minority of posts**, not several months and every post; and the
+> contamination of the retention corpus is correspondingly smaller than
+> feared. See `docs/adr/0008-paid-organic-separation.md` and
+> `docs/benchmarks/6c-visual-density.md`.
+
+~~The owner has run a **$1/day Instagram ad that rotates to each new
+post** for several months.~~ **Measured `[PRIMARY, 2026-10-26]`:** of 385
+own-account publications, 373 resolve and **29 carry a paid residual share
+≥ 0.25**. Three are isolated events (2025-06-17, 2026-03-07, 2026-06-30);
+the rest form a continuous run from **2026-07-13** to the present. August
+boosted 7 of 40 publications, so the ad does not rotate to every new post.
+Every recent Instagram metric is therefore a blend of paid and organic
+exposure *for the minority of posts that were boosted*, and the blend
+differs per video.
 
 ### 1.1 Why this matters more than it looks
 
@@ -64,14 +98,24 @@ behaviour metrics**, which the retention science depends on:
 - `reels_skip_rate` and `ig_reels_avg_watch_time` are computed over
   everyone who saw the video, and an ad-delivered cold viewer behaves
   differently from a follower.
-- The ad rotates on each new post, so a video's paid exposure is roughly
-  **proportional to the time until the next post**. That makes ad exposure
-  a function of posting rhythm — and anything correlated with posting
-  rhythm inherits the contamination.
+- ~~The ad rotates on each new post, so a video's paid exposure is roughly
+  proportional to the time until the next post.~~ **Disproved
+  `[PRIMARY, 2026-10-26]`:** boosting is selective — 7 of 40 publications
+  in August — so paid exposure is not a function of posting rhythm, and
+  the reasoning that followed from it does not hold.
 - The ad also recruited followers over months, so the organic audience
   itself drifts in composition. A slow confound, handled by time controls.
 
-### 1.2 First test, already run `[PRIMARY, 2026-10-26]`
+### 1.2 First test — superseded by the measured covariate
+
+> **Superseded 2026-10-26.** The gap proxy below was the best available
+> before the surface decomposition existed. It pointed the right way on
+> both findings but understated the `edge_density` correction, and it was
+> computed over 47 publications almost none of which was actually boosted
+> — so what it mostly measured was organic accumulation, exactly as its
+> own caveat warned. The measured results are in
+> `docs/benchmarks/6c-visual-density.md` §A.4; the headline holds at
+> **−0.528** and `edge_density` falls to **−0.279**.
 
 Using *gap to next post* as a proxy for paid exposure, derivable from
 `posted_at` alone, on the 47 retention videos that have one:
@@ -100,20 +144,44 @@ separate the mechanisms.
 
 ### 1.3 What can actually be separated
 
-`[SECONDARY — verify at developers.facebook.com before writing code]`
-A boosted Instagram post becomes an ad with its own `ad_id` in the Marketing
-API, whose creative references the organic media. Ads Insights report that
-ad's own impressions, reach, video plays and watch-time distribution
-(`video_p25_watched_actions` … `video_p100`). If that holds, then for every
-boosted post:
+> **Withdrawn 2026-10-26.** The subtraction below assumed the organic
+> media-insights endpoint reports a paid-inclusive total. It does not.
+> Meta documents the opposite: *"Metrics such as `comments`, `likes`,
+> `views`, and `total_interactions` report organic interaction metrics
+> only; interactions on ads containing a media object are not counted."*
+> Building on this formula would have subtracted paid exposure from a
+> figure that never contained it. `[PRIMARY]`, ADR 0008 §2.
 
-    organic ≈ media_insights(total) − ads_insights(paid)
+~~A boosted Instagram post becomes an ad with its own `ad_id` in the
+Marketing API […] then for every boosted post:
+`organic ≈ media_insights(total) − ads_insights(paid)`~~
 
-giving organic views, organic reach, and an organic watch-time profile.
-Skip rate cannot be decomposed this way unless the ad reports an
-equivalent, which is `[OPEN]`. This requires the owner's Ads account to be
-reachable through the existing Facebook Login token with `ads_read` scope —
-`[OPEN]`, and the first thing M1 checks.
+**What is actually true `[PRIMARY, 2026-10-26]`.** Organic needs no
+derivation — `views`, `likes`, `comments`, `saved`, `shares` and
+`total_interactions` are already organic-only. What has to be *derived* is
+the paid side, and it comes from the surfaces that sit outside the organic
+count:
+
+    crossposted_views      == views + facebook_views   (exact, measured)
+    residual_surface_views == total_views − crossposted_views
+
+`total_views` is documented as spanning "all surfaces, including views
+from promoted/boosted/ad media and Facebook". The residual was exactly **0**
+on every unboosted publication measured. It is therefore an **upper bound**
+on paid exposure rather than the paid figure — "all surfaces" names
+promoted media as one member, not the only one — and the field is called
+`residual_surface_views`, never `paid_views`.
+
+The important practical consequence: this needs **no new permission**. It
+comes from the Page token the project already holds.
+
+**Ads Insights is unreachable today `[PRIMARY, 2026-10-26]`.** The stored
+credential is a Page token whose scopes are `pages_show_list`,
+`business_management`, `instagram_basic`, `instagram_manage_insights`,
+`pages_read_engagement`, `public_profile` — no `ads_read` — and
+`/me/adaccounts` is not an edge of a Page token at all. The collector for
+it is written and inert (`server/collectors/meta_ads.py`); granting the
+scope is an owner action, described in `docs/setup/analytics-export.md` §3.
 
 Where the API cannot give it, the in-app Instagram Insights screen shows a
 "From ads" breakdown per post. A **manual analytics import** — the owner
@@ -201,6 +269,45 @@ outcome variable is contaminated.
 *Acceptance:* every own-account publication has an ad-exposure value or an
 explicit `unknown`; Part 5 is re-reported with the covariate; at least one
 TikTok retention figure exists in the database from an import.
+
+#### Status, 2026-10-26 — two of three acceptance criteria met
+
+> Followed immediately by the hook-feature backfill the owner prioritised
+> over M2: the CPU-only extractors now cover all 258 preserved
+> publications, Part 5 was re-run at n = 258, and the result overturned
+> §6 of `docs/benchmarks/6c-visual-density.md`. OCR, speech and vision
+> remain at 48/54 and are the next coverage gap.
+
+| criterion | state |
+|---|---|
+| every publication has a value or an explicit `unknown` | **met** — 385 of 385; 319 resolved, 66 refused with a stated reason (54 have zero total views, 12 have an unattributable gap) |
+| Part 5 re-reported with the covariate | **met** — `docs/benchmarks/6c-visual-density.md` §A.1–A.8 |
+| ≥ 1 TikTok retention figure from an import | **NOT met** — blocked on the owner |
+
+What was built: ADR 0008 (verification), migration `c81f3a7e04d2`
+(`metrics_snapshots.total_views/facebook_views/crossposted_views`,
+`ad_exposures`, `analytics_imports`, `imported_metrics`),
+`server/analytics/ad_exposure.py` (the covariate, with source-mixing
+refused), `server/analytics/imports.py` + `scripts/provision/
+import_analytics.py` (the manual import), `server/collectors/meta_ads.py`
+(Track B, inert until `ads_read`), and the covariate wired into
+`retention.py` and `visual_structure.py`.
+
+What the owner has to do, and nothing else will substitute:
+
+1. **Export TikTok Studio content analytics** and run the importer. The
+   third criterion cannot be met any other way — TikTok's API has no
+   retention metric at all, and fabricating one is not an option.
+   Instructions: `docs/setup/analytics-export.md` §1.
+2. **Grant `ads_read`** if the real paid split is wanted rather than the
+   upper bound. §3 of the same document.
+
+Answers to the questions M1 was supposed to ask, where measurement could
+answer them instead: the campaign began **2026-07-13** and is selective
+(§1); per-post spend is **unknown** and needs `ads_read`; TikTok carries
+**no equivalent surface metric**, so the owner's statement that it has
+never been boosted cannot be checked against the API and is recorded as
+`[SECONDARY]`.
 
 ### M2 — Competitor media, transient and analysed *(old brief Stage 3)*
 

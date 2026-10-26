@@ -310,4 +310,10 @@ def retention_report(session: Session = Depends(get_session)
         survivors=rep.survivors,
         survivor_collinearity=rep.survivor_collinearity,
         method_version=rep.method_version, verdict=rep.verdict,
-        limitations=rep.limitations)
+        limitations=rep.limitations,
+        ad_covariate_source=rep.ad_covariate_source,
+        ad_covariate_n=rep.ad_covariate_n,
+        ad_covariate_exposed=rep.ad_covariate_exposed,
+        ad_outcome_rho=rep.ad_outcome_rho,
+        ad_outcome_p=rep.ad_outcome_p,
+        ad_covariate_note=rep.ad_covariate_note)

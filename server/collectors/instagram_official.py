@@ -69,6 +69,33 @@ RETENTION_UNITS = {"ig_reels_avg_watch_time": "ms",
                    "ig_reels_video_view_total_time": "ms",
                    "reels_skip_rate": "percent"}
 
+#: Surface decomposition, requested SEPARATELY again, and for the same
+#: reason as retention: `crossposted_views` hard-fails with Meta error 100
+#: ("does not support ... for this media product type") on anything that is
+#: not a reel, and one unsupported name fails the whole insights call.
+#:
+#: Why these three (ADR 0008, verified 2026-10-26 against Meta's own Media
+#: Insights reference and then measured on this account):
+#:
+#:   `views`            organic Instagram plays. Meta: "Metrics such as
+#:                      comments, likes, views, and total_interactions report
+#:                      organic interaction metrics only; interactions on ads
+#:                      containing a media object are not counted."
+#:   `facebook_views`   the Facebook surface, including cross-recommendation.
+#:   `crossposted_views` == views + facebook_views. Held exactly on 5 of 5
+#:                      reels probed; collected anyway rather than assumed,
+#:                      because an identity that stops holding is a signal.
+#:   `total_views`      "across all surfaces, including views from
+#:                      promoted/boosted/ad media and Facebook".
+#:
+#: so `total_views - crossposted_views` is exposure that is neither organic
+#: Instagram nor Facebook. On the one probed publication that was not a
+#: boosted reel that difference was exactly 0. It is named
+#: `residual_surface_views` and NOT `paid_views`, because `total_views` is
+#: documented as "all surfaces" and promoted media is one named member of
+#: that set rather than the whole of it.
+SURFACE_METRICS = ["total_views", "crossposted_views", "facebook_views"]
+
 #: Meta's 190-series errors mean the credential is invalid, not busy:
 #: retrying cannot fix it.
 REAUTH_ERROR_CODES = {190, 102, 463, 467}
@@ -302,6 +329,61 @@ class InstagramOfficialAdapter(DataSourceAdapter):
                     else "empty")
                 vals["retention_units"] = RETENTION_UNITS
 
+            # Surface decomposition, in its own call for the same reason.
+            # Degrades the snapshot, never loses it.
+            try:
+                surf = _flatten_insights(self._get(
+                    account_ref, f"{ext}/insights",
+                    metric=",".join(SURFACE_METRICS)))
+            except RateLimited:
+                logger.warning("instagram rate limit hit fetching surface "
+                               "metrics; ending this pass")
+                vals["surface_status"] = "rate_limited"
+                yield _snapshot(ext, now, vals)
+                return
+            except RuntimeError as exc:
+                # A combined call fails WHOLE when any single name is
+                # unsupported for the media product type, and
+                # `crossposted_views` is unsupported for everything that is
+                # not a reel. Losing `total_views` — the one metric that
+                # carries paid exposure, and the one that is supported on
+                # every publication measured — because a sibling was
+                # rejected would defeat the purpose of collecting it.
+                # So: fall back to one call per metric.
+                logger.info("instagram surface metrics failed as a set for "
+                            "%s (%s); retrying individually",
+                            ext, str(exc)[:120])
+                surf, failed = {}, {}
+                for metric in SURFACE_METRICS:
+                    try:
+                        surf.update(_flatten_insights(self._get(
+                            account_ref, f"{ext}/insights", metric=metric)))
+                    except RateLimited:
+                        logger.warning("instagram rate limit hit during "
+                                       "surface fallback; ending this pass")
+                        vals.update(surf)
+                        vals["surface_status"] = "rate_limited"
+                        yield _snapshot(ext, now, vals)
+                        return
+                    except RuntimeError as one:
+                        failed[metric] = str(one)[:160]
+                vals.update(surf)
+                # Which metrics were refused, and why, is kept per snapshot.
+                # `facebook_views` fails two different ways — "unsupported
+                # for this media product type" when the post is not on
+                # Facebook, and "Meta error -1: Fatal" persistently on a
+                # handful of publications — and only the first means the
+                # surface is genuinely zero.
+                vals["surface_unavailable"] = failed or None
+                vals["surface_status"] = (
+                    "ok" if len(surf) == len(SURFACE_METRICS)
+                    else "partial" if surf else "unavailable")
+            else:
+                vals.update(surf)
+                vals["surface_status"] = (
+                    "ok" if any(k in surf for k in SURFACE_METRICS)
+                    else "empty")
+
             yield _snapshot(ext, now, vals)
 
 
@@ -317,6 +399,9 @@ def _snapshot(ext: str, now, vals: dict) -> NormalizedMetrics:
         comments=vals.get("comments"),
         shares=vals.get("shares"),
         saves=vals.get("saved"),
+        total_views=vals.get("total_views"),
+        facebook_views=vals.get("facebook_views"),
+        crossposted_views=vals.get("crossposted_views"),
         is_rounded=False,
         raw=vals,
     )

@@ -167,7 +167,22 @@ def _store(session: Session, video: Video, run: VideoFeatureRun,
         if isinstance(value, bool):
             row.value_bool = value
         elif isinstance(value, (int, float)):
-            row.value_num = float(value)
+            fv = float(value)
+            if fv != fv or fv in (float("inf"), float("-inf")):
+                # NaN and the infinities are not measurements. They reach
+                # here from a degenerate input — a silent clip, an empty
+                # spectrum — and storing one would be worse than storing
+                # nothing: `effective_value` would hand it to a correlation
+                # as an ordinary float, and NaN propagates through every
+                # statistic it touches without raising anything.
+                row.value_num = None
+                md = dict(md)
+                md["method"] = "unavailable"
+                md["unavailable_reason"] = (
+                    f"non-finite value ({value!r}) from a degenerate input; "
+                    f"not stored as a measurement")
+            else:
+                row.value_num = fv
         elif isinstance(value, str):
             row.value_text = value
         elif isinstance(value, (list, dict)):

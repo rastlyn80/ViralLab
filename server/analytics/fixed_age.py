@@ -28,6 +28,23 @@ from sqlalchemy.orm import Session
 #: derivation one.
 ANCHORS = (7, 30, 90)
 
+#: Metrics an anchor may be derived for. The list is an allowlist, not a
+#: convenience: `metric` is interpolated into SQL, and more importantly
+#: interpolation is only honest for a **monotonically accumulating
+#: counter**. Every name here is one.
+#:
+#: The three surface columns were added by M1 (ADR 0008) and belong here
+#: for the same reason as `views`: they are cumulative view counts on other
+#: surfaces, so a value between two real snapshots is a real value.
+#:
+#: What must NOT be added: `reels_skip_rate`, `ig_reels_avg_watch_time` or
+#: any rate. A rate is not cumulative — it rises and falls as the audience
+#: mix changes — so linear interpolation between two readings would invent
+#: a number that was never true. Anchoring a rate needs a snapshot AT the
+#: anchor, which is a collection problem, not a derivation one.
+ANCHORABLE_METRICS = ("views", "likes", "comments", "shares", "saves",
+                      "total_views", "facebook_views", "crossposted_views")
+
 
 @dataclass(slots=True)
 class AnchorValue:
@@ -70,7 +87,7 @@ def metric_at_age(session: Session, video_id: int, anchor_days: int,
     between the bracketing pair is honest because these are monotonically
     accumulating counters; extrapolation beyond them is not, so it is refused.
     """
-    if metric not in ("views", "likes", "comments", "shares", "saves"):
+    if metric not in ANCHORABLE_METRICS:
         raise ValueError(f"unsupported metric: {metric!r}")
 
     posted = session.execute(text(

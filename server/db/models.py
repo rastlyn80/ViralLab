@@ -16,8 +16,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from sqlalchemy import (JSON, 
-    BigInteger, Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index,
-    Integer, String, Text, UniqueConstraint, func, text,
+    BigInteger, Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey,
+    Index, Integer, Numeric, String, Text, UniqueConstraint, func, text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -224,6 +224,27 @@ class MetricsSnapshot(Base):
     #: Recorded per snapshot so precision loss is never silently assumed away
     #: (Phase 0A section 4, finding 2).
     is_rounded: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # -- surface decomposition (ADR 0008, M1) ------------------------------
+    #: `views` above is Instagram's ORGANIC view count: Meta documents that
+    #: `views`, `likes`, `comments` and `total_interactions` "report organic
+    #: interaction metrics only; interactions on ads containing a media
+    #: object are not counted". The three columns here are the surfaces that
+    #: sit outside it, so paid exposure can be measured rather than inferred
+    #: from posting rhythm.
+    #:
+    #: Measured on this account 2026-10-26, exactly, on 5 of 5 reels:
+    #:     crossposted_views == views + facebook_views
+    #:     total_views       == crossposted_views + residual
+    #: and the residual was 0 on the one probed publication that was not a
+    #: boosted reel.
+    #:
+    #: The residual is DERIVED at read time, never stored: this table is
+    #: append-only and holds what the platform returned, nothing computed.
+    total_views: Mapped[int | None] = mapped_column(BigInteger)
+    facebook_views: Mapped[int | None] = mapped_column(BigInteger)
+    crossposted_views: Mapped[int | None] = mapped_column(BigInteger)
+
     raw: Mapped[dict | None] = mapped_column(JSONB)
     #: Which discovery search produced this observation. NULL means the
     #: owner's own collector did. Needed because `videos.discovery_job_id`
@@ -1237,4 +1258,191 @@ class VisionRequest(Base):
               unique=True,
               postgresql_where=text("status in ('queued','running')")),
         Index("ix_vision_requests_status", "status", "requested_at"),
+    )
+
+
+# --------------------------------------------------------------------------
+# measurement integrity — M1 (ADR 0008)
+# --------------------------------------------------------------------------
+
+class AdExposure(Base):
+    """Paid delivery of one ad against one organic publication, per day.
+
+    Track B of ADR 0008. The join back to content is Meta's
+    `adcreative.effective_instagram_media_id`, documented as "the ID of an
+    Instagram post to use in an ad" — so an ad made by boosting an existing
+    post carries the organic media id, and that is the only link between the
+    two halves of the account.
+
+    Nothing writes here until the owner's token carries `ads_read`. Measured
+    2026-10-26, the stored Page token carries `pages_show_list`,
+    `business_management`, `instagram_basic`, `instagram_manage_insights`,
+    `pages_read_engagement` and `public_profile`, and `/me/adaccounts` is not
+    even an edge of a Page token. The table exists ahead of the data so the
+    covariate has somewhere to land the day the scope is granted.
+    """
+
+    __tablename__ = "ad_exposures"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    #: NULL while an ad's creative references a media id never collected.
+    #: The row is kept rather than dropped: an unmatched ad is evidence
+    #: about coverage, and discarding it would hide spend.
+    video_id: Mapped[int | None] = mapped_column(
+        ForeignKey("videos.id", ondelete="SET NULL"))
+    platform: Mapped[str] = mapped_column(String(32), default="instagram")
+    ad_account_id: Mapped[str] = mapped_column(String(64))
+    ad_id: Mapped[str] = mapped_column(String(64))
+    adset_id: Mapped[str | None] = mapped_column(String(64))
+    campaign_id: Mapped[str | None] = mapped_column(String(64))
+    #: The creative's `effective_instagram_media_id`, kept verbatim even when
+    #: `video_id` resolved, so the join can be re-audited without re-calling
+    #: the API.
+    effective_instagram_media_id: Mapped[str | None] = mapped_column(
+        String(64))
+
+    #: Ads Insights is a time series; one row is one reporting day.
+    date_start: Mapped[datetime] = mapped_column(Date)
+    date_stop: Mapped[datetime] = mapped_column(Date)
+
+    spend: Mapped[float | None] = mapped_column(Numeric(12, 4))
+    #: Meta reports spend in the ad account's currency, which is not
+    #: necessarily USD. Stored rather than converted: an unrecorded currency
+    #: becomes a silent unit error the first time someone sums the column.
+    currency: Mapped[str | None] = mapped_column(String(8))
+    impressions: Mapped[int | None] = mapped_column(BigInteger)
+    reach: Mapped[int | None] = mapped_column(BigInteger)
+    #: The watch-time distribution. These are the paid-side equivalent of a
+    #: retention curve and the only route to an organic/paid retention
+    #: comparison, because `reels_skip_rate` has no documented ad
+    #: counterpart.
+    video_p25: Mapped[int | None] = mapped_column(BigInteger)
+    video_p50: Mapped[int | None] = mapped_column(BigInteger)
+    video_p75: Mapped[int | None] = mapped_column(BigInteger)
+    video_p95: Mapped[int | None] = mapped_column(BigInteger)
+    video_p100: Mapped[int | None] = mapped_column(BigInteger)
+    video_avg_time_watched_s: Mapped[float | None] = mapped_column(Float)
+
+    raw: Mapped[dict | None] = mapped_column(JSONB)
+    method_version: Mapped[str] = mapped_column(String(64))
+    collected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+
+    #: `ads:{ad_id}:{date_start}:{method_version}` (CLAUDE.md §4.1). Ads
+    #: Insights figures are revised for days after the fact, so collecting
+    #: the same day twice must UPDATE this row, never append a second one.
+    idempotency_key: Mapped[str] = mapped_column(String(160))
+
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_ad_exposure_idem"),
+        Index("ix_ad_exposures_video", "video_id", "date_start"),
+        Index("ix_ad_exposures_media", "effective_instagram_media_id"),
+    )
+
+
+class AnalyticsImport(Base):
+    """One owner-supplied analytics export, as a versioned artefact.
+
+    The only route to TikTok retention that exists. TikTok's Display API
+    returns views, likes, comments and shares and nothing about watch time
+    (ADR 0001), so average watch time and "watched full video" can only come
+    out of TikTok Studio by hand.
+
+    An import is immutable once recorded. Re-importing the same file is a
+    no-op by `file_sha256`; importing a *newer* export covering the same
+    period creates a new row, and readers take the latest import per metric
+    rather than merging the two — a later export supersedes an earlier one,
+    it does not average with it.
+    """
+
+    __tablename__ = "analytics_imports"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    platform: Mapped[str] = mapped_column(String(32))
+    #: tiktok_studio | instagram_insights
+    source: Mapped[str] = mapped_column(String(32))
+    filename: Mapped[str] = mapped_column(Text)
+    #: Idempotency (CLAUDE.md §4.8). The same bytes may be submitted twice.
+    file_sha256: Mapped[str] = mapped_column(String(64))
+    #: The date the OWNER exported the file, which is when the figures were
+    #: true. Not `imported_at`: a file exported in March and imported in
+    #: October describes March, and conflating the two would age-anchor every
+    #: row to the wrong date (CLAUDE.md §3.8a).
+    exported_at: Mapped[datetime | None] = mapped_column(Date)
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+    row_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    matched_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    method_version: Mapped[str] = mapped_column(String(64))
+    #: The column mapping actually used, plus anything the parser had to
+    #: guess. A later reader must be able to tell a parsed column from an
+    #: inferred one without reopening the original file.
+    parse_notes: Mapped[dict | None] = mapped_column(JSONB)
+
+    metrics: Mapped[list["ImportedMetric"]] = relationship(
+        back_populates="analytics_import")
+
+    __table_args__ = (
+        UniqueConstraint("file_sha256", name="uq_analytics_import_sha"),
+        CheckConstraint("source in ('tiktok_studio','instagram_insights')",
+                        name="ck_analytics_import_source"),
+        Index("ix_analytics_imports_platform", "platform", "exported_at"),
+    )
+
+
+class ImportedMetric(Base):
+    """One metric for one publication, from a manual export.
+
+    Kept apart from `metrics_snapshots` on purpose. A snapshot is something
+    this system observed through an API at a known instant; an imported
+    metric is something a person exported from a dashboard, at a resolution
+    the dashboard chose, under a definition the platform does not publish.
+    Merging them would leave a `provenance` string as the only thing between
+    a measured number and a transcribed one, and that is too thin.
+    """
+
+    __tablename__ = "imported_metrics"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    import_id: Mapped[int] = mapped_column(
+        ForeignKey("analytics_imports.id", ondelete="CASCADE"))
+    #: NULL when the export names a publication this system has not
+    #: collected. Kept, not dropped, for the same reason as above.
+    video_id: Mapped[int | None] = mapped_column(
+        ForeignKey("videos.id", ondelete="SET NULL"))
+    platform: Mapped[str] = mapped_column(String(32))
+    #: Whatever the export used to name the publication: a share URL, a post
+    #: id, sometimes only a caption. Stored verbatim so an unmatched row can
+    #: be matched later without re-importing the file.
+    external_ref: Mapped[str] = mapped_column(Text)
+    metric: Mapped[str] = mapped_column(String(64))
+    value: Mapped[float | None] = mapped_column(Float)
+    #: Units are explicit because TikTok Studio exports seconds, Instagram
+    #: milliseconds, and both export bare percentages. A unitless number here
+    #: would be a unit bug waiting for a reader.
+    unit: Mapped[str | None] = mapped_column(String(16))
+    #: When the figure was true, per the export. Carries the same role as
+    #: `captured_at` on a snapshot and is what age anchoring reads.
+    observed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    #: Age of the publication at `observed_at`, in days, where both are
+    #: known. Stored because an export's own age basis is often the only
+    #: thing that makes its numbers comparable, and recomputing it later
+    #: needs a `posted_at` that unmatched rows do not have.
+    observed_age_days: Mapped[float | None] = mapped_column(Float)
+    provenance: Mapped[str] = mapped_column(
+        String(32), default="manual_export", server_default="manual_export")
+    raw: Mapped[dict | None] = mapped_column(JSONB)
+
+    analytics_import: Mapped[AnalyticsImport] = relationship(
+        back_populates="metrics")
+
+    __table_args__ = (
+        UniqueConstraint("import_id", "external_ref", "metric",
+                         name="uq_imported_metric"),
+        CheckConstraint("provenance = 'manual_export'",
+                        name="ck_imported_metric_provenance"),
+        Index("ix_imported_metrics_video", "video_id", "metric"),
     )

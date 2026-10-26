@@ -301,9 +301,19 @@ def test_instagram_normalises_and_flags_expiring_media(session):
 def test_instagram_requests_post_april_2025_metrics(session):
     """`plays` and `impressions` were retired on 21 April 2025 (ADR 0001).
 
-    Retention is fetched in a SECOND call, so every requested metric across
-    both calls is checked - asserting on one call would have missed a retired
-    name in the other.
+    Three calls per publication, each deliberately separate, so every
+    requested metric across all of them is checked - asserting on one call
+    would have missed a retired name in another:
+
+      1. core metrics, the irreplaceable part of a pass;
+      2. retention, two of whose three names Meta marks "in development";
+      3. surface decomposition (M1, ADR 0008), one of whose names is
+         unsupported for any media that is not a reel.
+
+    The separation is the point. Meta fails a combined insights call
+    WHOLE when any single name in it is unsupported or withdrawn, so
+    mixing these would let a fragile metric take the core set down with
+    it.
     """
     requested: list[list[str]] = []
 
@@ -315,8 +325,9 @@ def test_instagram_requests_post_april_2025_metrics(session):
 
     list(ig_adapter(session, handler).fetch_metrics("17841400000000000",
                                                    ["ig1"]))
-    assert len(requested) == 2, (
-        f"expected a core call and a retention call, got {len(requested)}")
+    assert len(requested) == 3, (
+        f"expected a core, a retention and a surface call, got "
+        f"{len(requested)}")
     every = [m for call in requested for m in call]
     assert "views" in every
     assert "plays" not in every
@@ -327,6 +338,13 @@ def test_instagram_requests_post_april_2025_metrics(session):
     # metrics down with it.
     assert "reels_skip_rate" not in requested[0]
     assert "reels_skip_rate" in requested[1]
+    # Nor the surface names, for the same reason: `crossposted_views` is
+    # rejected outright for every publication that is not a reel.
+    core_and_retention = requested[0] + requested[1]
+    assert "total_views" not in core_and_retention
+    assert "crossposted_views" not in core_and_retention
+    assert set(requested[2]) == {"total_views", "crossposted_views",
+                                 "facebook_views"}
 
 
 def test_instagram_metrics_mapped(session):

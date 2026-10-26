@@ -55,6 +55,14 @@ class NormalizedMetrics:
     comments: int | None = None
     shares: int | None = None
     saves: int | None = None
+    #: Surface decomposition (ADR 0008). Instagram-only today: `views` above
+    #: is organic, and these are the surfaces outside it, from which paid
+    #: exposure is derived. None means NOT MEASURED, never zero — the
+    #: distinction decides whether a publication can enter an ad-controlled
+    #: analysis at all.
+    total_views: int | None = None
+    facebook_views: int | None = None
+    crossposted_views: int | None = None
     #: True when the source reports a rounded/abbreviated figure rather than
     #: an exact count (Phase 0A finding 2). Recorded so precision loss is
     #: never silently assumed away.
@@ -158,6 +166,8 @@ def record_snapshot(session: Session, video: Video, m: NormalizedMetrics
     snap = MetricsSnapshot(
         video_id=video.id, captured_at=m.captured_at, views=m.views,
         likes=m.likes, comments=m.comments, shares=m.shares, saves=m.saves,
+        total_views=m.total_views, facebook_views=m.facebook_views,
+        crossposted_views=m.crossposted_views,
         is_rounded=m.is_rounded, raw=m.raw or None)
     session.add(snap)
     session.flush()

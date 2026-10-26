@@ -42,6 +42,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import Float, select
 from sqlalchemy.orm import Session
 
+from server.analytics import ad_exposure
 from server.db.models import Creator, MetricsSnapshot, Video, VideoFeature
 from shared import hookfeat
 
@@ -83,6 +84,90 @@ OCR_FEATURES = (
 #: reported with a confidence interval that spans everything.
 MIN_N = 20
 
+#: The outcome family. Added in M1 because views are the least interesting
+#: thing this corpus measures and the most contaminated: a boost buys views
+#: directly, while what it can do to a per-viewer *rate* is only indirect,
+#: through who ends up watching.
+#:
+#: Every one of these is organic on both sides of the ratio. Meta documents
+#: `views`, `likes`, `comments`, `saved`, `shares` and `total_interactions`
+#: as reporting "organic interaction metrics only; interactions on ads
+#: containing a media object are not counted" (ADR 0008). So a rate built
+#: from two of them is already free of paid delivery in numerator and
+#: denominator alike, and ad exposure enters the analysis only as a
+#: covariate on who the organic audience became.
+#:
+#: `direction` says which way is good. It exists so no reader has to
+#: remember that a high skip rate is bad while a high save rate is good,
+#: and so the sign of a correlation can be reported in words.
+OUTCOMES: dict[str, dict] = {
+    "reels_skip_rate": {
+        #: What a HIGHER feature value goes with, and what a lower one
+        #: goes with. Phrased per outcome because "higher value, better
+        #: outcome" tells a reader nothing about what actually moved.
+        "words": ("more skipping", "less skipping"),
+        "direction": "lower_is_better",
+        "unit": "percent",
+        "note": ("Share who skipped in the first 3 seconds. Meta marks it "
+                 "estimated and in development, and does NOT document "
+                 "whether its denominator is organic — see ADR 0008 §5.6."),
+    },
+    "ig_reels_avg_watch_time": {
+        #: What a HIGHER feature value goes with, and what a lower one
+        #: goes with. Phrased per outcome because "higher value, better
+        #: outcome" tells a reader nothing about what actually moved.
+        "words": ("longer watching", "shorter watching"),
+        "direction": "higher_is_better",
+        "unit": "ms",
+        "note": ("INCLUDES REPLAYS, so it is not a completion fraction and "
+                 "dividing it by duration does not give percent watched. "
+                 "One publication here averages 3.38x its own length."),
+    },
+    "saves_per_view": {
+        #: What a HIGHER feature value goes with, and what a lower one
+        #: goes with. Phrased per outcome because "higher value, better
+        #: outcome" tells a reader nothing about what actually moved.
+        "words": ("more saving", "less saving"),
+        "direction": "higher_is_better",
+        "unit": "ratio",
+        "note": ("saved / views, both organic. The strongest intent signal "
+                 "available: a save costs the viewer something."),
+    },
+    "shares_per_view": {
+        #: What a HIGHER feature value goes with, and what a lower one
+        #: goes with. Phrased per outcome because "higher value, better
+        #: outcome" tells a reader nothing about what actually moved.
+        "words": ("more sharing", "less sharing"),
+        "direction": "higher_is_better",
+        "unit": "ratio",
+        "note": "shares / views, both organic.",
+    },
+    "comments_per_view": {
+        #: What a HIGHER feature value goes with, and what a lower one
+        #: goes with. Phrased per outcome because "higher value, better
+        #: outcome" tells a reader nothing about what actually moved.
+        "words": ("more commenting", "less commenting"),
+        "direction": "higher_is_better",
+        "unit": "ratio",
+        "note": "comments / views, both organic.",
+    },
+    "likes_per_view": {
+        #: What a HIGHER feature value goes with, and what a lower one
+        #: goes with. Phrased per outcome because "higher value, better
+        #: outcome" tells a reader nothing about what actually moved.
+        "words": ("more liking", "less liking"),
+        "direction": "higher_is_better",
+        "unit": "ratio",
+        "note": ("likes / views, both organic. Cheapest of the four and "
+                 "the most inflated by audience composition."),
+    },
+}
+
+#: The outcome everything before M1 was reported against. Kept as the
+#: default so existing callers and the published Phase 6C figures are
+#: unchanged.
+DEFAULT_OUTCOME = "reels_skip_rate"
+
 
 @dataclass
 class Association:
@@ -98,6 +183,13 @@ class Association:
     rho_partial_duration: float | None = None
     #: Controlling for duration AND publication age. The one to read.
     rho_partial_duration_age: float | None = None
+    #: Controlling for duration, age AND ad exposure (M1). None when no
+    #: single-source covariate covered enough of the sample — never a
+    #: silently uncontrolled number wearing a controlled name.
+    rho_partial_duration_age_ad: float | None = None
+    #: How many publications the ad-controlled figure above rests on. Lower
+    #: than `n` whenever the covariate could not be resolved for some.
+    n_ad_controlled: int = 0
     ci_low: float | None = None
     ci_high: float | None = None
     #: Spearman rho is itself the effect size for a rank association.
@@ -127,6 +219,25 @@ class RetentionReport:
     method_version: str = hookfeat.METHOD_VERSION
     verdict: str = ""
     limitations: list[str] = field(default_factory=list)
+
+    # -- ad exposure (M1) --------------------------------------------------
+    #: Which single source supplied the covariate: ads_insights,
+    #: surface_residual, gap_proxy, or None when nothing covered enough of
+    #: the sample. Sources are never mixed (see `analytics.ad_exposure`).
+    ad_covariate_source: str | None = None
+    ad_covariate_n: int = 0
+    #: How many of those were actually boosted. `ad_covariate_n` alone
+    #: overstates the control when the covariate is zero for most of the
+    #: sample — see `ad_exposure.exposed_count`.
+    ad_covariate_exposed: int = 0
+    #: Association between the covariate and the OUTCOME itself. This is the
+    #: standing contamination diagnostic required by ADR 0008 §5.6: if the
+    #: outcome is paid-inclusive it will move with ad exposure, and if it is
+    #: organic-only it should not. Reported every run rather than settled
+    #: once, because `reels_skip_rate` is documented as "in development".
+    ad_outcome_rho: float | None = None
+    ad_outcome_p: float | None = None
+    ad_covariate_note: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -250,6 +361,42 @@ def partial_spearman2(xs: list[float], ys: list[float],
                                (r_xy_z1 - r_xz2_z1 * r_yz2_z1) / denom)))
 
 
+def partial_spearman_n(xs: list[float], ys: list[float],
+                       controls: list[list[float]]) -> float | None:
+    """x against y controlling for any number of variables, on ranks.
+
+    `partial_spearman` and `partial_spearman2` above are the one- and
+    two-control cases and are left as they are, because Phase 6C's published
+    figures were produced by them and a rewrite would silently change
+    numbers that are already in a document.
+
+    This generalises them by the same recursion. It is exponential in the
+    number of controls — 3^k correlations — which is irrelevant at k=3 and
+    is the reason it is not offered for more. The recursion is the textbook
+    identity:
+
+        r(x,y | Z,z) = (r(x,y|Z) - r(x,z|Z)·r(y,z|Z))
+                       / sqrt((1 - r(x,z|Z)²)(1 - r(y,z|Z)²))
+
+    A control that is nearly collinear with x or y drives the denominator
+    toward zero and the result toward ±1. That is a real property of partial
+    correlation rather than a bug, and the caller reports the controls it
+    used so a reader can judge it.
+    """
+    if not controls:
+        return spearman(xs, ys)
+    z, rest = controls[-1], controls[:-1]
+    r_xy = partial_spearman_n(xs, ys, rest)
+    r_xz = partial_spearman_n(xs, z, rest)
+    r_yz = partial_spearman_n(ys, z, rest)
+    if None in (r_xy, r_xz, r_yz):
+        return None
+    denom = math.sqrt(max(1e-12, (1 - r_xz ** 2) * (1 - r_yz ** 2)))
+    if denom <= 0:
+        return None
+    return float(max(-1.0, min(1.0, (r_xy - r_xz * r_yz) / denom)))
+
+
 def benjamini_hochberg(ps: list[float | None]) -> list[float | None]:
     """FDR-adjusted p-values, order preserved."""
     idx = [i for i, p in enumerate(ps) if p is not None]
@@ -308,7 +455,7 @@ def _outcome_rows(session: Session) -> dict[int, dict]:
         if video.posted_at and snap.captured_at:
             age = int((snap.captured_at - video.posted_at).days)
         watch_ms = raw.get("ig_reels_avg_watch_time")
-        out[video.id] = {
+        row = {
             "video": video,
             "skip_rate": skip,
             "avg_watch_ms": (float(watch_ms) if watch_ms is not None
@@ -316,22 +463,56 @@ def _outcome_rows(session: Session) -> dict[int, dict]:
             "duration_s": video.duration_s,
             "age_days": age,
             "captured_at": snap.captured_at,
+            "views": snap.views,
+            "total_views": snap.total_views,
         }
+        # Per-viewer engagement rates, organic over organic (ADR 0008). A
+        # zero denominator yields None rather than a division error or a
+        # zero rate: a publication nobody saw has no rate, and recording one
+        # as 0.0 would drag every correlation toward it.
+        views = float(snap.views) if snap.views else 0.0
+        for name, col in (("saves_per_view", snap.saves),
+                          ("shares_per_view", snap.shares),
+                          ("comments_per_view", snap.comments),
+                          ("likes_per_view", snap.likes)):
+            row[name] = (float(col) / views
+                         if views > 0 and col is not None else None)
+        row["reels_skip_rate"] = skip
+        row["ig_reels_avg_watch_time"] = row["avg_watch_ms"]
+        out[video.id] = row
     return out
 
 
 def analyse(session: Session, *,
             features: tuple[str, ...] = CANDIDATE_FEATURES,
-            method_version: str = hookfeat.METHOD_VERSION
+            method_version: str = hookfeat.METHOD_VERSION,
+            outcome: str = DEFAULT_OUTCOME,
+            control_ad_exposure: bool = True,
+            population: set[int] | None = None,
             ) -> RetentionReport:
+    """Associations between opening features and one outcome.
+
+    `population` restricts the analysis to a given set of video ids. It
+    exists so that a change in the *sample* and a change in the *controls*
+    can be told apart. M1 did both at once — it added the ad covariate and,
+    by collecting retention metrics for the whole back catalogue, grew the
+    population from 48 to roughly 190 — and a reader given only the new
+    numbers could not say which change moved them.
+    """
+    if outcome not in OUTCOMES:
+        raise ValueError(f"unknown outcome: {outcome!r}")
     rep = RetentionReport()
+    rep.outcome = outcome
     rep.method_version = method_version
     rep.outcome_note = (
         "reels_skip_rate: the share of viewers who skipped. Lower is "
         "better. Chosen over average watch time because it is bounded, it "
         "is about early abandonment - which is what a hook can affect - "
         "and because ig_reels_avg_watch_time INCLUDES REPLAYS and so is "
-        "not a completion fraction.")
+        "not a completion fraction."
+        if outcome == DEFAULT_OUTCOME
+        else f"{outcome}: {OUTCOMES[outcome]['note']} "
+             f"({OUTCOMES[outcome]['direction'].replace('_', ' ')})")
 
     outcomes = _outcome_rows(session)
     rep.n_videos = len(outcomes)
@@ -353,8 +534,36 @@ def analyse(session: Session, *,
             by_video.setdefault(row.video_id, {})[row.feature] = float(val)
     rep.n_with_features = len(by_video)
 
-    usable = {vid: d for vid, d in outcomes.items() if vid in by_video}
+    usable = {vid: d for vid, d in outcomes.items()
+              if vid in by_video and d.get(outcome) is not None
+              and (population is None or vid in population)}
     rep.n_analysed = len(usable)
+
+    # ---- the ad-exposure covariate (M1, BLUEPRINT §1.5) -----------------
+    ad_values: dict[int, float] = {}
+    if control_ad_exposure and usable:
+        exposures = ad_exposure.resolve(session, platform="instagram",
+                                        video_ids=list(usable))
+        src, ad_values = ad_exposure.homogeneous(exposures, list(usable))
+        rep.ad_covariate_source = src
+        rep.ad_covariate_n = len(ad_values)
+        rep.ad_covariate_exposed = ad_exposure.exposed_count(ad_values)
+        cov = ad_exposure.coverage(
+            {k: v for k, v in exposures.items() if k in usable})
+        if src is None:
+            rep.ad_covariate_note = (
+                "No ad-exposure covariate: no single source could be "
+                "resolved for any publication in this sample. Results below "
+                "are UNCONTROLLED for paid exposure.")
+        else:
+            rep.ad_covariate_note = (
+                f"Covariate source: {src}, covering {len(ad_values)} of "
+                f"{len(usable)} analysed publications. Sources are never "
+                f"mixed; coverage by source was {cov['by_source']} with "
+                f"{cov['unknown']} unresolved. Of the covered "
+                f"publications, {rep.ad_covariate_exposed} were actually "
+                f"boosted — the control can only do work where the "
+                f"covariate varies.")
 
     if rep.n_analysed:
         durs = [d["duration_s"] for d in usable.values()
@@ -366,6 +575,17 @@ def analyse(session: Session, *,
             if durs else None
         rep.age_range_days = (min(ages), max(ages)) if ages else None
         rep.skip_range = (round(min(skips), 1), round(max(skips), 1))
+
+        # The contamination diagnostic. Run before any feature is tested,
+        # because if this is large the feature results below are about the
+        # audience the ad bought rather than about the openings.
+        if len(ad_values) >= MIN_N:
+            pairs = [(ad_values[v], usable[v][outcome]) for v in usable
+                     if v in ad_values]
+            r = spearman([a for a, _ in pairs], [b for _, b in pairs])
+            if r is not None:
+                rep.ad_outcome_rho = round(r, 3)
+                rep.ad_outcome_p = spearman_p(r, len(pairs))
 
     if rep.n_analysed < MIN_N:
         rep.verdict = (
@@ -381,15 +601,27 @@ def analyse(session: Session, *,
     assocs: list[Association] = []
     for name in features:
         xs, ys, zs, ages = [], [], [], []
+        # Collected in parallel with the above, then filtered down to the
+        # covered subset. Dropping covariate-less rows from the headline
+        # correlation too would quietly change which publications the
+        # uncontrolled figure describes, and then the two columns would not
+        # be comparable — which is the whole point of printing both.
+        ad_xs, ad_ys, ad_zs, ad_ages, ad_cov = [], [], [], [], []
         for vid, d in usable.items():
             v = by_video[vid].get(name)
             if v is None or d["duration_s"] is None:
                 continue
             xs.append(v)
-            ys.append(d["skip_rate"])
+            ys.append(d[outcome])
             zs.append(float(d["duration_s"]))
             ages.append(float(d["age_days"]
                               if d["age_days"] is not None else 0.0))
+            if vid in ad_values:
+                ad_xs.append(v)
+                ad_ys.append(d[outcome])
+                ad_zs.append(zs[-1])
+                ad_ages.append(ages[-1])
+                ad_cov.append(ad_values[vid])
         a = Association(feature=name, n=len(xs))
         if len(xs) < MIN_N or len(set(xs)) < 3:
             a.interpretation = (
@@ -408,9 +640,14 @@ def analyse(session: Session, *,
         pda = partial_spearman2(xs, ys, zs, ages)
         a.rho_partial_duration_age = (round(pda, 3) if pda is not None
                                       else None)
+        a.n_ad_controlled = len(ad_xs)
+        if len(ad_xs) >= MIN_N:
+            pdaa = partial_spearman_n(ad_xs, ad_ys, [ad_zs, ad_ages, ad_cov])
+            a.rho_partial_duration_age_ad = (round(pdaa, 3)
+                                             if pdaa is not None else None)
         a.effect_size_label = effect_label(a.rho)
-        a.direction = ("higher value, more skipping" if a.rho > 0
-                       else "higher value, less skipping")
+        up, down = OUTCOMES[outcome]["words"]
+        a.direction = f"higher value, {up if a.rho > 0 else down}"
         assocs.append(a)
 
     adjusted = benjamini_hochberg([a.p_value for a in assocs])
@@ -447,6 +684,20 @@ def analyse(session: Session, *,
                 f"style changed over the period covered, so a feature that "
                 f"drifted with time will track any outcome that also "
                 f"drifted, without either causing the other.")
+        if a.rho_partial_duration_age_ad is None and a.rho is not None:
+            a.caveats.append(
+                f"NOT controlled for ad exposure: only {a.n_ad_controlled} "
+                f"of {a.n} publications had a single-source covariate, "
+                f"below the minimum of {MIN_N}. This association is "
+                f"uncontrolled for paid delivery.")
+        elif (a.rho_partial_duration_age_ad is not None
+                and abs(a.rho_partial_duration_age_ad) < abs(a.rho) * 0.6):
+            a.caveats.append(
+                f"Adding the ad-exposure control drops it to "
+                f"{a.rho_partial_duration_age_ad} on "
+                f"n={a.n_ad_controlled}. Much of this association is which "
+                f"publications were boosted, not what was in the opening. "
+                f"Reported as having weakened, per CLAUDE.md §3.7.")
 
     rep.associations = sorted(
         assocs, key=lambda a: (a.p_adjusted if a.p_adjusted is not None
@@ -644,9 +895,21 @@ def explain_proxy(session: Session, *,
         "No OCR measurement - word count, element count, text height, "
         "on-screen duration or mid-hook changes - shows a detectable "
         "association with skip rate in this corpus.")
-    out.caveats.append(
-        "96% of these publications carry on-screen text (46 of 48), so the "
-        "presence of text has almost no variance to explain anything with.")
+    # Computed, not asserted. This read "96% ... (46 of 48)" as a literal,
+    # which was true of the 48-publication sample it was written against
+    # and became wrong the moment OCR was backfilled to 258. A hardcoded
+    # sample statistic is a stale claim waiting to happen.
+    present = values("ocr_text_present")
+    n_present = len([v for vid, v in present.items()
+                     if vid in outcomes and v])
+    n_known = len([vid for vid in present if vid in outcomes])
+    if n_known:
+        pct = round(100.0 * n_present / n_known)
+        out.caveats.append(
+            f"{pct}% of these publications carry on-screen text "
+            f"({n_present} of {n_known}), so the presence of text has "
+            f"{'almost no' if pct >= 90 or pct <= 10 else 'limited'} "
+            f"variance to explain anything with.")
     return out
 
 

@@ -1988,6 +1988,50 @@ Other items:
   masters (§2.1). Any gap in your archive is a permanent gap in Tier 2/3
   coverage of your own history.
 
+**Measurement integrity — opened and partly closed by M1 (2026-10-26)**
+- **`reels_skip_rate` may or may not be organic-only, and nobody knows.**
+  Meta documents `views`, `likes`, `comments` and `total_interactions` as
+  organic-only, and documents `reels_skip_rate` as a share of "initial
+  views" — but never says the denominator is the organic `views` metric.
+  The project's headline retention finding rests on this. It is reported as
+  a standing diagnostic in every analysis run (`ad_outcome_rho`) rather
+  than settled once, because the metric is additionally marked "estimated
+  and in development" and could change under us. ADR 0008 §5.6.
+- **The surface residual is an upper bound on paid exposure, not the paid
+  figure.** `total_views` spans "all surfaces"; promoted media is one named
+  member of that set. The residuals measured are also implausibly large for
+  the stated $1/day — 29,274 non-organic non-Facebook views on one post
+  implies a CPM near $0.03 — so either the residual contains a non-paid
+  surface or the spend was higher than stated. Only `ads_read` settles it.
+- **`facebook_views` fails permanently on 12 publications** with `Meta
+  error -1: Fatal`, retried four times each. Those publications cannot have
+  a residual computed and are excluded from the covariate with a stated
+  reason rather than counted as unexposed.
+- **No TikTok retention figure exists yet.** The import path is built and
+  tested, but the first file has to come from the owner (`docs/setup/
+  analytics-export.md`). Until then M1's third acceptance criterion is
+  unmet, and it is unmet rather than worked around.
+- **Two coverage claims in the docs were wrong, and both are now closed or
+  corrected.** Retention metrics had never been *requested* for most of
+  the back catalogue (49 publications carried one, now 286), and hook
+  features existed for 48 publications rather than the 258 the blueprint
+  claimed. Deterministic, background **and OCR** are backfilled to 258 —
+  RapidOCR runs on CPU and never needed the GPU box. **Speech (48) and
+  vision (54) remain** and are now the binding constraint on any speech-
+  or model-derived finding.
+- **Part 5's §6 conclusion did not survive the larger sample.** At n = 46
+  `text_region_score` appeared to carry signal beyond generic edge
+  density; at n = 239 it collapses to −0.096 once density is controlled
+  while density holds at −0.320. The pre-registered Phase 8 direction
+  should name `edge_density` / `background_edge_density`, not the proxy.
+- **`NaN = NaN` is TRUE in Postgres.** An audit of `video_features` for
+  non-finite values using `where value_num != value_num` returns zero rows
+  even when NaN is present; the correct predicate is
+  `value_num = 'NaN'::float8`. One NaN had been written by
+  `spectral_centroid_hz` dividing by a zero spectrum sum. Cause fixed,
+  storage-level guard added, both under regression test — but the wrong
+  predicate is the trap worth remembering.
+
 **Minor outstanding issues** (recorded, deliberately not fixed)
 - `GET /status/queue` requires no auth — read-only and tailnet-only, but it
   discloses queue depth to anything already on the tailnet.

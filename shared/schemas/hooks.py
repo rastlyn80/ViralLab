@@ -135,6 +135,11 @@ class AssociationView(BaseModel):
     p_adjusted: float | None = None
     rho_partial_duration: float | None = None
     rho_partial_duration_age: float | None = None
+    #: Controlling for duration, age AND ad exposure (M1, ADR 0008). None
+    #: means the covariate did not cover enough of the sample — the
+    #: interface must render that as "not controlled", never as 0.
+    rho_partial_duration_age_ad: float | None = None
+    n_ad_controlled: int = 0
     ci_low: float | None = None
     ci_high: float | None = None
     effect_size_label: str = "negligible"
@@ -159,6 +164,19 @@ class RetentionReportView(BaseModel):
     method_version: str
     verdict: str
     limitations: list[str] = Field(default_factory=list)
+    # -- ad exposure (M1) --------------------------------------------------
+    #: Which single source supplied the covariate, how many publications it
+    #: covered, and how many of those were actually boosted. All three are
+    #: shown together because `n` alone overstates a control that is zero
+    #: for most of the sample.
+    ad_covariate_source: str | None = None
+    ad_covariate_n: int = 0
+    ad_covariate_exposed: int = 0
+    #: The covariate against the outcome itself: the contamination
+    #: diagnostic. On this account it fires (ADR 0008 §5.6).
+    ad_outcome_rho: float | None = None
+    ad_outcome_p: float | None = None
+    ad_covariate_note: str = ""
 
 
 class HookCoverage(BaseModel):

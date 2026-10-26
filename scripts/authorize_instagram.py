@@ -37,6 +37,21 @@ VERSION = "v22.0"
 REQUIRED_SCOPES = ["instagram_basic", "instagram_manage_insights",
                    "pages_show_list", "pages_read_engagement"]
 
+#: Wanted, but not required — the project works without it and has done so
+#: far. `ads_read` is what turns the paid/organic separation from an upper
+#: bound into the real figure (ADR 0008): with it, Ads Insights reports
+#: spend, impressions, reach and the paid watch-time distribution per
+#: boosted post. Reported rather than demanded, so an authorisation that
+#: omits it still succeeds instead of locking the owner out of collection.
+#:
+#: Note it is read from a USER token, not the Page token this script
+#: stores, so granting it adds a credential rather than replacing one.
+OPTIONAL_SCOPES = {
+    "ads_read": ("paid/organic separation via Ads Insights — without it "
+                 "the ad-exposure covariate stays an upper bound "
+                 "(docs/adr/0008-paid-organic-separation.md §4)"),
+}
+
 
 def fail(msg: str) -> int:
     print(f"\n  FAILED: {msg}", file=sys.stderr)
@@ -92,6 +107,11 @@ def main() -> int:
         return fail("missing required scope(s): " + ", ".join(missing)
                     + "\n  Re-run the consent step and tick all four.")
     print("  all required scopes present")
+    for scope, why in OPTIONAL_SCOPES.items():
+        if scope in granted:
+            print(f"  OPTIONAL scope {scope} IS granted: {why}")
+        else:
+            print(f"  optional scope {scope} not granted - {why}")
 
     # 3. Page token + linked Instagram Business account
     pages = http.get(f"{GRAPH}/{VERSION}/me/accounts", params={
