@@ -547,7 +547,8 @@ destroys collected data.
 > | 2 | Own-account collection, media, matching | ✅ substantially complete; 7-day acceptance pending |
 > | 3 | Unified GUI + Phase 4 foundations | ✅ complete |
 > | 4 | Competitor discovery + targeted creator research | ✅ complete |
-> | **4.5** | **Live competitive intelligence: discovery, timeline, report, collections** | **✅ delivered 2026-10-26** |
+> | 4.5 | Live competitive intelligence: discovery, timeline, report, collections | ✅ delivered 2026-10-26 |
+> | **6A** | **Hook intelligence on real own-account video** | **✅ delivered 2026-10-26** |
 > | 5 | Breakthrough analysis + baselines | planned |
 > | 6 | Multimodal feature extraction | planned |
 > | 7 | Comparative analytics + temporal intelligence | planned |
@@ -1160,6 +1161,110 @@ refuses rather than attempts. Authorising a provider and supplying
 `APIFY_TOKEN` switches the same code paths to live collection with no code
 change — which is what the fixture adapter subclassing the real one exists
 to guarantee.
+
+### Phase 6A — Hook Intelligence  **(delivered 2026-10-26)**
+
+The first real feature extraction from actual video files, on the owner's
+own 258 preserved Instagram publications. Brought forward ahead of the rest
+of Phase 6 because it needs no competitor media, no paid authorisation and
+no GPU — and because it is the one place where an extracted feature can be
+tested against an independently measured outcome.
+
+**Milestone 6A.1 — Deterministic opening measurement.** ✅
+`shared/hookfeat.py`. ffmpeg + numpy + PIL only; **no OpenCV, scipy or
+librosa added** — frame decoding, FFT phase correlation, Spearman
+correlation and Benjamini-Hochberg are implemented directly, because one
+correlation does not justify a dependency (CLAUDE.md §6). Runs on the
+server where the media already is, so no file moved and no GPU was touched.
+
+21 reproducible measurements per video: cut count and times, frame
+difference, camera translation by phase correlation, brightness, contrast,
+saturation, edge density, first sound, attack time, RMS, onset count,
+spectral statistics, and visual/audio novelty against a later window.
+**0.94 s per video.**
+
+**Milestone 6A.2 — Versioned feature evidence.** ✅ Migration
+`f1a6c8d27b93`. `video_features` keyed on (video, feature,
+**method_version**), so reprocessing is additive by construction: a new
+version writes beside the old rather than over it, and the two can be
+compared. Verified live — one publication now carries both
+`hook-speech-v1` and `hook-speech-v2` evidence.
+
+A human correction lands in its own columns on the row it corrects.
+Erasing the machine's value would make it impossible to ever measure how
+often the machine was wrong, which is the thing corrections exist to
+reveal.
+
+**Milestone 6A.3 — Two detectors found wrong, by measurement.** ✅
+
+| detector | claimed | truth | outcome |
+|---|---|---|---|
+| hand-built speech heuristic | speech in **12/12** | **0/12** | **deleted**, not tuned |
+| Whisper on 3-second clips | 4 transcripts | **all 4 hallucinations** | fixed with a 15 s context window |
+
+The speech heuristic combined spectral flatness, zero-crossing rate and a
+voice-band ratio. Solo piano varies all three exactly as speech does, so it
+carried no signal. Had it shipped it would have opened the ASR gate on
+every video and written 12 invented transcripts into the database as
+observations.
+
+The Whisper failure is the more interesting one: on the 3-second window it
+produced `'you'` ×3 and a *confident* Korean transcript
+(`no_speech_prob` 0.089) on an Italian pianist. Whisper identifies language
+from roughly 30 seconds of audio; on 3 seconds over music it guesses. Fixed
+by transcribing a **15-second context window** and keeping only segments
+overlapping the hook, plus a language-confidence gate and a repeated-token
+filter.
+
+**After the fix: 4 of 48 have speech, and all 4 transcripts match the
+post's own caption** — independent evidence the creator wrote. 8
+hallucinations rejected. Speech is near-absent from this corpus (8%), which
+is itself the finding: speech-based hook features have no variance here.
+
+**Milestone 6A.4 — Hooks versus retention.** ✅ `server/features/retention.py`
+
+Outcome is `reels_skip_rate`. `ig_reels_avg_watch_time` is **not** used as
+a completion fraction: it includes replays, and one real video averages
+**3.38× its own duration**.
+
+n = **48** — of 385 Instagram publications, 258 have a file and only 49
+have a retention metric. That is a hard ceiling and processing more videos
+cannot raise it.
+
+15 pre-declared features, Spearman with Benjamini-Hochberg FDR control,
+partial correlations against duration **and** publication age. Two survive:
+
+| feature | rho | +duration | +duration+age | p adj | 95% CI |
+|---|---|---|---|---|---|
+| `text_region_score` | −0.563 | −0.566 | **−0.524** | 0.0005 | [−0.734, −0.324] |
+| `edge_density` | −0.436 | −0.446 | **−0.408** | 0.0175 | [−0.646, −0.165] |
+
+Negative means *less* skipping. They correlate only 0.42 with each other,
+so they are largely independent. **These are hypotheses, not findings**:
+n=48, one creator, correlational, and the text proxy's own precision is
+0.89. Thirteen features showed nothing, which is reported rather than
+buried.
+
+**Milestone 6A.5 — Hook Intelligence interface.** ✅ `webui/hooks.js`.
+Browse analysed videos, play exactly the measured 3 seconds, inspect every
+feature with its method badge, uncertainty and provenance, correct a
+classification, re-run extraction over a bounded scope, and read the
+association table with its controls and caveats. A video with no features
+says *not analysed* rather than showing blanks.
+
+**Milestone 6A.6 — Found defect: the front end was never really parsed.**
+✅ ADR 0006 chose a no-build SPA, so nothing parses the JavaScript before a
+browser does. `node --check file.js` was being used as the gate and it is
+**not sufficient** — without `--input-type=module` node parses a `.js` file
+as a CommonJS script and misses errors the browser rejects. A real
+SyntaxError in `webui/hooks.js` passed that check. `tests/server/
+test_webui_syntax.py` now parses every module in module mode and also
+verifies every named import resolves to a real export.
+
+**Throughput, measured.** Deterministic 0.94 s/video (≈4 min for all 258);
+speech 3.78 s/video (≈16 min for all 258). **Zero GPU time.** Both passes
+are CPU-only on the server's 4 cores, which leaves the RTX 2070's 8 GB free
+for the Phase 6B vision work that genuinely needs it.
 
 ### Phase 5 — Breakthrough Analysis at Scale
 

@@ -14,6 +14,27 @@ would actually hold, not a separate guess.
 
 ---
 
+## 0a. Prices re-verified, 2026-10-26
+
+`[PRIMARY]` Checked against the actors' own Apify store pages, and against
+the estimator that would reserve the budget. Every one of the five
+operations below matches the figure this document quotes, and the plan
+total of **$0.4170** is what the code computes.
+
+| actor | listed | code | |
+|---|---|---|---|
+| `apidojo/tiktok-scraper` | $0.30 / 1k posts, no platform fee | $0.30 / 1k | ✅ 12,914 users, 99.9% success |
+| `apify/instagram-hashtag-scraper` | $1.90–$2.60 / 1k (tier-dependent) | $2.56 / 1k | ✅ within band |
+
+Two capability claims this plan depends on were re-confirmed on the same
+pages: the Instagram hashtag actor returns **no follower counts** and
+**recent posts only**. Both were already encoded in
+`ProviderCapabilities`.
+
+A step-by-step activation guide is in `docs/ACTIVATION_CHECKLIST.md`.
+
+---
+
 ## 0. What has to happen before any of this runs
 
 Three things, all the owner's:

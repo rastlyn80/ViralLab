@@ -985,3 +985,137 @@ class CreatorCollectionMember(Base):
                          name="uq_collection_member"),
         Index("ix_collection_members_creator", "creator_id"),
     )
+
+
+class VideoFeatureRun(Base):
+    """One extraction pass, so a partial run is visible rather than inferred."""
+
+    __tablename__ = "video_feature_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    method_version: Mapped[str] = mapped_column(String(64))
+    #: hook_deterministic | hook_speech | ...
+    kind: Mapped[str] = mapped_column(String(32))
+    #: running | ok | partial | failed
+    status: Mapped[str] = mapped_column(
+        String(16), default="running", server_default="running")
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    videos_requested: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    videos_done: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    videos_failed: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    features_written: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    compute_seconds: Mapped[float | None] = mapped_column(Float)
+    params: Mapped[dict | None] = mapped_column(JSONB)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        CheckConstraint("status in ('running','ok','partial','failed')",
+                        name="ck_feature_run_status"),
+    )
+
+
+class VideoFeature(Base):
+    """One measured or inferred property of one publication.
+
+    The unique key is (video_id, feature, method_version). Reprocessing
+    with a new version writes NEW rows beside the old ones, so a threshold
+    change or a model swap can never silently rewrite what was previously
+    measured - and the two can be compared.
+
+    `method` keeps the kinds apart: `deterministic` is signal processing on
+    the file, `proxy` is a threshold on such a measurement, `model` is a
+    model's answer, `human` is a correction, `unavailable` records that
+    this pass could not produce the feature and why. Nothing averages
+    across them.
+    """
+
+    __tablename__ = "video_features"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_id: Mapped[int] = mapped_column(
+        ForeignKey("videos.id", ondelete="CASCADE"))
+    #: The exact bytes measured. A re-download can change the file under a
+    #: publication, and a feature from different bytes is a different
+    #: measurement.
+    media_sha256: Mapped[str | None] = mapped_column(String(64))
+    media_path: Mapped[str | None] = mapped_column(Text)
+    feature: Mapped[str] = mapped_column(String(64))
+    #: Exactly one of these carries the value, so a number is never
+    #: stringified and a string never coerced to a number.
+    value_num: Mapped[float | None] = mapped_column(Float)
+    value_bool: Mapped[bool | None] = mapped_column(Boolean)
+    value_text: Mapped[str | None] = mapped_column(Text)
+    value_json: Mapped[dict | None] = mapped_column(JSONB)
+    unit: Mapped[str | None] = mapped_column(String(32))
+    method: Mapped[str] = mapped_column(String(16))
+    method_version: Mapped[str] = mapped_column(String(64))
+    model: Mapped[str | None] = mapped_column(String(128))
+    uncertainty: Mapped[float | None] = mapped_column(Float)
+    uncertainty_kind: Mapped[str | None] = mapped_column(String(24))
+    interval_start_s: Mapped[float | None] = mapped_column(Float)
+    interval_end_s: Mapped[float | None] = mapped_column(Float)
+    params: Mapped[dict | None] = mapped_column(JSONB)
+    note: Mapped[str | None] = mapped_column(Text)
+    unavailable_reason: Mapped[str | None] = mapped_column(Text)
+    extracted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+    run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("video_feature_runs.id"))
+    #: ok | failed | superseded
+    status: Mapped[str] = mapped_column(
+        String(16), default="ok", server_default="ok")
+    error: Mapped[str | None] = mapped_column(Text)
+
+    #: A human correction sits BESIDE the machine value, never over it.
+    #: Erasing the original would make it impossible to ever measure how
+    #: often the machine was wrong, which is the thing corrections exist to
+    #: reveal.
+    corrected_value_num: Mapped[float | None] = mapped_column(Float)
+    corrected_value_bool: Mapped[bool | None] = mapped_column(Boolean)
+    corrected_value_text: Mapped[str | None] = mapped_column(Text)
+    corrected_by: Mapped[str | None] = mapped_column(String(32))
+    corrected_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    correction_note: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        CheckConstraint(
+            "method in ('deterministic','proxy','model','human',"
+            "'unavailable')", name="ck_feature_method"),
+        CheckConstraint("status in ('ok','failed','superseded')",
+                        name="ck_feature_status"),
+        UniqueConstraint("video_id", "feature", "method_version",
+                         name="uq_video_feature_version"),
+        Index("ix_video_features_video", "video_id", "method_version"),
+        Index("ix_video_features_feature", "feature", "method_version"),
+        Index("ix_video_features_corrected", "corrected_at"),
+    )
+
+    @property
+    def value(self):
+        """The machine's value, whichever column holds it."""
+        for v in (self.value_num, self.value_bool, self.value_text,
+                  self.value_json):
+            if v is not None:
+                return v
+        return None
+
+    @property
+    def effective_value(self):
+        """What analysis should use: the correction if one exists."""
+        for v in (self.corrected_value_num, self.corrected_value_bool,
+                  self.corrected_value_text):
+            if v is not None:
+                return v
+        return self.value
+
+    @property
+    def is_corrected(self) -> bool:
+        return self.corrected_at is not None

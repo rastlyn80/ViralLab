@@ -37,6 +37,8 @@ const TIER_STYLE = {
 
 /** Collections available to save into. Loaded once per view render. */
 let COLLECTIONS = [];
+/** Spending posture, so the search button knows whether it spends money. */
+let SPENDING = null;
 
 const tierChip = (t) =>
   `<span class="chip ${TIER_STYLE[t] ?? ''}"><span class="dot"></span>${
@@ -64,6 +66,7 @@ export const discover = {
       api.collections(),
     ]);
     COLLECTIONS = cols;
+    SPENDING = state;
 
     root.innerHTML = `
       <h1>Discover creators</h1>
@@ -78,6 +81,14 @@ export const discover = {
 
     wireForm(root);
     wireHistory(root);
+
+    const hint = document.getElementById('d-cost-hint');
+    if (hint) {
+      hint.innerHTML = state.fixture_mode
+        ? 'Fixture provider — nothing is billed.'
+        : '<b>This provider charges.</b> You will be shown the exact '
+          + 'estimate and asked to confirm before anything runs.';
+    }
   },
 };
 
@@ -123,6 +134,7 @@ function searchForm(niches) {
       </div>
       <div class="row" style="gap:8px;flex-wrap:wrap">
         <button class="primary" type="submit" id="d-go">Search</button>
+        <span class="muted" id="d-cost-hint"></span>
         <button type="button" id="d-estimate">What would this cost?</button>
         <label class="muted" style="display:flex;align-items:center;gap:6px">
           <input type="checkbox" id="d-force"> re-run instead of reusing a
@@ -175,6 +187,63 @@ function wireForm(root) {
     e.preventDefault();
     const f = readForm();
     if (!f.value) return;
+
+    // A paid run is never started by the same click that composes it. The
+    // price is fetched first - the estimate endpoint is free - and shown
+    // with the remaining budget, and the owner has to agree to that exact
+    // figure. Fixture mode skips this, because there is nothing to agree
+    // to when nothing is billed.
+    if (SPENDING && !SPENDING.fixture_mode) {
+      let est;
+      try {
+        est = await api.discoveryEstimate({
+          kind: f.kind, platform: f.platform, value: f.value, limit: f.limit,
+        });
+      } catch (err) {
+        toast(`Could not price this search: ${err.message}`, true);
+        return;
+      }
+      if (!est.supported) {
+        toast(est.unsupported_reason, true);
+        return;
+      }
+      if (est.reusable_job_id && !f.force) {
+        const reuse = window.confirm(
+          `An identical search already ran at ${dateTime(
+            est.reusable_started_at)}.\n\n`
+          + 'Opening the stored results costs nothing.\n\n'
+          + 'OK = open the stored results (free)\n'
+          + 'Cancel = go back (tick "re-run" to pay for fresh data)');
+        if (reuse) {
+          const box = document.getElementById('results');
+          box.innerHTML = spinner('Opening stored results');
+          const cands = await api.discoveryCandidates(est.reusable_job_id);
+          box.innerHTML = `<h2>Stored result set</h2>
+            ${note('Read from storage. Nothing was collected and nothing '
+            + 'was spent.', 'accent')}
+            ${card('Research a selection', expansionControls())}
+            ${candidateTable(cands)}`;
+          wireCandidates(box, est.reusable_job_id);
+        }
+        return;
+      }
+      const remaining = est.remaining_usd === null
+        ? 'no cap configured' : `$${est.remaining_usd.toFixed(2)} remaining`;
+      const agreed = window.confirm(
+        `This will spend real money.\n\n`
+        + `Provider: ${est.provider}\n`
+        + `Search: ${f.kind} "${f.value}" on ${f.platform}\n`
+        + `Up to ${f.limit} items\n`
+        + `Estimated cost: $${est.estimated_usd.toFixed(4)}\n`
+        + `Budget: ${remaining} of $${est.monthly_cap_usd.toFixed(2)}\n\n`
+        + 'The estimate is an upper bound; you are charged what the '
+        + 'provider bills.\n\nProceed?');
+      if (!agreed) {
+        toast('Cancelled. Nothing was collected and nothing was spent.');
+        return;
+      }
+    }
+
     const btn = document.getElementById('d-go');
     btn.disabled = true;
     btn.textContent = 'Searching...';

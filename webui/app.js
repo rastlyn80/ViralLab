@@ -9,6 +9,7 @@ import { api, ApiError } from './api.js';
 import { collectionDetail, collections } from './collections.js';
 import { esc, spinner, toast } from './components.js';
 import { discover } from './discover.js';
+import { hookDetail, hookRetention, hooks } from './hooks.js';
 import { research, researchCreator } from './research.js';
 import { creatorReport, creatorTimeline } from './timeline.js';
 import {
@@ -33,6 +34,9 @@ const ROUTES = [
   { pattern: /^\/collections$/, view: collections, nav: 'collections' },
   { pattern: /^\/collections\/(\d+)$/, view: collectionDetail,
     nav: 'collections' },
+  { pattern: /^\/hooks$/, view: hooks, nav: 'hooks' },
+  { pattern: /^\/hooks\/retention$/, view: hookRetention, nav: 'hooks' },
+  { pattern: /^\/hooks\/(\d+)$/, view: hookDetail, nav: 'hooks' },
 ];
 
 const NAV = [
@@ -49,10 +53,14 @@ const NAV = [
   { id: 'research', href: '#/research', label: 'Creator research' },
   { id: 'collections', href: '#/collections', label: 'Collections' },
   { id: 'competitors', href: '#/competitors', label: 'Capability status' },
+  { group: 'Your videos, analysed' },
+  { id: 'hooks', href: '#/hooks', label: 'Hook intelligence' },
+  { id: 'hook-retention', href: '#/hooks/retention',
+    label: 'Hooks vs retention' },
   // Planned surfaces are listed but not linked: the navigation shape is
   // part of the architecture, and showing where things will live is honest
   // as long as nothing pretends to work.
-  { id: 'features', label: 'Video intelligence', planned: 'Phase 6' },
+  { id: 'vision', label: 'Visual recognition', planned: 'Phase 6B' },
   { id: 'strategist', label: 'AI strategist', planned: 'Phase 8' },
 ];
 
@@ -98,7 +106,7 @@ function renderShell() {
   document.getElementById('shell').innerHTML = `
     <div class="app">
       <aside class="sidebar">
-        <div class="brand">ViralLab <small>phase 4.5</small></div>
+        <div class="brand">ViralLab <small>phase 6A</small></div>
         <nav class="nav" id="nav"></nav>
         <div style="margin-top:auto;padding:10px">
           <button id="logout" style="width:100%">Sign out</button>

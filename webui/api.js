@@ -131,6 +131,17 @@ export const api = {
     request(`/api/collections/${id}/members/${creatorId}`,
       { method: 'DELETE' }),
 
+  // -- hook intelligence (Phase 6A) ---------------------------------------
+  hookCoverage: () => request('/api/hooks/coverage'),
+  hookVideos: (params) => request(`/api/hooks/videos${qs(params)}`),
+  hookVideo: (id) => request(`/api/hooks/videos/${id}`),
+  runHookExtraction: (body) =>
+    request('/api/hooks/extract', { method: 'POST', body }),
+  correctHookFeature: (videoId, featureId, body) =>
+    request(`/api/hooks/videos/${videoId}/features/${featureId}/correct`,
+      { method: 'POST', body }),
+  hookRetention: () => request('/api/hooks/retention'),
+
   // -- analysis seam (Phase 6) --------------------------------------------
   analysisContract: () => request('/api/analysis/contract'),
   requestAnalysis: (body) =>

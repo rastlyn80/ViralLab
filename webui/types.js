@@ -11,6 +11,39 @@
  */
 
 /**
+ * @typedef {Object} AnalysedVideoPage
+ * @property {number} total
+ * @property {number} offset
+ * @property {number} limit
+ * @property {Array<AnalysedVideoRow>=} items
+ * @property {number=} analysable
+ * @property {number=} extracted
+ * @property {number=} with_retention
+ */
+
+/**
+ * @typedef {Object} AnalysedVideoRow
+ * @property {number} video_id
+ * @property {string} external_id
+ * @property {string|null} posted_at
+ * @property {number|null} duration_s
+ * @property {string|null} caption
+ * @property {number|null} views
+ * @property {number|null=} skip_rate
+ * @property {number|null=} avg_watch_ms
+ * @property {boolean=} avg_watch_includes_replays
+ * @property {number|null=} age_days_at_capture
+ * @property {number=} features_extracted
+ * @property {Array<string>=} method_versions
+ * @property {boolean=} has_media
+ * @property {number=} corrections
+ * @property {number|null=} cut_count
+ * @property {number|null=} text_region_score
+ * @property {boolean|null=} speech_present
+ * @property {number|null=} first_sound_at_s
+ */
+
+/**
  * @typedef {Object} AnalysisRequestBody
  * @property {number} video_id
  * @property {string=} tier
@@ -31,6 +64,23 @@
  * @property {boolean} will_run
  * @property {string|null=} why_not
  * @property {Array<string>=} notes
+ */
+
+/**
+ * @typedef {Object} AssociationView
+ * @property {string} feature
+ * @property {number} n
+ * @property {number|null=} rho
+ * @property {number|null=} p_value
+ * @property {number|null=} p_adjusted
+ * @property {number|null=} rho_partial_duration
+ * @property {number|null=} rho_partial_duration_age
+ * @property {number|null=} ci_low
+ * @property {number|null=} ci_high
+ * @property {string=} effect_size_label
+ * @property {string|null=} direction
+ * @property {string|null=} interpretation
+ * @property {Array<string>=} caveats
  */
 
 /**
@@ -255,6 +305,12 @@
  */
 
 /**
+ * @typedef {Object} CorrectionRequest
+ * @property {number|boolean|string|null=} value
+ * @property {string|null=} note
+ */
+
+/**
  * @typedef {Object} CreatorReportView
  * @property {number} creator_id
  * @property {string} platform
@@ -377,11 +433,58 @@
  */
 
 /**
+ * @typedef {Object} ExtractionRequest
+ * @property {Array<number>=} video_ids
+ * @property {string=} scope retention | sample | all | ids
+ * @property {number=} sample_size
+ * @property {boolean=} include_speech
+ * @property {boolean=} force
+ */
+
+/**
+ * @typedef {Object} ExtractionResultView
+ * @property {number|null} run_id
+ * @property {string} kind
+ * @property {string} method_version
+ * @property {number} requested
+ * @property {number} done
+ * @property {number} failed
+ * @property {number} features_written
+ * @property {number} compute_seconds
+ * @property {Array<Object>=} errors
+ * @property {Array<string>=} notes
+ */
+
+/**
  * @typedef {Object} FeatureContractView
  * @property {string} version
  * @property {Object} modalities
  * @property {Array<string>} required_item_fields
  * @property {Array<Object>=} pending_requests
+ */
+
+/**
+ * @typedef {Object} FeatureView
+ * @property {number} id
+ * @property {string} feature
+ * @property {number|boolean|string|Object|Array<Object>|null=} value
+ * @property {string|null=} unit
+ * @property {string} method
+ * @property {string} method_version
+ * @property {string|null=} model
+ * @property {number|null=} uncertainty
+ * @property {string|null=} uncertainty_kind
+ * @property {number|null=} interval_start_s
+ * @property {number|null=} interval_end_s
+ * @property {Object=} params
+ * @property {string|null=} note
+ * @property {string|null=} unavailable_reason
+ * @property {string|null=} extracted_at
+ * @property {number|boolean|string|null=} corrected_value
+ * @property {string|null=} corrected_by
+ * @property {string|null=} corrected_at
+ * @property {string|null=} correction_note
+ * @property {boolean=} is_corrected
  */
 
 /**
@@ -403,6 +506,36 @@
  * @property {string} worker_id
  * @property {number=} videos_done
  * @property {number|null=} peak_vram_mib
+ */
+
+/**
+ * @typedef {Object} HookCoverage
+ * @property {number} analysable
+ * @property {number} deterministic_done
+ * @property {number} speech_done
+ * @property {number} with_retention
+ * @property {number} corrections
+ * @property {string} method_version
+ * @property {string=} note
+ */
+
+/**
+ * @typedef {Object} HookDetail
+ * @property {number} video_id
+ * @property {string} external_id
+ * @property {string|null} posted_at
+ * @property {number|null} duration_s
+ * @property {string|null} caption
+ * @property {string} platform
+ * @property {number|null=} skip_rate
+ * @property {number|null=} avg_watch_ms
+ * @property {number|null=} views
+ * @property {string|null=} media_url
+ * @property {string|null=} media_status
+ * @property {number=} hook_seconds
+ * @property {Array<FeatureView>=} features
+ * @property {Array<Object>=} runs
+ * @property {Array<string>=} caveats
  */
 
 /**
@@ -727,6 +860,25 @@
  * @property {boolean=} final
  * @property {string|null=} partial_reason
  * @property {number|null=} batch_peak_vram_mib
+ */
+
+/**
+ * @typedef {Object} RetentionReportView
+ * @property {string} outcome
+ * @property {string} outcome_note
+ * @property {number} n_videos
+ * @property {number} n_with_media
+ * @property {number} n_with_features
+ * @property {number} n_analysed
+ * @property {Array<number>|null=} duration_range_s
+ * @property {Array<number>|null=} age_range_days
+ * @property {Array<number>|null=} skip_range
+ * @property {Array<AssociationView>=} associations
+ * @property {Array<string>=} survivors
+ * @property {Array<Object>=} survivor_collinearity
+ * @property {string} method_version
+ * @property {string} verdict
+ * @property {Array<string>=} limitations
  */
 
 /**

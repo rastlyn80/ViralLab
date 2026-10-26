@@ -192,7 +192,26 @@ Four constraints the vision makes non-negotiable:
 
 ## 4. Multimodal features — Phase 6
 
-### `video_features` *(planned)*
+### `video_features` + `video_feature_runs` *(implemented, `f1a6c8d27b93`)*
+
+Shipped in Phase 6A, keyed on (video, feature, **method_version**). That
+grain is the whole design: reprocessing is additive, so a threshold change
+or a model swap writes new rows beside the old ones and the two remain
+comparable. Verified in production - one publication carries both
+`hook-speech-v1` and `hook-speech-v2` evidence after the speech detector
+was rebuilt.
+
+`method` keeps the kinds apart - `deterministic` signal processing,
+`proxy` thresholds on it, `model` answers, `human` corrections,
+`unavailable` with a reason - and nothing averages across them. A human
+correction lands in its own columns beside the machine value rather than
+over it, because erasing the original would make it impossible to measure
+how often the machine was wrong.
+
+The original planned design follows, and the shipped table matches it apart
+from the naming above.
+
+### `video_features` *(original plan)*
 
 One row per (video, feature, extractor version). **Never updated in place.**
 
@@ -327,6 +346,7 @@ updated model*, which is what makes the live experiment answerable at all.
 | **done** (4) | `budget_reservations` (`c3e8b47d105a`) | — | two concurrent callers cannot both exceed the cap; a retry reuses its reservation; 23 tests |
 | **done** (4) | `discovery_jobs`, `creator_identities`, `creator_identity_members`, `breakthrough_candidates`, `videos.discovery_job_id`/`music`/`provenance`/`is_fixture`, `creators.research_status`/`last_job_id`/`is_fixture` (`d9f4a2b76c81`) | — | a query is reproducible from stored params; re-running appends an observation without duplicating a publication; 75 tests |
 | **done** (4.5) | `discovery_jobs.params`, `metrics_snapshots.discovery_job_id`, `creator_collections`, `creator_collection_members` (`e7c2b94f83da`) | — | a concept search is reproducible from its row; a re-run search's result set is still resolvable; a cohort is an explicit stable set of accounts; 64 tests |
+| **done** (6A) | `video_features`, `video_feature_runs` (`f1a6c8d27b93`) | preserved own media | reprocessing with a new method version never overwrites the old; a human correction never erases the machine value; 37 tests |
 | **5** | `creator_baselines` (materialised), cohort comparison tables | a multi-creator corpus | a detected breakthrough carries a cohort comparison and either full evidence or a named gap |
 | **6** | `video_features`, `feature_corrections` | GPU feature jobs | re-extraction adds rows; a correction never overwrites a machine value |
 | **7** | `trend_measurements`, `findings`, `model_runs`, `predictions` | Phase 6 features | V1–V5 reported separately; a finding can expire |
