@@ -11,6 +11,37 @@
  */
 
 /**
+ * @typedef {Object} AiOperationRow
+ * @property {number|null=} id
+ * @property {number|null=} video_id
+ * @property {string} task
+ * @property {string} provider
+ * @property {string} model
+ * @property {string} hosting
+ * @property {string} category
+ * @property {string|null=} mode
+ * @property {string} status
+ * @property {boolean|null=} schema_valid
+ * @property {Array<Object>=} validation_errors
+ * @property {string|null=} refused_reason
+ * @property {number|null=} input_tokens
+ * @property {number|null=} output_tokens
+ * @property {number|null=} images
+ * @property {number|null=} estimated_usd
+ * @property {number|null=} actual_usd
+ * @property {number|null=} latency_s
+ * @property {number|null=} peak_vram_mib
+ * @property {string|null=} created_at
+ */
+
+/**
+ * @typedef {Object} AnalyseRequestBody
+ * @property {number} video_id
+ * @property {string|null=} mode
+ * @property {boolean=} confirm_paid
+ */
+
+/**
  * @typedef {Object} AnalysedVideoPage
  * @property {number} total
  * @property {number} offset
@@ -41,6 +72,25 @@
  * @property {number|null=} text_region_score
  * @property {boolean|null=} speech_present
  * @property {number|null=} first_sound_at_s
+ */
+
+/**
+ * @typedef {Object} AnalysisPlanView
+ * @property {number} video_id
+ * @property {string} task
+ * @property {string} mode
+ * @property {Array<string>=} providers
+ * @property {boolean=} refused
+ * @property {string=} reason
+ * @property {number=} estimated_usd
+ * @property {boolean=} requires_authorisation
+ * @property {Array<Object>=} considered
+ * @property {number=} frames_planned
+ * @property {Array<number>=} frame_timestamps
+ * @property {boolean=} is_own_media
+ * @property {string=} category
+ * @property {number=} category_cap_usd
+ * @property {boolean=} category_authorised
  */
 
 /**
@@ -678,6 +728,20 @@
  */
 
 /**
+ * @typedef {Object} PolicyView
+ * @property {string} mode
+ * @property {boolean} escalation_authorised
+ * @property {Array<string>=} authorised_providers
+ * @property {number} max_usd_per_request
+ * @property {number} escalate_below_confidence
+ * @property {boolean} allow_third_party_media_to_cloud
+ * @property {number} monthly_cap_usd
+ * @property {Array<SpendingCategoryView>=} categories
+ * @property {Array<string>=} modes
+ * @property {string=} note
+ */
+
+/**
  * @typedef {Object} ProviderCapabilityView
  * @property {string} platform
  * @property {string} provider
@@ -691,6 +755,27 @@
  * @property {boolean} full_history
  * @property {Array<string>=} missing_creator_fields
  * @property {Array<string>=} coverage_notes
+ */
+
+/**
+ * @typedef {Object} ProviderRow
+ * @property {string} provider
+ * @property {string} model
+ * @property {string} hosting
+ * @property {boolean} available
+ * @property {string|null=} unavailable_reason
+ * @property {Array<string>=} accepts
+ * @property {Array<string>=} supported_tasks
+ * @property {boolean=} accepts_video_natively
+ * @property {number|null=} max_images_per_request
+ * @property {number|null=} max_image_bytes
+ * @property {boolean=} structured_output
+ * @property {Array<string>=} documented_limits
+ * @property {number|null=} usd_per_mtok_in
+ * @property {number|null=} usd_per_mtok_out
+ * @property {string=} verified_on
+ * @property {string=} source_url
+ * @property {Array<string>=} notes
  */
 
 /**
@@ -922,6 +1007,16 @@
  */
 
 /**
+ * @typedef {Object} SpendingCategoryView
+ * @property {string} category
+ * @property {number} cap_usd
+ * @property {boolean} authorised
+ * @property {number=} committed_usd
+ * @property {number=} remaining_usd
+ * @property {string=} note
+ */
+
+/**
  * @typedef {Object} SpendingState
  * Whether research may cost money, and how much is left.
  * @property {boolean} spending_blocked
@@ -1050,6 +1145,17 @@
  * @property {string|null=} error
  * @property {number|null=} compute_seconds
  * @property {number|null=} peak_vram_mib
+ */
+
+/**
+ * @typedef {Object} VisionTaskView
+ * @property {string} task
+ * @property {Object=} schema
+ * @property {string} prompt
+ * @property {number} hook_seconds
+ * @property {number} hook_frames
+ * @property {Array<number>=} later_offsets_s
+ * @property {Array<string>=} refusals
  */
 
 /**

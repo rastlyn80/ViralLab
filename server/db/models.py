@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import (
+from sqlalchemy import (JSON, 
     BigInteger, Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index,
     Integer, String, Text, UniqueConstraint, func, text,
 )
@@ -866,6 +866,12 @@ class BudgetReservation(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     provider: Mapped[str] = mapped_column(String(64))
+    #: discovery | cloud_vision | cloud_audio | strategy. Part of the budget
+    #: grain, because "I will pay for discovery but not for frame analysis"
+    #: is the control the owner actually needs and a single cap cannot
+    #: express it.
+    category: Mapped[str] = mapped_column(
+        String(32), default="discovery", server_default="discovery")
     #: The caller's identifier for this unit of work. A retry presenting the
     #: same key gets the original reservation rather than a second charge.
     idempotency_key: Mapped[str] = mapped_column(String(200))
@@ -1119,3 +1125,56 @@ class VideoFeature(Base):
     @property
     def is_corrected(self) -> bool:
         return self.corrected_at is not None
+
+
+class AiOperation(Base):
+    """One AI analysis call: what it did, what it cost, whether it validated.
+
+    Separate from `budget_reservations`, which is about money held. This is
+    about work performed, and the two have different lifetimes: a
+    reservation is released or settled within hours, while the record of
+    what a model said about a video is evidence that outlives it.
+    """
+
+    __tablename__ = "ai_operations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_id: Mapped[int | None] = mapped_column(
+        ForeignKey("videos.id", ondelete="CASCADE"))
+    task: Mapped[str] = mapped_column(String(64))
+    provider: Mapped[str] = mapped_column(String(64))
+    model: Mapped[str] = mapped_column(String(128))
+    #: local | cloud. The single most important field for the interface:
+    #: the owner must always be able to see whether their media left the
+    #: machine.
+    hosting: Mapped[str] = mapped_column(String(8))
+    category: Mapped[str] = mapped_column(
+        String(32), default="cloud_vision", server_default="cloud_vision")
+    mode: Mapped[str | None] = mapped_column(String(16))
+    #: ok | refused | failed | invalid
+    status: Mapped[str] = mapped_column(
+        String(16), default="ok", server_default="ok")
+    schema_valid: Mapped[bool | None] = mapped_column(Boolean)
+    validation_errors: Mapped[list | None] = mapped_column(JSON)
+    refused_reason: Mapped[str | None] = mapped_column(Text)
+    input_tokens: Mapped[int | None] = mapped_column(Integer)
+    output_tokens: Mapped[int | None] = mapped_column(Integer)
+    images: Mapped[int | None] = mapped_column(Integer)
+    estimated_usd: Mapped[float | None] = mapped_column(Float)
+    #: Billed, never an estimate promoted (CLAUDE.md 5.3).
+    actual_usd: Mapped[float | None] = mapped_column(Float)
+    latency_s: Mapped[float | None] = mapped_column(Float)
+    peak_vram_mib: Mapped[int | None] = mapped_column(Integer)
+    reservation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("budget_reservations.id"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("hosting in ('local','cloud')",
+                        name="ck_ai_operation_hosting"),
+        CheckConstraint("status in ('ok','refused','failed','invalid')",
+                        name="ck_ai_operation_status"),
+        Index("ix_ai_operations_video", "video_id", "task"),
+        Index("ix_ai_operations_provider", "provider", "created_at"),
+    )

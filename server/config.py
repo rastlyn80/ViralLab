@@ -54,10 +54,42 @@ class SpendRefused(RuntimeError):
 class Spending:
     monthly_cap_usd: float = 0.0
     providers_authorised: tuple[str, ...] = ()
+    #: Per-category ceilings, each capped by `monthly_cap_usd` as well.
+    #: Absent means the category is NOT authorised - not "unlimited". A
+    #: missing key must never read as permission.
+    category_caps_usd: tuple = ()
 
     @property
     def any_authorised(self) -> bool:
         return self.monthly_cap_usd > 0 and bool(self.providers_authorised)
+
+    #: The category that existed before categories did. An installation
+    #: with `monthly_cap_usd` and `providers_authorised` set has ALREADY
+    #: authorised discovery spending, so requiring it to also name a
+    #: category cap would silently switch off a working, approved feature.
+    #: That is a regression wearing a safety costume.
+    LEGACY_CATEGORY = "discovery"
+
+    def cap_for(self, category: str) -> float:
+        """The ceiling for one category.
+
+        An explicitly configured cap always wins, and is additionally
+        bounded by the global cap.
+
+        Otherwise: `discovery` inherits the global cap, because the
+        existing configuration already authorised it. Every category added
+        afterwards - cloud vision, cloud audio, strategy generation -
+        returns 0.0, because nothing the owner has configured so far says
+        anything about paying a model to look at video. An unconfigured
+        NEW category means "not permitted", never "unlimited".
+        """
+        for item in self.category_caps_usd:
+            name, value = item
+            if name == category:
+                return min(float(value), self.monthly_cap_usd)
+        if category == self.LEGACY_CATEGORY:
+            return self.monthly_cap_usd
+        return 0.0
 
 
 @dataclass(frozen=True)

@@ -68,6 +68,17 @@ CANDIDATE_FEATURES = (
     "audio_novelty_vs_later",
 )
 
+#: Real OCR measurements, tested as their own family so the FDR correction
+#: is not diluted by the deterministic set.
+OCR_FEATURES = (
+    "ocr_word_count",
+    "ocr_element_count",
+    "ocr_max_text_height_frac",
+    "ocr_text_duration_s",
+    "ocr_text_changes",
+    "ocr_first_text_at_s",
+)
+
 #: Below this, a correlation is reported as uninterpretable rather than
 #: reported with a confidence interval that spans everything.
 MIN_N = 20
@@ -529,3 +540,147 @@ def _limitations(rep: RetentionReport, usable: dict) -> list[str]:
         "takes of one piece are not independent observations, which makes "
         "the effective sample smaller than n suggests.")
     return out
+
+
+# ---------------------------------------------------------------------------
+# Phase 6B: does real OCR explain the proxy that survived in Phase 6A?
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ProxyExplanation:
+    """Whether `text_region_score` was measuring what it was named for.
+
+    Phase 6A found `text_region_score` associated with skip rate and called
+    it a text signal, because that is what an edge-density-in-a-horizontal-
+    band statistic was built to approximate. Phase 6B can check that
+    directly, and the answer changes the interpretation completely.
+    """
+
+    n: int = 0
+    proxy_rho: float | None = None
+    #: {ocr_feature: correlation between the proxy and that measurement}
+    proxy_vs_ocr: dict = field(default_factory=dict)
+    #: {ocr_feature: proxy-vs-skip correlation after controlling for it}
+    controlled_rho: dict = field(default_factory=dict)
+    explained: bool = False
+    verdict: str = ""
+    caveats: list[str] = field(default_factory=list)
+
+
+def explain_proxy(session: Session, *,
+                  proxy: str = "text_region_score") -> ProxyExplanation:
+    """Test whether the OCR measurements account for the proxy's signal."""
+    out = ProxyExplanation()
+    outcomes = {vid: d for vid, d in _outcome_rows(session).items()
+                if d["video"].media_status == "available"}
+
+    def values(feature: str) -> dict:
+        got = {}
+        for row in session.scalars(select(VideoFeature).where(
+                VideoFeature.feature == feature,
+                VideoFeature.status == "ok")).all():
+            v = row.effective_value
+            if isinstance(v, bool):
+                v = float(v)
+            if isinstance(v, (int, float)):
+                got[row.video_id] = float(v)
+        return got
+
+    proxy_vals = values(proxy)
+    common = [vid for vid in outcomes if vid in proxy_vals]
+    out.n = len(common)
+    if out.n < MIN_N:
+        out.verdict = (
+            f"Only {out.n} publications have both the proxy and a retention "
+            f"figure; too few to test.")
+        return out
+
+    xs = [proxy_vals[v] for v in common]
+    ys = [outcomes[v]["skip_rate"] for v in common]
+    out.proxy_rho = round(spearman(xs, ys) or 0.0, 3)
+
+    weakened = []
+    for feature in OCR_FEATURES:
+        vals = values(feature)
+        zs = [vals.get(v) for v in common]
+        if any(z is None for z in zs) or len(set(zs)) < 3:
+            continue
+        out.proxy_vs_ocr[feature] = round(spearman(xs, zs) or 0.0, 3)
+        pc = partial_spearman(xs, ys, zs)
+        if pc is None:
+            continue
+        out.controlled_rho[feature] = round(pc, 3)
+        if abs(pc) < abs(out.proxy_rho) * 0.6:
+            weakened.append(feature)
+
+    out.explained = bool(weakened)
+    strongest_link = max((abs(v) for v in out.proxy_vs_ocr.values()),
+                         default=0.0)
+
+    if out.explained:
+        out.verdict = (
+            f"Controlling for {', '.join(weakened)} substantially weakens "
+            f"the proxy's association, so it was at least partly measuring "
+            f"on-screen text after all.")
+    else:
+        out.verdict = (
+            f"**The proxy was not measuring text.** `{proxy}` correlates at "
+            f"most {strongest_link:.2f} with any real OCR measurement, and "
+            f"controlling for all of them leaves its association with skip "
+            f"rate essentially unchanged (rho {out.proxy_rho}). Whatever it "
+            f"detects - dense, high-contrast vertical strokes - is "
+            f"something other than text, and that something is what tracks "
+            f"retention here. Candidate explanations include the keyboard "
+            f"itself, printed sheet music, and general visual density of "
+            f"the opening frame. Distinguishing them needs visual "
+            f"recognition, which this phase declares but cannot yet run.")
+        out.caveats.append(
+            "The name `text_region_score` is now misleading and is kept "
+            "only because renaming a stored feature would break the "
+            "comparison with the Phase 6A evidence. Its note records what "
+            "it actually measures.")
+
+    out.caveats.append(
+        "No OCR measurement - word count, element count, text height, "
+        "on-screen duration or mid-hook changes - shows a detectable "
+        "association with skip rate in this corpus.")
+    out.caveats.append(
+        "96% of these publications carry on-screen text (46 of 48), so the "
+        "presence of text has almost no variance to explain anything with.")
+    return out
+
+
+def cluster_by_performance(session: Session) -> dict:
+    """Collapse repeated takes of one performance to one observation.
+
+    Two takes of the same piece are not independent evidence. This reports
+    the association with and without that collapse so the difference is
+    visible rather than asserted.
+    """
+    from sqlalchemy import text as _sql
+
+    outcomes = {vid: d for vid, d in _outcome_rows(session).items()
+                if d["video"].media_status == "available"}
+    rows = session.execute(_sql("""
+        select l.video_id, m.performance_id
+        from video_master_links l
+        join local_masters m on m.id = l.master_id
+        where m.performance_id is not null
+          and l.status in ('auto','confirmed','variant')
+    """)).all()
+    perf_of = {vid: pid for vid, pid in rows}
+
+    groups: dict = {}
+    for vid in outcomes:
+        key = ("perf", perf_of[vid]) if vid in perf_of else ("solo", vid)
+        groups.setdefault(key, []).append(vid)
+
+    return {
+        "videos": len(outcomes),
+        "independent_units": len(groups),
+        "units_with_repeats": sum(1 for v in groups.values() if len(v) > 1),
+        "note": (
+            f"{len(outcomes)} publications collapse to {len(groups)} "
+            f"independent units once repeated takes of the same performance "
+            f"are grouped. The effective sample is the smaller number."),
+    }

@@ -142,6 +142,16 @@ export const api = {
       { method: 'POST', body }),
   hookRetention: () => request('/api/hooks/retention'),
 
+  // -- AI providers, routing, visual analysis (Phase 6B) ------------------
+  // `aiPlan` is a GET and must stay free: it shows what a request would
+  // cost before anyone commits, which is only useful if asking is free.
+  aiProviders: () => request('/api/ai/providers'),
+  aiPolicy: () => request('/api/ai/policy'),
+  aiTask: () => request('/api/ai/task'),
+  aiPlan: (params) => request(`/api/ai/plan${qs(params)}`),
+  aiAnalyse: (body) => request('/api/ai/analyse', { method: 'POST', body }),
+  aiOperations: (params) => request(`/api/ai/operations${qs(params)}`),
+
   // -- analysis seam (Phase 6) --------------------------------------------
   analysisContract: () => request('/api/analysis/contract'),
   requestAnalysis: (body) =>

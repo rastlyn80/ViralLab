@@ -548,7 +548,8 @@ destroys collected data.
 > | 3 | Unified GUI + Phase 4 foundations | ✅ complete |
 > | 4 | Competitor discovery + targeted creator research | ✅ complete |
 > | 4.5 | Live competitive intelligence: discovery, timeline, report, collections | ✅ delivered 2026-10-26 |
-> | **6A** | **Hook intelligence on real own-account video** | **✅ delivered 2026-10-26** |
+> | 6A | Hook intelligence on real own-account video | ✅ delivered 2026-10-26 |
+> | **6B** | **Hybrid multimodal intelligence: OCR, provider layer, routing** | **✅ delivered 2026-10-26** |
 > | 5 | Breakthrough analysis + baselines | planned |
 > | 6 | Multimodal feature extraction | planned |
 > | 7 | Comparative analytics + temporal intelligence | planned |
@@ -1265,6 +1266,142 @@ verifies every named import resolves to a real export.
 speech 3.78 s/video (≈16 min for all 258). **Zero GPU time.** Both passes
 are CPU-only on the server's 4 cores, which leaves the RTX 2070's 8 GB free
 for the Phase 6B vision work that genuinely needs it.
+
+### Phase 6B — Hybrid Multimodal Intelligence  **(delivered 2026-10-26)**
+
+Real OCR, a provider-independent AI layer, per-category spending control and
+a routing policy. The architectural requirement was that ViralLab must not
+be locked to one model vendor; the scientific result was that Phase 6A's
+headline finding meant something different from what it was called.
+
+**Milestone 6B.1 — Real OCR replaces the proxy.** ✅
+`shared/hookocr.py`, RapidOCR on onnxruntime. Benchmarked against 12
+openings transcribed by eye **before the module was written**:
+
+| | proxy (6A) | OCR (6B) |
+|---|---|---|
+| presence precision | 0.89 | **1.00** |
+| presence recall | 0.80 | **1.00** |
+| transcription | impossible | **0.988** word-recall |
+
+Both true negatives - a dark grand piano and a busy studio, the two cases
+the proxy got wrong - are now correct. The benchmark also exposed its own
+limit: on one video the human label said "too small to read" and OCR read a
+full sentence, so the ground truth was bounded by the contact sheet, not the
+frame.
+
+Two defects found while benchmarking: elements were joined in appearance
+order rather than reading order, rendering a two-line caption as "in my next
+album? Shall I include this"; and *cresc.* in a score is read as text, which
+is not fixable at the OCR layer and is declared as a capability limit
+instead.
+
+**Milestone 6B.2 — The Phase 6A finding, re-interpreted.** ✅
+
+`text_region_score` correlates **0.01** with `ocr_word_count` and 0.06 with
+`ocr_element_count`. Controlling for every real OCR measurement leaves its
+association with skip rate essentially unchanged (rho -0.563 to -0.517).
+
+**The proxy was never measuring text.** Whatever it detects - dense,
+high-contrast vertical strokes - is something else, and that something is
+what tracks retention. Candidates: the keyboard itself, printed sheet music,
+or general visual density of the opening frame. Distinguishing them needs
+visual recognition.
+
+And **no OCR measurement relates to retention at all**: six tested, rho
+-0.276 to +0.113, none surviving FDR correction. 96% of these publications
+carry on-screen text, so its presence has almost no variance to explain
+anything with.
+
+Collapsing repeated takes: 48 publications become 46 independent units, and
+the association is unchanged (-0.563 to -0.574).
+
+**Milestone 6B.3 — Provider-independent AI layer.** ✅ `server/ai/`
+
+Capabilities verified against each vendor's own documentation on
+2026-10-26, because the three are **not interchangeable**:
+
+| | video input | max images | notable limit |
+|---|---|---|---|
+| OpenAI | **no** | 1,500 | 512 MB payload |
+| Gemini | **yes, natively** | — | inline <100 MB, 1 FPS default |
+| Claude | **no** (first frame only) | 600 / 100 at 200k | **will not identify people** |
+
+A layer that hid those differences would either send a whole video to a
+provider that cannot read it, or reduce Gemini to the weakest common
+denominator. Structured output is mandatory and validated against a JSON
+schema; a response that fails validation is refused and recorded, not
+parsed hopefully. JSON-Schema validation and the Spearman/BH statistics are
+implemented directly against the standard library rather than adding
+`jsonschema` and `scipy`.
+
+**Found defect: routing on modality alone.** The deployed plan endpoint
+chose the **OCR engine** for the scene-understanding task, because OCR
+accepts an image sequence. Its own capabilities already said it "cannot
+describe a scene"; routing was not reading them. That request would have
+produced a guaranteed schema violation and looked like a model failure
+rather than a routing error. Capabilities now declare `supported_tasks` and
+both routing and the provider boundary enforce it.
+
+**Milestone 6B.4 — Spending categories.** ✅ Migration `a3d91f7c6e24`
+
+`discovery`, `cloud_vision`, `cloud_audio`, `strategy`, each with its own
+cap, its own advisory lock and its own committed-spend sum, so one category
+cannot borrow another's allowance.
+
+**A regression I introduced and corrected.** The first version treated an
+unconfigured category as unauthorised across the board, which silently
+switched off discovery for any installation that had already authorised it
+through `monthly_cap_usd` - a regression wearing a safety costume. Now
+`discovery` inherits the global cap because the existing configuration
+already approved it, while every category added afterwards returns 0.00,
+because nothing the owner configured says anything about paying a model to
+look at video.
+
+**Milestone 6B.5 — Routing policy.** ✅ `server/ai/routing.py`
+
+Four modes: `local_only`, `cloud_only`, `hybrid`, `compare`. The rule the
+tests exist to enforce: **a local model that is missing, broken or out of
+memory never causes a paid request.** `hybrid` escalates on measured
+uncertainty in a *successful* local result, never on local failure, and
+`escalation_authorised` is separate from the mode so selecting hybrid is not
+itself permission to spend. Third-party media never reaches a cloud provider
+by default. Every decision records why each provider was or was not chosen.
+
+**Milestone 6B.6 — Visual recognition task.** ✅ *declared, not run*
+
+`server/ai/vision_task.py`: a 22-field schema covering performer, piano,
+hands, face, camera angle, shot distance, framing, lighting, setting, text
+overlay, opening type, transitions and emotional presentation. Every
+enumerated field offers `unknown`, because a model forced to guess produces
+a confident wrong answer. Frames are sampled at 0/1/2/3 s plus 5 s and 12 s,
+so one frame cannot stand in for the video and the model can say whether the
+opening is representative.
+
+Three refusals are in the schema rather than the prompt: no musical work or
+composer from frames, no performance technique from frames, no identifying
+anyone. `emotional_presentation` carries a mandatory
+`*_is_interpretation: true` flag.
+
+**No visual model ran.** torch, transformers and the weights are absent on
+both machines, the 8 GB card is on Windows while the media is on the server,
+and no cloud credential exists. `POST /api/ai/analyse` returns **501 with
+that explanation** rather than an empty analysis, and no accuracy figure is
+reported because none was measured.
+
+**Milestone 6B.7 — Interface.** ✅ `webui/aimodels.js` plus the hook detail
+view: provider table with local-vs-cloud badges and documented limits,
+spending categories, the task schema and its refusals, and a per-video plan
+showing every provider considered with its estimate. A paid request requires
+an itemised confirmation.
+
+**Estimated cloud cost per video** (6 frames at 540 px): gemini $0.0037,
+openai $0.0077, anthropic $0.0161 - the last computed from Claude's
+published visual-token formula, the other two `[ASSUMPTION]` from payload
+size. All 48 videos: **$0.18-$0.77**.
+
+**Zero GPU time across 6A and 6B.** Every pass is CPU-only on the server
+where the media lives.
 
 ### Phase 5 — Breakthrough Analysis at Scale
 

@@ -233,7 +233,10 @@ export const hookDetail = {
             ${d.duration_s ? secs(d.duration_s) : '—'} ·
             ${esc(d.platform)}</p>
         </div>
-        <a href="#/hooks"><button>All videos</button></a>
+        <div class="row" style="gap:8px">
+          <a href="#/ai/${d.video_id}"><button>Visual analysis…</button></a>
+          <a href="#/hooks"><button>All videos</button></a>
+        </div>
       </div>
       ${d.caption ? `<p class="caption-text">${esc(d.caption)}</p>` : ''}
       <div class="grid cols-3" style="margin:14px 0">

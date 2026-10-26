@@ -83,7 +83,14 @@ def period_of(now: datetime | None = None) -> str:
     return month_start(now).strftime("%Y-%m")
 
 
-def _lock_period(session: Session, provider: str, period: str) -> None:
+#: The spending categories. A charge must belong to exactly one, and a
+#: category that is not configured is NOT authorised - see
+#: `config.Spending.cap_for`.
+CATEGORIES = ("discovery", "cloud_vision", "cloud_audio", "strategy")
+
+
+def _lock_period(session: Session, provider: str, period: str,
+                 category: str = "discovery") -> None:
     """Serialise budget decisions for one provider-month.
 
     A transaction-scoped advisory lock, so it is released by commit or
@@ -93,23 +100,27 @@ def _lock_period(session: Session, provider: str, period: str) -> None:
     """
     session.execute(
         text("select pg_advisory_xact_lock(hashtext(:a), hashtext(:b))"),
-        {"a": f"virallab-budget:{provider}", "b": period})
+        {"a": f"virallab-budget:{provider}:{category}", "b": period})
 
 
-def committed_usd(session: Session, provider: str, period: str) -> dict:
+def committed_usd(session: Session, provider: str, period: str,
+                  category: str | None = None) -> dict:
     """What the budget currently owes, broken down.
 
     Settled actuals, plus estimates for anything still open or unresolved.
     Reporting the parts separately matters: "spent" and "committed but not
     yet charged" are different facts about the same budget.
     """
-    rows = session.execute(
+    stmt = (
         select(BudgetReservation.status,
                func.coalesce(func.sum(BudgetReservation.actual_usd), 0.0),
                func.coalesce(func.sum(BudgetReservation.estimated_usd), 0.0))
         .where(BudgetReservation.provider == provider,
-               BudgetReservation.period == period)
-        .group_by(BudgetReservation.status)).all()
+               BudgetReservation.period == period))
+    if category is not None:
+        # One category must not be able to consume another's allowance.
+        stmt = stmt.where(BudgetReservation.category == category)
+    rows = session.execute(stmt.group_by(BudgetReservation.status)).all()
     settled = reserved = expired = 0.0
     for status, actual, estimate in rows:
         if status == "settled":
@@ -159,7 +170,8 @@ def expire_stale(session: Session, *, provider: str | None = None,
 
 
 def reserve(session: Session, *, provider: str, estimated_usd: float,
-            idempotency_key: str, now: datetime | None = None,
+            idempotency_key: str, category: str = "discovery",
+            now: datetime | None = None,
             run_id: int | None = None, ttl: timedelta = RESERVATION_TTL,
             detail: dict | None = None) -> Reservation:
     """Claim budget for one paid call, or raise `SpendRefused`.
@@ -168,6 +180,10 @@ def reserve(session: Session, *, provider: str, estimated_usd: float,
     whatever the caller records alongside it land together or not at all.
     """
     cfg = config.settings().spending
+    if category not in CATEGORIES:
+        raise SpendRefused(
+            f"unknown spending category {category!r}; expected one of "
+            f"{list(CATEGORIES)}")
     if provider not in cfg.providers_authorised:
         raise SpendRefused(
             f"provider {provider!r} is not in providers_authorised "
@@ -177,6 +193,14 @@ def reserve(session: Session, *, provider: str, estimated_usd: float,
         raise SpendRefused(
             "spending.monthly_cap_usd is 0.00, so no paid service is "
             "authorised")
+    category_cap = cfg.cap_for(category)
+    if category_cap <= 0:
+        raise SpendRefused(
+            f"the {category!r} spending category has no configured cap, so "
+            f"it is not authorised. An unconfigured category means 'not "
+            f"permitted', not 'unlimited' - authorising discovery must not "
+            f"silently authorise cloud inference. Add it to "
+            f"spending.category_caps_usd in config/settings.yaml.")
     if estimated_usd < 0:
         raise SpendRefused("a negative estimated cost is not meaningful")
     if not idempotency_key:
@@ -188,7 +212,7 @@ def reserve(session: Session, *, provider: str, estimated_usd: float,
     stamp = now or datetime.now(timezone.utc)
     period = period_of(stamp)
 
-    _lock_period(session, provider, period)
+    _lock_period(session, provider, period, category)
 
     existing = session.scalar(
         select(BudgetReservation).where(
@@ -205,6 +229,27 @@ def reserve(session: Session, *, provider: str, estimated_usd: float,
 
     expire_stale(session, provider=provider, now=stamp)
 
+    # TWO ceilings, both enforced: the category's own and the overall cap.
+    # The category check comes first because it is the tighter and more
+    # specific statement of intent.
+    cat_state = committed_usd(session, provider, period, category)
+    cat_projected = cat_state["committed_usd"] + estimated_usd
+    if cat_projected > category_cap + 1e-9:
+        # The breakdown matters as much here as in the global message: this
+        # check fires first and would otherwise shadow it with less
+        # information whenever the two caps coincide.
+        raise SpendRefused(
+            f"this call would commit ${cat_projected:.4f} to {category!r} in "
+            f"{period}, over that category's ${category_cap:.2f} cap. "
+            f"Already committed to {category!r}: "
+            f"${cat_state['committed_usd']:.4f} "
+            f"(${cat_state['settled_usd']:.4f} settled, "
+            f"${cat_state['reserved_usd']:.4f} reserved, "
+            f"${cat_state['expired_usd']:.4f} unresolved). Another "
+            f"category's remaining allowance cannot be borrowed for this "
+            f"one, and overage requires explicit approval rather than an "
+            f"automatic charge.")
+
     state = committed_usd(session, provider, period)
     projected = state["committed_usd"] + estimated_usd
     if projected > cfg.monthly_cap_usd + 1e-9:
@@ -218,7 +263,7 @@ def reserve(session: Session, *, provider: str, estimated_usd: float,
             f"explicit approval, never an automatic charge")
 
     row = BudgetReservation(
-        provider=provider, idempotency_key=idempotency_key,
+        provider=provider, idempotency_key=idempotency_key, category=category,
         estimated_usd=float(estimated_usd), status="reserved", period=period,
         expires_at=stamp + ttl, run_id=run_id, detail=detail)
     session.add(row)
@@ -229,7 +274,7 @@ def reserve(session: Session, *, provider: str, estimated_usd: float,
         # a caller reserved outside it. The constraint is the real guarantee,
         # so fall back to the existing row rather than charging twice.
         session.rollback()
-        _lock_period(session, provider, period)
+        _lock_period(session, provider, period, category)
         again = session.scalar(
             select(BudgetReservation).where(
                 BudgetReservation.provider == provider,

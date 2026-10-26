@@ -5,6 +5,7 @@
  * static mount in `app.py` stays a plain StaticFiles mount (ADR 0006).
  */
 
+import { aiModels, aiPlan } from './aimodels.js';
 import { api, ApiError } from './api.js';
 import { collectionDetail, collections } from './collections.js';
 import { esc, spinner, toast } from './components.js';
@@ -37,6 +38,8 @@ const ROUTES = [
   { pattern: /^\/hooks$/, view: hooks, nav: 'hooks' },
   { pattern: /^\/hooks\/retention$/, view: hookRetention, nav: 'hooks' },
   { pattern: /^\/hooks\/(\d+)$/, view: hookDetail, nav: 'hooks' },
+  { pattern: /^\/ai$/, view: aiModels, nav: 'ai' },
+  { pattern: /^\/ai\/(\d+)$/, view: aiPlan, nav: 'ai' },
 ];
 
 const NAV = [
@@ -57,10 +60,10 @@ const NAV = [
   { id: 'hooks', href: '#/hooks', label: 'Hook intelligence' },
   { id: 'hook-retention', href: '#/hooks/retention',
     label: 'Hooks vs retention' },
+  { id: 'ai', href: '#/ai', label: 'AI models' },
   // Planned surfaces are listed but not linked: the navigation shape is
   // part of the architecture, and showing where things will live is honest
   // as long as nothing pretends to work.
-  { id: 'vision', label: 'Visual recognition', planned: 'Phase 6B' },
   { id: 'strategist', label: 'AI strategist', planned: 'Phase 8' },
 ];
 
@@ -106,7 +109,7 @@ function renderShell() {
   document.getElementById('shell').innerHTML = `
     <div class="app">
       <aside class="sidebar">
-        <div class="brand">ViralLab <small>phase 6A</small></div>
+        <div class="brand">ViralLab <small>phase 6B</small></div>
         <nav class="nav" id="nav"></nav>
         <div style="margin-top:auto;padding:10px">
           <button id="logout" style="width:100%">Sign out</button>
