@@ -197,3 +197,30 @@ causal claim needs the Phase 8 pre-registered experiment. This result is a
   benchmark.
 - `[OPEN]` Does the relationship hold on TikTok? 234 TikTok publications
   became analysable on 2026-10-26 (ADR 0007) and have never been tested.
+
+---
+
+## Addendum, 2026-10-26 — the ad confound
+
+After this document was written the owner disclosed a **$1/day Instagram
+ad that rotates to each new post**, running for several months. Paid
+exposure per video is therefore roughly proportional to the gap until the
+next post, which is derivable from `posted_at`. On the 47 retention videos
+with a gap `[PRIMARY]`:
+
+| | rho | p |
+|---|---|---|
+| gap-to-next-post vs `reels_skip_rate` | −0.378 | 0.010 |
+| gap-to-next-post vs `text_region_score` | +0.157 | 0.306 |
+| gap-to-next-post vs `edge_density` | +0.341 | 0.022 |
+
+| finding | raw | partial (gap controlled) |
+|---|---|---|
+| `text_region_score` vs skip | −0.558 | **−0.545** |
+| `edge_density` vs skip | −0.435 | −0.352 |
+
+The outcome is contaminated by ad exposure. The headline association
+survives the control; the `edge_density` association partly does not. The
+gap is a proxy — it also tracks organic accumulation — so this bounds the
+confound rather than removing it. Separation of paid from organic exposure
+is milestone M1 in `docs/BLUEPRINT.md`.
