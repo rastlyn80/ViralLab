@@ -12,6 +12,7 @@ import { esc, spinner, toast } from './components.js';
 import { discover } from './discover.js';
 import { hookDetail, hookRetention, hooks } from './hooks.js';
 import { research, researchCreator } from './research.js';
+import { settings } from './settings.js';
 import { creatorReport, creatorTimeline } from './timeline.js';
 import {
   competitors, dashboard, library, notFound, reviewMasters, reviewPairs,
@@ -40,6 +41,7 @@ const ROUTES = [
   { pattern: /^\/hooks\/(\d+)$/, view: hookDetail, nav: 'hooks' },
   { pattern: /^\/ai$/, view: aiModels, nav: 'ai' },
   { pattern: /^\/ai\/(\d+)$/, view: aiPlan, nav: 'ai' },
+  { pattern: /^\/settings$/, view: settings, nav: 'settings' },
 ];
 
 const NAV = [
@@ -65,6 +67,8 @@ const NAV = [
   // part of the architecture, and showing where things will live is honest
   // as long as nothing pretends to work.
   { id: 'strategist', label: 'AI strategist', planned: 'Phase 8' },
+  { group: 'Setup' },
+  { id: 'settings', href: '#/settings', label: 'Platform connections' },
 ];
 
 let overviewCache = null;

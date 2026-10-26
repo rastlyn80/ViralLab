@@ -1443,6 +1443,128 @@ breakthrough is plausible.
 
 ---
 
+### Phase 6C — Visual recognition made real  **(delivered 2026-10-26)**
+
+The brief was "do not build another architecture-only phase". The
+acceptance criterion was that at least one real preserved video must travel
+from the Ubuntu media library through the Windows vision worker, produce a
+validated scene description, be stored with provenance, and be visible in
+ViralLab. **Met**, and then measured properly, which is where it got
+interesting.
+
+**What runs.** llama.cpp `llama-server` (CUDA b11898) with Gemma 3 4B
+Q4_K_M + f16 mmproj on the RTX 2070 SUPER. **4034 MiB** measured
+(1815 idle → 5849 loaded), 5931 MiB peak. **7.88 s/video** inference,
+9.9 s/video wall clock including frame transport, ~370 KiB of frames per
+video, **$0.00**. 55/55 responses schema-valid, 0 invalid, 0 failed.
+
+**Grammar-constrained decoding is not optional.** The same task with
+`response_format: {"type":"json_object"}` returned an object missing 14 of
+17 required fields in 20.5 s. With `json_schema` it returns a valid object
+in 3.8 s. `[PRIMARY]`, measured on video 332.
+
+**The model is reliable for exactly one of eight scored fields.** Against a
+baseline that answers every question with the commonest label and never
+looks at a frame: overall accuracy **0.761** against baseline **0.781** —
+lift **−0.020**. It does not beat the constant answerer. CLAUDE.md §3.7
+requires saying so plainly, so: it did not.
+
+| field | accuracy | baseline | lift | specificity |
+|---|---|---|---|---|
+| `text_overlay_present` | **1.000** | 0.917 | **+0.083** | **1.000** |
+| `face_visible` | 0.875 | 0.792 | +0.083 | 0.800 |
+| `setting` | 0.714 | 0.542 | +0.172 | — |
+| `hands_visible` | 0.875 | 0.875 | 0.000 | **0.000** |
+| `piano_or_keyboard_visible` | 0.875 | 0.875 | 0.000 | **0.000** |
+| `performer_visible` | 0.958 | 1.000 | −0.042 | — |
+| `shot_distance` | 0.304 | 0.500 | **−0.196** | — |
+| `sheet_music_visible` | 0.458 | 0.708 | **−0.250** | 0.235 |
+
+Specificity is the load-bearing column: 21 of 24 openings contain a piano,
+so sensitivity is cheap and only a correct **denial** shows the model
+looked. It reported a piano *and* sheet music in a video of a man walking
+through a garden. Full method, both label passes and the honest weaknesses
+in `docs/benchmarks/6c-vision-benchmark.md`.
+
+**Two defects the benchmark found, both fixed.**
+
+1. *A field that was never asked.* `sheet_music_visible` returned
+   `unknown` 24/24 — not model uncertainty, but a question never put.
+   Under grammar-constrained decoding **every required field was emitted
+   24/24 and every optional field 0/24**, the sole exception being
+   `uncertain_fields`, which the prompt names explicitly. `required` is not
+   a minimum under a grammar, it is the whole answer. Fixed; method version
+   bumped to `v2`; re-running then *lowered* the aggregate score, which is
+   the cleanest available demonstration that the earlier figure was an
+   artefact.
+2. *A benchmark that measured its own labelling method.* The first label
+   pass recorded one frame per video while the model sees four, leaving 47
+   disagreements unresolvable. The second pass, from full frame strips,
+   found the first had **under-called presence in 14 of 24 videos**. Both
+   passes are kept; the ordering weakness of the second is recorded in the
+   fixture rather than glossed.
+
+**Part 5 — what `text_region_score` actually measures.** Four of the six
+properties the brief named (keyboard, sheet music, hand close-ups, shot
+distance) are **withheld as unmeasurable by this model**, not reported as
+null results, and the refusal is enforced in
+`visual_structure.WITHHELD_VISION` rather than merely intended. The two
+that are deterministic were built and measured
+(`shared/hookbg.py`, `hook-background-v1`).
+
+Result, n = 48: the proxy tracks `background_edge_density` at **+0.523**
+(q = 0.002) — more strongly than whole-frame density — and is itself the
+**strongest retention correlate in the corpus** at **−0.563** (q < 0.001;
+partial −0.524 controlling duration and age; −0.582 clustered by
+performance). Meanwhile real OCR word count correlates **+0.011** with the
+same outcome. The measurement that is definitively not reading text
+predicts retention; actual text measurement is noise.
+
+Correlational only. Not a recommendation, not causal, and a candidate for
+Phase 8 pre-registration rather than for the model.
+`docs/benchmarks/6c-visual-density.md`.
+
+**Queue, because the server has no GPU.** `POST /api/ai/analyse` cannot run
+the local model — llama-server lives on the workstation — so a request from
+the interface becomes a `vision_requests` row the worker drains, with
+worker liveness, bounded retries, stale-claim requeue and a partial unique
+index that makes a second click idempotent. Migration `b8e3c25d9f47`,
+validated empty → head → downgrade → head on the scratch database before
+production, where all 15 table counts were unchanged afterwards.
+
+**Own-account TikTok archival (ADR 0007).** 234 TikTok publications had
+`media_status='absent'` and were invisible to every pipeline, because the
+Display API returns no downloadable file. They are now fetchable with
+`yt-dlp`, scoped to owned profiles, with **TikTok's own `video/list`
+response as the ownership authority** — a video is fetched only if the
+platform lists it as the authenticated owner's. That also solved a blocker:
+`creators.handle` holds the OAuth `open_id`, not a username, so a
+reconstructed URL would have been invalid for all 234; `share_url` from the
+same call carries the canonical address. 7 archived in testing, 0 failures.
+
+**Credential dashboard.** Platform keys are pasted in the interface rather
+than edited over SSH. Write-only — no endpoint returns a value — behind a
+fixed slot whitelist, because without one this would be an arbitrary
+environment-variable write reachable over HTTP. Authorising spending is a
+separate, separately-confirmed action from storing a token.
+
+**Known gaps at delivery.**
+
+- `shot_distance` is worse than a constant guess and `sheet_music_visible`
+  has specificity 0.235. A prompt revision tuned on these 24 and reported
+  on these 24 would be overfitting, so it needs a **freshly labelled
+  held-out set**. Not done.
+- The first 5 TikTok archives are HEVC, which Chrome will not play. They
+  are analysable but not previewable and need a forced re-fetch; the format
+  selector now prefers H.264.
+- `config.load_settings` declares `category_caps_usd` but never reads it
+  from the file, so per-category caps configured in `settings.yaml` are
+  silently ignored and only the global cap applies.
+- The occasion confound in Part 5 is untested, and the field that would
+  test it (`setting`) is only partly reliable.
+
+---
+
 ### Phase 6 — Multimodal Feature Extraction
 
 Structured musical, visual, editing and language characteristics, per

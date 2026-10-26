@@ -200,7 +200,8 @@ class AnalysisResult:
     #: Set when the provider produced something that was then refused.
     refused_reason: str | None = None
     warnings: list[str] = field(default_factory=list)
-    #: Peak VRAM for local runs, where measurable.
+    #: TOTAL VRAM in use on the card during the run, where measurable -
+    #: not this process's share. It includes the desktop's own usage.
     peak_vram_mib: int | None = None
 
     @property

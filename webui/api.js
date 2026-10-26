@@ -150,6 +150,25 @@ export const api = {
   aiTask: () => request('/api/ai/task'),
   aiPlan: (params) => request(`/api/ai/plan${qs(params)}`),
   aiAnalyse: (body) => request('/api/ai/analyse', { method: 'POST', body }),
+
+  // Platform connections. `credentials` never returns values - see
+  // server/api/credentials_api.py - so nothing secret reaches this client.
+  credentials: () => request('/api/credentials'),
+  setCredential: (key, value) => request(
+    `/api/credentials/${encodeURIComponent(key)}`,
+    { method: 'PUT', body: { value } }),
+  clearCredential: (key) => request(
+    `/api/credentials/${encodeURIComponent(key)}`, { method: 'DELETE' }),
+  setSpending: (body) => request('/api/credentials/spending',
+    { method: 'PUT', body }),
+
+  // Visual analysis queue. The local model runs on the Windows workstation,
+  // so the server queues rather than executes; see vision_api.py.
+  visionQueue: () => request('/api/vision/requests'),
+  requestVision: (body) => request('/api/vision/requests',
+    { method: 'POST', body }),
+  cancelVision: (id) => request(`/api/vision/requests/${id}/cancel`,
+    { method: 'POST' }),
   aiOperations: (params) => request(`/api/ai/operations${qs(params)}`),
 
   // -- analysis seam (Phase 6) --------------------------------------------

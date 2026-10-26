@@ -271,8 +271,15 @@ extras:
 - Respect platform terms, rate limits, `robots.txt`, and privacy law (GDPR
   applies). When in doubt about a collection method, raise it rather than
   implementing it.
-- Your own TikTok masters come from **your local archive**, not from
-  scraping your own content back off the platform.
+- Your own TikTok masters come from **your local archive** where one
+  exists. **Narrowed by ADR 0007 (2026-10-26):** the archive covers
+  only 156 of 234 publications and holds performance masters rather
+  than published edits, so own-account *published* video may be
+  fetched with `yt-dlp` via `server/collectors/tiktok_archive.py`.
+  Ownership is proven by presence in the authenticated owner's
+  TikTok `video/list` response, never by configuration. This does
+  **not** extend to third-party media, and the code cannot be
+  configured to extend to it.
 
 ---
 

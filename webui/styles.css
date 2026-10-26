@@ -285,6 +285,24 @@ button.warn { color: var(--warn); }
 
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .row.between { justify-content: space-between; }
+
+/* Review decision bar. The buttons used to sit under the players and the
+   evidence card, which meant scrolling down for every single item in a
+   50-item queue. Sticking them below the heading keeps them reachable
+   without taking the evidence off screen. */
+.row.decide {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin: 0 0 14px;
+  padding: 10px 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+@media (max-width: 720px) {
+  .row.decide { gap: 6px; }
+  .row.decide button { flex: 1 1 auto; }
+}
 .stack { display: flex; flex-direction: column; gap: 10px; }
 
 dl.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; font-size: 13.5px; }

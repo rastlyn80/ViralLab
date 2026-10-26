@@ -414,6 +414,12 @@ async function masterReviewBody(items, bridge) {
           + 'machine to play it side by side.'}`, '');
 
   return `
+    <div class="row decide" data-link="${m.id}">
+      <button class="primary" data-answer="confirmed">Yes, same video</button>
+      <button class="warn" data-answer="variant">Same performance, different edit</button>
+      <button class="danger" data-answer="rejected">No, not a match</button>
+      <button data-answer="skip">Skip</button>
+    </div>
     <div class="grid cols-2">
       <div class="card">
         <h3>Local master</h3>
@@ -465,12 +471,6 @@ async function masterReviewBody(items, bridge) {
       ${evidence(ev)}
     </div>
 
-    <div class="row" style="margin-top:14px" data-link="${m.id}">
-      <button class="primary" data-answer="confirmed">Yes, same video</button>
-      <button class="danger" data-answer="rejected">No, not a match</button>
-      <button class="warn" data-answer="variant">Same performance, different edit</button>
-      <button data-answer="skip">Skip</button>
-    </div>
     <p class="faint" style="font-size:13px">Saved immediately and attributed
       to you. Close the tab whenever — the queue resumes here.</p>`;
 }
@@ -558,6 +558,12 @@ export const reviewPairs = {
           <h1>Same video on both platforms?</h1>
           <span class="chip">${list.length} proposed</span>
         </div>
+        <div class="row decide" data-pair="${p.id}">
+          <button class="primary" data-answer="confirmed">Yes, same video</button>
+          <button class="warn" data-answer="platform_edit">Same performance, different edit</button>
+          <button class="danger" data-answer="rejected">No, different videos</button>
+          <button data-answer="skip">Skip</button>
+        </div>
         ${note(`This proposal rests on <b>metadata only</b> — duration, date
           and caption. TikTok returns no media file, and the cover image was
           measured and rejected as a matching signal, so nothing here can
@@ -587,12 +593,7 @@ export const reviewPairs = {
           ${evidence(ev)}
         </div>
 
-        <div class="row" style="margin-top:14px" data-pair="${p.id}">
-          <button class="primary" data-answer="confirmed">Yes, same video</button>
-          <button class="warn" data-answer="platform_edit">Same performance, different edit</button>
-          <button class="danger" data-answer="rejected">No, different videos</button>
-          <button data-answer="skip">Skip</button>
-        </div>`;
+`;
 
       root.querySelector('[data-pair]').addEventListener('click', async (e) => {
         const btn = e.target.closest('button[data-answer]');

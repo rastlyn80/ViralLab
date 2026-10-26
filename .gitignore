@@ -95,3 +95,4 @@ backups/
 # Matching payload: carries the whole local fingerprint set, never committed
 .matching_payload.json
 probes/local_library/_bench/
+.llamacpp/

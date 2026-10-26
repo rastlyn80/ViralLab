@@ -399,6 +399,34 @@
  */
 
 /**
+ * @typedef {Object} CredentialStatus
+ * @property {string} key
+ * @property {string} platform
+ * @property {string} label
+ * @property {string} purpose
+ * @property {string} blocked_without
+ * @property {string=} where
+ * @property {boolean=} secret
+ * @property {boolean=} paid
+ * @property {boolean=} is_set
+ * @property {string|null=} fingerprint
+ * @property {string|null=} source
+ */
+
+/**
+ * @typedef {Object} CredentialWrite
+ * @property {string} value
+ */
+
+/**
+ * @typedef {Object} CredentialsView
+ * @property {Array<CredentialStatus>=} credentials
+ * @property {SpendingStatus} spending
+ * @property {boolean=} env_path_writable
+ * @property {string=} note
+ */
+
+/**
  * @typedef {Object} DecisionRequest
  * @property {string} answer
  * @property {string|null=} notes
@@ -535,6 +563,14 @@
  * @property {string|null=} corrected_at
  * @property {string|null=} correction_note
  * @property {boolean=} is_corrected
+ */
+
+/**
+ * @typedef {Object} FrameRef
+ * What the worker was actually given, by content hash.
+ * @property {number} at_s
+ * @property {string} sha256
+ * @property {number} bytes
  */
 
 /**
@@ -1031,6 +1067,23 @@
  */
 
 /**
+ * @typedef {Object} SpendingStatus
+ * @property {number=} monthly_cap_usd
+ * @property {Array<string>=} providers_authorised
+ * @property {boolean=} any_authorised
+ * @property {string=} research_provider
+ * @property {string=} research_reason
+ */
+
+/**
+ * @typedef {Object} SpendingWrite
+ * Authorising money. Both fields are required, deliberately.
+ * @property {number} monthly_cap_usd
+ * @property {Array<string>=} providers_authorised
+ * @property {boolean=} confirm
+ */
+
+/**
  * @typedef {Object} SustainedRunView
  * @property {string} kind
  * @property {number} start_index
@@ -1145,6 +1198,90 @@
  * @property {string|null=} error
  * @property {number|null=} compute_seconds
  * @property {number|null=} peak_vram_mib
+ */
+
+/**
+ * @typedef {Object} VisionPendingItem
+ * @property {number} video_id
+ * @property {string} external_id
+ * @property {number|null=} duration_s
+ * @property {string|null=} posted_at
+ */
+
+/**
+ * @typedef {Object} VisionPendingList
+ * @property {Array<VisionPendingItem>=} items
+ * @property {number=} total_analysable
+ * @property {number=} already_done
+ * @property {string} method_version
+ */
+
+/**
+ * @typedef {Object} VisionQueueView
+ * The queue, plus whether the machine that drains it is awake.
+ * @property {Array<VisionRequestRow>=} requests
+ * @property {Object<string, number>=} counts
+ * @property {Object=} worker
+ * @property {string} method_version
+ * @property {number=} analysed
+ */
+
+/**
+ * @typedef {Object} VisionRequestBody
+ * Ask for one publication's opening to be analysed visually.
+ * @property {number} video_id
+ * @property {boolean=} force
+ */
+
+/**
+ * @typedef {Object} VisionRequestRow
+ * @property {number} id
+ * @property {number} video_id
+ * @property {string|null=} external_id
+ * @property {string} task
+ * @property {string} method_version
+ * @property {string} status
+ * @property {string} mode
+ * @property {boolean=} force
+ * @property {number=} attempts
+ * @property {string|null=} claimed_by
+ * @property {string|null=} requested_at
+ * @property {string|null=} started_at
+ * @property {string|null=} finished_at
+ * @property {string|null=} error
+ */
+
+/**
+ * @typedef {Object} VisionResultBody
+ * @property {number} video_id
+ * @property {string=} status
+ * @property {string|null=} task
+ * @property {string|null=} provider
+ * @property {string|null=} model
+ * @property {string|null=} hosting
+ * @property {Object|null=} data
+ * @property {string|null=} raw_text
+ * @property {boolean|null=} schema_valid
+ * @property {Array<string>=} validation_errors
+ * @property {string|null=} refused_reason
+ * @property {string|null=} error
+ * @property {number|null=} input_tokens
+ * @property {number|null=} output_tokens
+ * @property {number|null=} images
+ * @property {number|null=} latency_s
+ * @property {number|null=} peak_vram_mib
+ * @property {Array<FrameRef>=} frames
+ * @property {string|null=} media_sha256
+ */
+
+/**
+ * @typedef {Object} VisionResultView
+ * @property {number} video_id
+ * @property {string} status
+ * @property {number} features_written
+ * @property {string} method_version
+ * @property {number|null=} run_id
+ * @property {number|null=} operation_id
  */
 
 /**

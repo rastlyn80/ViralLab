@@ -202,15 +202,30 @@ def analyse(body: AnalyseRequestBody,
     else:
         reservation = None
 
-    # Frames are decoded on the machine that holds the media. This endpoint
-    # runs there, so nothing is transferred for a local provider.
+    # The local model runs on the Windows workstation, not here. This
+    # server has no GPU, so a local route cannot execute inline however
+    # valid the request is - it has to be queued for the worker.
+    #
+    # An earlier revision of this comment said frames were decoded on this
+    # machine and nothing was transferred for a local provider. That stopped
+    # being true in Phase 6C: frames now travel to the worker over
+    # authenticated /api/frames, and the execution path is the queue.
+    if hosting is Hosting.LOCAL:
+        raise HTTPException(
+            409,
+            f"Routing selected {provider.name}, which runs on the Windows "
+            f"workstation. This server has no GPU and cannot invoke it, so "
+            f"local analysis is queued rather than run inline: POST "
+            f"/api/vision/requests with this video_id, and the worker picks "
+            f"it up when that machine is next on. Progress is at "
+            f"GET /api/vision/requests.")
+
     raise HTTPException(
         501,
         f"Routing selected {provider.name} ({hosting.value}) and the "
-        f"request is valid, but no visual-analysis execution path is wired "
-        f"in this phase. The local vision-language model is not installed "
-        f"and no cloud credential is present, so this endpoint refuses "
-        f"rather than returning an empty analysis. "
+        f"request is valid, but no cloud execution path is wired. No cloud "
+        f"credential is present, so this endpoint refuses rather than "
+        f"returning an empty analysis. "
         f"{'A budget reservation was taken and will expire unused.' if reservation else ''}")
 
 

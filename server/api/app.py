@@ -26,8 +26,9 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from server.api import (ai_api, deps, discovery_api, hooks_api,
-                        research_api, ui)
+from server.api import (ai_api, credentials_api, deps, discovery_api,
+                        frames_api, hooks_api, research_api, ui,
+                        vision_api)
 from server.api.deps import get_session
 from server.db.models import Video
 from server.queue.queue import (
@@ -193,6 +194,9 @@ app.include_router(research_api.router)
 app.include_router(discovery_api.router)
 app.include_router(hooks_api.router)
 app.include_router(ai_api.router)
+app.include_router(frames_api.router)
+app.include_router(vision_api.router)
+app.include_router(credentials_api.router)
 
 
 @app.get("/health")

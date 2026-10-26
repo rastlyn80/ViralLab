@@ -103,7 +103,13 @@ def test_the_local_vlm_is_registered_but_explains_why_it_cannot_run():
     if ok:
         pytest.skip("the VLM stack is installed on this machine")
     assert "not installed" in why
-    assert "VRAM" in why
+    # The reason must be ACTIONABLE, not merely present. Asserting the word
+    # "VRAM" was wrong: that word belongs to the installed-but-insufficient
+    # branch, so the test passed on the workstation and failed on the
+    # server, which has no llama.cpp at all. What matters either way is that
+    # the message says what is missing and what to do about it.
+    assert "llama.cpp" in why or "llama-server" in why
+    assert "Install" in why or "install" in why
 
 
 def test_a_cloud_provider_without_a_credential_names_the_variable_not_the_value(
@@ -562,14 +568,57 @@ def test_an_empty_supported_tasks_means_general_purpose():
     assert caps2.serves_task("other") is False
 
 
-def test_routing_the_visual_task_under_the_default_policy_refuses():
+def test_routing_the_visual_task_refuses_when_no_local_model_is_installed(
+        monkeypatch):
     """With no VLM installed and no cloud authorised, the honest answer to
     'describe this opening' is that it cannot be done - not a cheaper,
-    wronger answer from a text engine."""
-    d = route(default_registry(),
+    wronger answer from a text engine.
+
+    Availability is forced rather than inherited from the host. This test
+    used to call `default_registry()` and depend on whether llama.cpp
+    happened to be installed on the machine running pytest, so it passed on
+    the server and failed on the workstation once the model was installed in
+    Phase 6C. What it means to assert is "when the local model is absent",
+    and that is now what it says.
+    """
+    registry = default_registry()
+    for provider in registry.all():
+        if provider.capabilities().hosting is Hosting.LOCAL:
+            monkeypatch.setattr(
+                provider, "available",
+                lambda: (False, "not installed (forced for this test)"),
+                raising=False)
+
+    d = route(registry,
               make_request(task=vision_task.TASK,
                            schema=vision_task.SCHEMA),
               Policy())
     assert d.refused is True
     assert d.estimated_usd == 0.0
     assert "local" in d.reason.lower()
+
+
+def test_routing_the_visual_task_prefers_an_installed_local_model(monkeypatch):
+    """The other half: when the local model IS there, it is chosen, it is
+    free, and nothing cloud-hosted is selected."""
+    registry = default_registry()
+    local = [
+        p for p in registry.all()
+        if p.capabilities().hosting is Hosting.LOCAL
+        and p.capabilities().serves_task(vision_task.TASK)
+    ]
+    if not local:
+        pytest.skip("no local visual provider is registered in this build")
+    for provider in local:
+        monkeypatch.setattr(provider, "available", lambda: (True, None),
+                            raising=False)
+
+    d = route(registry,
+              make_request(task=vision_task.TASK,
+                           schema=vision_task.SCHEMA),
+              Policy())
+    assert d.refused is False, d.reason
+    assert d.estimated_usd == 0.0
+    assert d.providers
+    chosen = registry.get(d.providers[0])
+    assert chosen.capabilities().hosting is Hosting.LOCAL

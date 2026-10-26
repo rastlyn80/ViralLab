@@ -132,70 +132,10 @@ class LocalOcrProvider(AIProvider):
             latency_s=time.monotonic() - started)
 
 
-class LocalVlmProvider(AIProvider):
-    """A local vision-language model. Declared, and currently unavailable.
-
-    Kept in the registry on purpose. The alternative - omitting it until it
-    works - would make "no local option exists for this task" and "the
-    local option is not installed" look identical to the routing policy,
-    and they call for completely different responses: the first means the
-    task needs cloud, the second means someone should install a model.
-    """
-
-    name = "local-vlm"
-    hosting = Hosting.LOCAL
-    #: `[PRIMARY, measured 0B]` on the RTX 2070 SUPER.
-    PEAK_VRAM_MIB = 7634
-    VRAM_TOTAL_MIB = 8192
-    COLD_LOAD_S = 44.7
-
-    def capabilities(self) -> ModelCapabilities:
-        return ModelCapabilities(
-            provider=self.name, model="qwen2.5-vl-7b-q4",
-            hosting=Hosting.LOCAL,
-            accepts=(Modality.IMAGE, Modality.IMAGE_SEQUENCE),
-            structured_output=False,
-            documented_limits=(
-                f"peaks at {self.PEAK_VRAM_MIB} MiB of "
-                f"{self.VRAM_TOTAL_MIB} (measured, Phase 0B), so it cannot "
-                f"share the card with anything",
-                f"cold load is {self.COLD_LOAD_S}s against ~9s of inference "
-                f"for a 4-frame video, so it must be batched by modality "
-                f"rather than per video",
-                "no documented structured-output mode; JSON is requested in "
-                "the prompt and validated afterwards",
-            ),
-            verified_on="2026-10-26",
-            notes=("benchmarked in Phase 0B; not currently installed",))
-
-    def available(self) -> tuple[bool, str | None]:
-        missing = []
-        for mod in ("torch", "transformers"):
-            try:
-                __import__(mod)
-            except ImportError:
-                missing.append(mod)
-        if missing:
-            return False, (
-                f"{', '.join(missing)} not installed. The model also needs "
-                f"{self.PEAK_VRAM_MIB} MiB of VRAM, which exists only on "
-                f"the Windows GPU box, while the media lives on the "
-                f"server - so running it means either installing the stack "
-                f"there or moving frames to Windows. Neither has been done, "
-                f"and this provider will not pretend otherwise.")
-        return True, None
-
-    def estimate_usd(self, request: AnalysisRequest) -> float:
-        return 0.0
-
-    def analyse(self, request: AnalysisRequest) -> AnalysisResult:
-        ok, why = self.available()
-        if not ok:
-            raise ProviderUnavailable(why or "unavailable", provider=self.name)
-        raise ProviderUnavailable(
-            "the local VLM stack is importable but no inference path is "
-            "wired yet; this adapter refuses rather than returning an "
-            "empty analysis", provider=self.name)
+# The real implementation lives in `local_vlm.py`, which owns the runtime
+# lifecycle. Re-exported here so the registry stays the single place that
+# knows which providers exist.
+from server.ai.local_vlm import LocalVlmProvider  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

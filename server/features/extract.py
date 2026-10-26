@@ -37,6 +37,7 @@ logger = logging.getLogger("virallab.features.extract")
 
 KIND_DETERMINISTIC = "hook_deterministic"
 KIND_SPEECH = "hook_speech"
+KIND_BACKGROUND = "hook_background"
 
 
 class ExtractionRefused(RuntimeError):
@@ -418,3 +419,76 @@ def coverage(session: Session) -> dict:
         "corrections": corrected,
         "method_version": hookfeat.METHOD_VERSION,
     }
+
+
+def run_background(session: Session, videos: list[Video], *,
+                   hook_seconds: float = hookfeat.HOOK_SECONDS,
+                   media_root: Path | None = None) -> ExtractOutcome:
+    """Measure background complexity, separately from the v1 hook features.
+
+    Kept out of `run_deterministic` on purpose. Adding measures to
+    `hookfeat` would bump `hook-deterministic-v1` and invalidate 258 videos
+    of existing evidence to answer one question about 48 of them. A separate
+    method version costs nothing and keeps the v1 rows meaningful.
+    """
+    import time
+
+    from shared import hookbg
+
+    out = ExtractOutcome(kind=KIND_BACKGROUND,
+                         method_version=hookbg.METHOD_VERSION,
+                         requested=len(videos))
+    run = VideoFeatureRun(
+        method_version=hookbg.METHOD_VERSION, kind=KIND_BACKGROUND,
+        status="running", videos_requested=len(videos),
+        params={"hook_seconds": hook_seconds,
+                "static_std": hookbg.STATIC_STD,
+                "min_static_fraction": hookbg.MIN_STATIC_FRACTION,
+                "edge_mag": hookbg.EDGE_MAG,
+                "entropy_bins": hookbg.ENTROPY_BINS})
+    session.add(run)
+    session.flush()
+    out.run_id = run.id
+
+    started = time.monotonic()
+    for video in videos:
+        path = Path(video.media_path or "")
+        if media_root is not None and not path.is_absolute():
+            path = media_root / path.name
+        if not path.exists():
+            out.failed += 1
+            out.errors.append({"video_id": video.id,
+                               "external_id": video.external_id,
+                               "error": f"file missing: {path}"})
+            continue
+        try:
+            feats = hookbg.extract_background(path, hook_seconds=hook_seconds)
+        except hookfeat.ExtractionError as exc:
+            out.failed += 1
+            out.errors.append({"video_id": video.id,
+                               "external_id": video.external_id,
+                               "error": str(exc)[:300]})
+            logger.warning("background extraction failed for %s: %s",
+                           video.external_id, exc)
+            continue
+        out.features_written += _store(
+            session, video, run, feats.measurements,
+            method_version=hookbg.METHOD_VERSION)
+        out.done += 1
+        session.commit()
+
+    out.compute_seconds = round(time.monotonic() - started, 2)
+    run.videos_done = out.done
+    run.videos_failed = out.failed
+    run.features_written = out.features_written
+    run.compute_seconds = out.compute_seconds
+    run.finished_at = datetime.now(timezone.utc)
+    run.status = ("ok" if out.failed == 0
+                  else ("failed" if out.done == 0 else "partial"))
+    if out.errors:
+        run.notes = f"{len(out.errors)} failure(s); first: "                     f"{out.errors[0]['error'][:200]}"
+    session.commit()
+    logger.info("background run %s: %d done, %d failed, %d features, %.1fs",
+                run.id, out.done, out.failed, out.features_written,
+                out.compute_seconds)
+    return out

@@ -140,8 +140,9 @@ export const aiPlan = {
   title: 'Analyse video',
   async render(root, params, id) {
     root.innerHTML = spinner('Planning');
-    const [plan, policy] = await Promise.all([
+    const [plan, policy, queue] = await Promise.all([
       api.aiPlan({ video_id: id }), api.aiPolicy(),
+      api.visionQueue().catch(() => null),
     ]);
 
     root.innerHTML = `
@@ -165,7 +166,8 @@ export const aiPlan = {
     ? `cap $${plan.category_cap_usd.toFixed(2)}` : 'not authorised')}
       </div>
       ${card('Providers considered', consideredTable(plan))}
-      ${plan.refused ? '' : card('Run it', runBlock(plan))}`;
+      ${plan.refused ? '' : card('Run it', runBlock(plan, queue))}
+      ${queue ? card('Analysis queue', queueBlock(queue, id)) : ''}`;
 
     const btn = document.getElementById('ai-run');
     if (btn) {
@@ -189,18 +191,59 @@ export const aiPlan = {
         }
         btn.disabled = true;
         try {
-          await api.aiAnalyse({ video_id: Number(id), mode: plan.mode,
-            confirm_paid: paid });
-          toast('Analysis complete');
+          if (!paid) {
+            // Local analysis runs on the Windows workstation, which this
+            // server cannot invoke. Queue it; the worker drains the queue
+            // when that machine is on. Pretending to run it inline would
+            // mean a button that silently does nothing.
+            const req = await api.requestVision({ video_id: Number(id) });
+            toast(req.status === 'queued'
+              ? 'Queued for the GPU workstation.'
+              : `Already ${req.status}.`);
+          } else {
+            await api.aiAnalyse({ video_id: Number(id), mode: plan.mode,
+              confirm_paid: paid });
+            toast('Analysis complete');
+          }
           await aiPlan.render(root, params, id);
         } catch (err) {
-          document.getElementById('ai-run-result').innerHTML =
-            note(esc(err.message), err.status === 501 ? 'warn' : 'danger');
+          const el = document.getElementById('ai-run-result');
+          if (err.status === 409 && !paid) {
+            el.innerHTML = note(`${esc(err.message)}
+              <br><button id="ai-force">Analyse again anyway</button>`,
+            'warn');
+            document.getElementById('ai-force')
+              ?.addEventListener('click', async () => {
+                try {
+                  await api.requestVision({ video_id: Number(id),
+                    force: true });
+                  toast('Queued for re-analysis.');
+                  await aiPlan.render(root, params, id);
+                } catch (e2) {
+                  el.innerHTML = note(esc(e2.message), 'danger');
+                }
+              });
+          } else {
+            el.innerHTML = note(esc(err.message),
+              err.status === 501 ? 'warn' : 'danger');
+          }
         } finally {
           btn.disabled = false;
         }
       });
     }
+
+    root.querySelectorAll('.cancel-req').forEach((el) => {
+      el.addEventListener('click', async () => {
+        try {
+          await api.cancelVision(Number(el.dataset.req));
+          toast('Request cancelled.');
+          await aiPlan.render(root, params, id);
+        } catch (err) {
+          toast(`Could not cancel: ${err.message}`);
+        }
+      });
+    });
   },
 };
 
@@ -228,8 +271,14 @@ function consideredTable(plan) {
       nobody can explain is a routing choice nobody can trust.</p>`;
 }
 
-function runBlock(plan) {
+function runBlock(plan, queue) {
+  const localOnly = !plan.requires_authorisation;
   return `
+    ${localOnly && queue ? note(`This runs on the <b>Windows workstation</b>,
+      not on the server — the server has no GPU. Pressing the button adds it
+      to the queue; the worker picks it up
+      ${queue.worker?.online ? 'now, since that machine is online'
+    : 'when that machine is next switched on'}.`, '') : ''}
     ${plan.requires_authorisation
     ? note(`<strong>This costs money.</strong> You will be shown the exact
         estimate and asked to confirm before anything is sent.`, 'warn')
@@ -238,4 +287,60 @@ function runBlock(plan) {
       ${plan.requires_authorisation
     ? `(~$${plan.estimated_usd.toFixed(4)})` : '(free)'}</button>
     <div id="ai-run-result" style="margin-top:10px"></div>`;
+}
+
+
+/**
+ * The queue, and whether the machine that drains it is awake.
+ *
+ * Worker liveness is shown first on purpose. A queue with nothing draining
+ * it is a list of things that will not happen until the workstation is
+ * switched on, and saying so is more useful than a spinner.
+ */
+function queueBlock(queue, videoId) {
+  const w = queue.worker || {};
+  const mine = (queue.requests || [])
+    .filter((r) => String(r.video_id) === String(videoId));
+  const counts = Object.entries(queue.counts || {})
+    .map(([k, v]) => `${v} ${esc(k)}`).join(' · ') || 'empty';
+
+  return `
+    <div class="row" style="gap:18px;flex-wrap:wrap;align-items:flex-start">
+      <div>
+        <div class="label">GPU workstation</div>
+        <div class="value">${w.online
+    ? '<span class="chip ok"><span class="dot"></span>online</span>'
+    : '<span class="chip">offline</span>'}</div>
+        <div class="faint" style="font-size:12px">${esc(w.detail || '')}</div>
+      </div>
+      <div>
+        <div class="label">Queue</div>
+        <div class="value">${esc(counts)}</div>
+      </div>
+      <div>
+        <div class="label">Analysed</div>
+        <div class="value">${queue.analysed ?? 0}</div>
+        <div class="faint" style="font-size:12px">under
+          <code>${esc(queue.method_version || '')}</code></div>
+      </div>
+    </div>
+    ${w.online ? '' : note(`Requests queue immediately but are only
+      processed while the Windows machine is running
+      <code>python -m gpu_worker.vision_worker</code>. Nothing is lost in the
+      meantime.`, '')}
+    ${mine.length ? `<table style="margin-top:12px"><thead><tr>
+        <th>Request</th><th>Status</th><th>Attempts</th><th>Detail</th><th></th>
+      </tr></thead><tbody>
+      ${mine.map((r) => `<tr>
+        <td>#${r.id}</td>
+        <td><span class="chip ${r.status === 'done' ? 'ok'
+    : (r.status === 'failed' ? 'danger' : '')}">${esc(r.status)}</span></td>
+        <td class="num">${r.attempts ?? 0}</td>
+        <td class="faint" style="font-size:12px;max-width:320px">
+          ${esc(r.error || (r.claimed_by ? `claimed by ${r.claimed_by}` : ''))}
+        </td>
+        <td>${['queued', 'running'].includes(r.status)
+    ? `<button class="cancel-req danger" data-req="${r.id}">Cancel</button>`
+    : ''}</td>
+      </tr>`).join('')}</tbody></table>` : ''}`;
 }

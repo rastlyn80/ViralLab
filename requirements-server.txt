@@ -14,3 +14,10 @@ pytest
 # transferred to the Windows side to be matched. numpy is a numeric base, not
 # an ML dependency - no model files, no training, no GPU (ADR 0003 stands).
 numpy>=2.0
+
+# Own-account TikTok archival (server/collectors/tiktok_archive.py). TikTok's
+# Display API returns share_url and embed_link but no downloadable file
+# (ADR 0001), so the owner's own publications cannot reach the analysis
+# pipelines without this. Pinned loosely on purpose: TikTok changes its
+# player often and yt-dlp tracks it within days.
+yt-dlp>=2025.1.1

@@ -73,11 +73,20 @@ def _enum(values, desc):
 SCHEMA: dict = {
     "type": "object",
     "additionalProperties": False,
+    # MEASURED, Phase 6C: under grammar-constrained decoding this list is
+    # not a minimum, it is the whole answer. Across 24 videos every required
+    # field was emitted 24/24 and every optional field 0/24 - the single
+    # exception being `uncertain_fields`, which PROMPT rule 7 asks for by
+    # name. `sheet_music_visible` spent a whole benchmark run unanswered for
+    # exactly this reason, producing a gap that looked like 24 `unknown`s
+    # but was really a question never asked. Anything wanted from the model
+    # must appear here or be named in the prompt.
     "required": [
         "performer_visible", "piano_or_keyboard_visible", "hands_visible",
-        "face_visible", "camera_angle", "shot_distance", "framing",
-        "lighting", "setting", "text_overlay_present", "opening_type",
-        "transitions", "opening_is_representative", "confidence",
+        "face_visible", "sheet_music_visible", "camera_angle",
+        "shot_distance", "framing", "lighting", "setting",
+        "text_overlay_present", "opening_type", "transitions",
+        "scene_changes", "opening_is_representative", "confidence",
         "emotional_presentation", "emotional_presentation_is_interpretation",
         "frames_described",
     ],

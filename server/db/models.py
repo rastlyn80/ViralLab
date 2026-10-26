@@ -1178,3 +1178,63 @@ class AiOperation(Base):
         Index("ix_ai_operations_video", "video_id", "task"),
         Index("ix_ai_operations_provider", "provider", "created_at"),
     )
+
+
+class VisionRequest(Base):
+    """Someone asked for a video's opening to be analysed visually.
+
+    The server cannot do it. The local vision model runs on the Windows
+    workstation, which is only sometimes switched on, so the interface
+    records the intent here and the worker drains it on its next run.
+
+    This is intentionally not a leased job. The worker writes its results
+    keyed on (video, feature, method_version), so running the same request
+    twice overwrites rather than duplicates, and a crashed worker loses
+    nothing but the `running` marker - which `requeue_stale` clears. What
+    this table buys is an honest queue the interface can show, instead of a
+    button that appears to do nothing because a machine in another room is
+    asleep.
+    """
+
+    __tablename__ = "vision_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_id: Mapped[int] = mapped_column(
+        ForeignKey("videos.id", ondelete="CASCADE"))
+    task: Mapped[str] = mapped_column(String(64))
+    method_version: Mapped[str] = mapped_column(String(64))
+    #: queued | running | done | failed | cancelled
+    status: Mapped[str] = mapped_column(
+        String(16), default="queued", server_default="queued")
+    #: Pinned at request time. A request made while only a local model was
+    #: authorised must not turn into a paid call if a cloud key appears
+    #: later.
+    mode: Mapped[str] = mapped_column(
+        String(16), default="local_only", server_default="local_only")
+    requested_by: Mapped[str | None] = mapped_column(String(64))
+    requested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    claimed_by: Mapped[str | None] = mapped_column(String(64))
+    attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"))
+    #: Re-analyse a video that already has features under this version.
+    force: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"))
+    error: Mapped[str | None] = mapped_column(Text)
+    params: Mapped[dict | None] = mapped_column(JSONB)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status in ('queued','running','done','failed','cancelled')",
+            name="ck_vision_request_status"),
+        CheckConstraint("attempts >= 0 and attempts <= 10",
+                        name="ck_vision_request_attempts"),
+        Index("uq_vision_request_open", "video_id", "task", "method_version",
+              unique=True,
+              postgresql_where=text("status in ('queued','running')")),
+        Index("ix_vision_requests_status", "status", "requested_at"),
+    )
