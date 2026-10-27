@@ -1,6 +1,6 @@
 # CLAUDE.md — Permanent Development Instructions for ViralLab
 
-**Revision 3** (2026-10-24, updated after Phases 0A/0B). These rules apply to every session,
+**Revision 4** (2026-10-27, push rule added after M3). These rules apply to every session,
 indefinitely, and override general habits and defaults.
 
 ## Project context
@@ -36,6 +36,15 @@ occasionally-on Windows **RTX 2070 SUPER** box, 8 GB VRAM). Full detail lives in
    phase without explicit sign-off.
 8. **Document unresolved problems** in `DEVELOPMENT_PLAN.md` §11, not in
    chat history.
+9. **Always push what you commit.** A commit is not the end of the task;
+   `git push` is. Do not wait to be asked, and do not treat pushing as a
+   separate decision needing its own approval — committing without
+   pushing leaves the owner's only copy on one machine, which is the
+   outcome this rule exists to prevent. If the work is on a branch,
+   push the branch; if the branch is a clean fast-forward of `main` and
+   nothing says otherwise, it goes to `main`. Say what was pushed and
+   to where. The one thing that still stops you is a genuine conflict
+   or a force-push — those are a question, not a reflex.
 
 ---
 
