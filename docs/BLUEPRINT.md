@@ -547,6 +547,78 @@ graded Observed when stated, never inferred from frames.
 *Acceptance:* `GET /api/features/catalogue` returns every feature with its
 grade; the UI renders Unavailable as Unavailable.
 
+#### Status, 2026-10-27 — COMPLETE as specified
+
+| criterion | state |
+|---|---|
+| `GET /api/features/catalogue` returns every feature with its grade | **met** — 79 features, every one carrying a grade and a stated reason for it |
+| the UI renders Unavailable as Unavailable | **met** — `#/features`; Unavailable rows are marked, never blank, and each shows why |
+| one registry, read instead of hard-coded lists | **met** — `server/features/catalogue.py` |
+| grade, method version, reliability evidence, platform availability | **met** — all four per entry |
+
+**The grade is derived, never written down.** No entry in the registry
+carries a grade; `grade_for()` computes one from three things a query
+can check — whether an extractor exists and has produced rows, whether
+`visual_structure.WITHHELD_VISION` withholds the field, and what the
+new `feature_evidence` table holds. A hand-written grade would make
+the registry a claim. This makes it a measurement, and a stale grade
+becomes a query rather than a reading.
+
+Measured on the live corpus:
+
+| grade | count | meaning |
+|---|---|---|
+| Unavailable | 31 | may never be used, and the gap is shown |
+| Observed | 39 | measured; may describe |
+| Hypothesised | 0 | — |
+| **Associated** | **9** | survived correction *and* the ad covariate |
+| Validated | 0 | needs the Phase 8 experiment, which has not run |
+
+The nine: `edge_density`, `contrast_rms`, `brightness_mean`,
+`saturation_mean`, `text_region_score`, `background_edge_density`,
+`background_grey_entropy`, `subject_edge_density`,
+`background_subject_edge_ratio` — all against `reels_skip_rate` at
+n=229–247 with duration, age and ad exposure held constant. These are
+the published Part 5 §A.4 findings, now stored rather than pasted: the
+persisted rho and partial_rho match that table figure for figure.
+
+**`feature_evidence` is new, and it is the point.** Associations were
+computed live and printed; the numbers reached
+`docs/benchmarks/6c-visual-density.md` by being copied there, so any
+grade derived from them was derived from prose. Migration
+`a2f49c81b73e` adds the table, `visual_structure.persist_evidence()`
+writes to it, and the identity of a finding includes its controls —
+the same correlation with and without the ad covariate is two results,
+which is the whole of M1.
+
+**Two defects the work surfaced.** The first version of
+`persist_evidence` filed Arm A and Arm B under one outcome name, so
+both arms collapsed onto the same uniqueness key; the database refused
+the write, which is a better outcome than keeping whichever landed
+last. The second wrote Arm A's missing ad covariate as "did not cover
+enough of this sample" when the truth is that both sides of Arm A are
+extracted features and paid exposure cannot contaminate it — the
+covariate does not *apply*, which is a different statement and would
+have sent a reader to fix something that was not broken.
+
+**31 Unavailable is the honest number, not a shortfall.** 18 are
+vision fields the M3 benchmark withheld, 7 are deterministic
+placeholders `hookfeat` stores with their own reason so a consumer
+asking "is a piano visible" gets a recorded "cannot say" rather than a
+missing key it might read as false, and 6 have no extractor at all:
+`audio_tempo_bpm`, `audio_climax_at_s`, `caption_length_chars`,
+`caption_intent_class`, `repertoire_work`, `repertoire_composer`. Those
+six are named in the registry precisely so the gap is visible — a
+catalogue built by scanning `video_features` would not mention them,
+which is the opposite of what §2 asks for.
+
+**Still to build, and now listed as Unavailable rather than forgotten:**
+tempo and climax timing (deterministic, named in this brief), caption
+length and intent classification, and reading the 146 rows of own
+repertoire out of `performances` into the feature store. Each is a
+feature the catalogue already describes and grades Unavailable with the
+reason; building one flips its grade without touching the registry.
+
 ### M5 — Creator Intelligence Report *(old brief Stage 5)*
 
 For any creator including the owner. Overview, publication intelligence,

@@ -369,3 +369,12 @@ details.ev pre {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
+
+/* Feature catalogue (M4). An Unavailable row has to read as "we cannot
+   tell you", not as an empty cell — a blank is indistinguishable from a
+   measured zero, and only one of those is a gap. */
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.filters .chip { text-decoration: none; }
+td .sub { font-size: 12.5px; color: var(--fg-muted); margin-top: 2px; }
+tr.is-unavailable td:first-child code { color: var(--fg-muted); }
+tr.is-unavailable { background: var(--danger-soft); }

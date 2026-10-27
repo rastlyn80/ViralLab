@@ -625,3 +625,84 @@ def test_researched_competitor_does_not_inflate_the_owners_corpus(client,
             s.execute(text(f"delete from videos where id = {vid}"))
             s.execute(text(f"delete from creators where id = {rival_id}"))
             s.commit()
+
+
+# ---------------------------------------------------------------------------
+# M4: the feature catalogue endpoint
+# ---------------------------------------------------------------------------
+
+def test_the_catalogue_returns_every_feature_with_a_grade(client):
+    """M4's acceptance criterion, asked of the running app."""
+    from server.features import catalogue as cat
+
+    r = client.get("/api/features/catalogue")
+    assert r.status_code == 200, r.text
+    body = r.json()
+
+    assert body["summary"]["features"] == len(cat.SPEC)
+    assert len(body["features"]) == len(cat.SPEC)
+    for f in body["features"]:
+        assert f["grade"] in cat.GRADE_ORDER, f
+        assert f["grade_reason"], f["name"]
+        assert f["modality"] in cat.MODALITIES, f
+
+
+def test_the_catalogue_is_refused_without_a_session(ctx):
+    c, _m, _i = ctx
+    c.cookies.clear()
+    assert c.get("/api/features/catalogue").status_code == 401
+
+
+def test_unavailable_features_are_returned_as_unavailable_with_a_reason(
+        client):
+    """The gap has to be in the payload. A feature omitted because it
+    has no data is indistinguishable, at the interface, from a feature
+    that measured nothing - and only one of those is a gap."""
+    body = client.get("/api/features/catalogue?grade=Unavailable").json()
+    assert body["showing"] > 0
+    for f in body["features"]:
+        assert f["grade"] == "Unavailable"
+        assert f["grade_reason"]
+    names = {f["name"] for f in body["features"]}
+    # Something nothing extracts, and something extracted but withheld.
+    assert "audio_tempo_bpm" in names
+    assert "vision_piano_or_keyboard_visible" in names
+
+
+def test_the_summary_is_not_filtered_with_the_rows(client):
+    """A filtered summary would make "3 of 79 are Associated" read as
+    "3 of 3", which is the opposite of what a reader checking coverage
+    needs."""
+    full = client.get("/api/features/catalogue").json()
+    one = client.get("/api/features/catalogue?grade=Unavailable").json()
+    assert one["summary"] == full["summary"]
+    assert one["showing"] == full["summary"]["by_grade"]["Unavailable"]
+
+    # A modality filter is a strict subset whatever the data happens to
+    # be, which a grade filter is not: in a database with no extracted
+    # features every feature is correctly Unavailable, and asserting
+    # "fewer than all" there would be asserting that the fixture has
+    # rows rather than that the endpoint filters.
+    audio = client.get("/api/features/catalogue?modality=audio").json()
+    assert audio["summary"] == full["summary"]
+    assert 0 < audio["showing"] < full["summary"]["features"]
+    assert {f["modality"] for f in audio["features"]} == {"audio"}
+
+
+def test_an_unknown_filter_is_refused_rather_than_silently_ignored(client):
+    """Returning everything for a typo'd grade would quietly answer a
+    different question than the one asked."""
+    assert client.get(
+        "/api/features/catalogue?grade=Probably").status_code == 422
+    assert client.get(
+        "/api/features/catalogue?modality=vibes").status_code == 422
+
+
+def test_every_grade_in_the_payload_carries_its_meaning(client):
+    """The interface renders these; if a grade has no gloss it renders
+    as a bare word with no indication of what it licenses."""
+    from server.features import catalogue as cat
+
+    body = client.get("/api/features/catalogue").json()
+    for g in cat.GRADE_ORDER:
+        assert body["grade_meanings"].get(g), g

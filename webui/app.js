@@ -15,8 +15,8 @@ import { research, researchCreator } from './research.js';
 import { settings } from './settings.js';
 import { creatorReport, creatorTimeline } from './timeline.js';
 import {
-  competitors, dashboard, library, notFound, reviewMasters, reviewPairs,
-  videoDetail,
+  competitors, dashboard, featureCatalogue, library, notFound,
+  reviewMasters, reviewPairs, videoDetail,
 } from './views.js';
 
 const ROUTES = [
@@ -39,6 +39,8 @@ const ROUTES = [
   { pattern: /^\/hooks$/, view: hooks, nav: 'hooks' },
   { pattern: /^\/hooks\/retention$/, view: hookRetention, nav: 'hooks' },
   { pattern: /^\/hooks\/(\d+)$/, view: hookDetail, nav: 'hooks' },
+  { pattern: /^\/features$/, view: featureCatalogue,
+    nav: 'features' },
   { pattern: /^\/ai$/, view: aiModels, nav: 'ai' },
   { pattern: /^\/ai\/(\d+)$/, view: aiPlan, nav: 'ai' },
   { pattern: /^\/settings$/, view: settings, nav: 'settings' },
@@ -62,6 +64,8 @@ const NAV = [
   { id: 'hooks', href: '#/hooks', label: 'Hook intelligence' },
   { id: 'hook-retention', href: '#/hooks/retention',
     label: 'Hooks vs retention' },
+  { id: 'features', href: '#/features',
+    label: 'Feature catalogue' },
   { id: 'ai', href: '#/ai', label: 'AI models' },
   // Planned surfaces are listed but not linked: the navigation shape is
   // part of the architecture, and showing where things will live is honest

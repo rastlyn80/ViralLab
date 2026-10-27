@@ -1547,3 +1547,76 @@ class TransientMedia(Base):
               postgresql_where=text("deleted_at is null")),
         Index("ix_transient_media_video", "video_id"),
     )
+
+
+class FeatureEvidence(Base):
+    """One tested relationship, so a grade can be derived rather than told.
+
+    M4's registry has to answer "how reliable is this feature" from
+    something a query can reach. Before this table the answer lived in
+    `docs/benchmarks/6c-visual-density.md`, because `visual_structure.
+    run()` computed its associations live and printed them; anything
+    reading a grade would have been reading prose somebody pasted.
+
+    **The identity of a finding includes its controls.** The same
+    feature against the same outcome, with and without the ad-exposure
+    covariate, is two different results — M1 exists because conflating
+    those was already corrupting the outcome variable — so `controls`
+    is stored and the uniqueness constraint is on the whole question,
+    not on the feature.
+
+    **`q_value` is nullable and is not a place to keep a raw p.** It is
+    the Benjamini-Hochberg adjustment across the family the run tested.
+    A single pre-registered test has no family, and writing its p here
+    would promote it to a corrected result by accident.
+    """
+
+    __tablename__ = "feature_evidence"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    feature: Mapped[str] = mapped_column(String(64))
+    method_version: Mapped[str] = mapped_column(String(64))
+    #: Which outcome this was tested against. Named, never assumed:
+    #: "views" and "retention" are different questions carrying
+    #: different contamination (M1, ADR 0008).
+    outcome: Mapped[str] = mapped_column(String(64))
+    #: A named, reproducible population, e.g. `own_instagram_reels`.
+    population: Mapped[str] = mapped_column(String(64))
+
+    n: Mapped[int] = mapped_column(Integer)
+    rho: Mapped[float | None] = mapped_column(Float)
+    p_value: Mapped[float | None] = mapped_column(Float)
+    q_value: Mapped[float | None] = mapped_column(Float)
+    ci_low: Mapped[float | None] = mapped_column(Float)
+    ci_high: Mapped[float | None] = mapped_column(Float)
+    #: After partialling out `controls`.
+    partial_rho: Mapped[float | None] = mapped_column(Float)
+    controls: Mapped[list] = mapped_column(JSONB, default=list)
+    #: Publications in the population with no value for this feature. A
+    #: strong rho on a third of the corpus is a different claim.
+    unavailable_n: Mapped[int] = mapped_column(Integer, default=0)
+    direction: Mapped[str | None] = mapped_column(String(16))
+    note: Mapped[str | None] = mapped_column(Text)
+    #: What produced the row, so a finding traces back to a run.
+    analysis: Mapped[str] = mapped_column(String(64))
+    computed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("n >= 0", name="ck_feature_evidence_n"),
+        CheckConstraint("rho is null or (rho >= -1.0 and rho <= 1.0)",
+                        name="ck_feature_evidence_rho"),
+        CheckConstraint(
+            "q_value is null or (q_value >= 0.0 and q_value <= 1.0)",
+            name="ck_feature_evidence_q"),
+        CheckConstraint(
+            "direction is null or direction in "
+            "('positive','negative','none')",
+            name="ck_feature_evidence_direction"),
+        # One current result per tested relationship. Two live rows for
+        # the same question would let the catalogue read whichever came
+        # back first and call it the grade.
+        Index("uq_feature_evidence_finding", "feature", "method_version",
+              "outcome", "population", "analysis", unique=True),
+        Index("ix_feature_evidence_feature", "feature"),
+    )

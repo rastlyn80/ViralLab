@@ -694,3 +694,96 @@ export const notFound = {
       'Check the link, or go back to the dashboard.')}`;
   },
 };
+
+
+// ------------------------------------------------------- feature catalogue
+
+/**
+ * M4. Every feature with the grade it earned, and Unavailable rendered as
+ * Unavailable rather than as a blank.
+ *
+ * The blank is the thing this screen exists to prevent. A feature with no
+ * extractor, a feature withheld by a benchmark and a feature that simply
+ * measured zero all look identical as an empty cell, and only one of them
+ * means "we could tell you but the answer is nothing". So every row shows
+ * its grade, and every Unavailable row shows the reason it is unavailable.
+ */
+export const featureCatalogue = {
+  title: 'Feature catalogue',
+  async render(root, params) {
+    const grade = params?.grade || '';
+    const modality = params?.modality || '';
+    root.innerHTML = `<h1>Feature catalogue</h1>${spinner()}`;
+    const c = await api.featureCatalogue({ grade, modality });
+
+    const s = c.summary;
+    const tiles = c.grades.map((g) =>
+      stat(g, s.by_grade[g] ?? 0, GRADE_BLURB[g])).join('');
+
+    const filters = [
+      `<a href="#/features" class="chip${!grade && !modality ? ' ok' : ''}">all ${s.features}</a>`,
+      ...c.grades.map((g) => `<a href="#/features?grade=${g}"
+        class="chip${grade === g ? ' ok' : ''}">${esc(g)} ${s.by_grade[g] ?? 0}</a>`),
+      ...c.modalities
+        .filter((m) => s.by_modality[m])
+        .map((m) => `<a href="#/features?modality=${m}"
+          class="chip${modality === m ? ' ok' : ''}">${esc(m)}</a>`),
+    ].join(' ');
+
+    const rows = c.features.map((f) => {
+      const unavailable = f.grade === 'Unavailable';
+      const why = f.grade_reason || '';
+      const platforms = f.platforms
+        .filter((p) => !p.available)
+        .map((p) => `<span class="chip danger" title="${esc(p.reason || '')}"
+          >no ${esc(p.platform)}</span>`).join(' ');
+      return `<tr${unavailable ? ' class="is-unavailable"' : ''}>
+        <td><code>${esc(f.name)}</code>${f.withheld
+          ? ' <span class="chip warn">withheld</span>' : ''}
+          <div class="sub">${esc(f.describes)}</div></td>
+        <td>${esc(f.modality)}</td>
+        <td>${gradeChip(f.grade)}</td>
+        <td class="num">${unavailable && !f.coverage
+          ? '<span class="sub">none</span>' : num(f.coverage)}</td>
+        <td><div class="sub">${esc(why)}</div>${platforms}</td>
+        <td>${f.evidence.length
+          ? evidence(f.evidence, `${f.evidence.length} finding(s)`)
+          : '<span class="sub">not tested</span>'}</td>
+      </tr>`;
+    }).join('');
+
+    root.innerHTML = `
+      <h1>Feature catalogue</h1>
+      ${note(`Every feature this project can measure, with the grade it has
+        earned from evidence. A grade is derived on every request from
+        extractor coverage, the withheld list and the stored association
+        results - it is never written down, so it cannot go stale.
+        <strong>${s.usable_in_a_recommendation}</strong> of
+        ${s.features} may drive a recommendation.`)}
+      <div class="stats">${tiles}</div>
+      <div class="filters">${filters}</div>
+      ${card(`Features (${c.showing} shown)`, table(
+        ['Feature', 'Modality', 'Grade', 'Coverage', 'Why this grade',
+         'Evidence'],
+        [rows].filter(Boolean),
+        { empty: 'No feature matches this filter.' }), { flush: true })}
+      ${card('What the grades mean', kv(
+        c.grades.map((g) => [g, c.grade_meanings[g]])))}`;
+  },
+};
+
+const GRADE_BLURB = {
+  Unavailable: 'never usable; the gap is shown',
+  Observed: 'measured; may describe',
+  Hypothesised: 'may only become an experiment',
+  Associated: 'survived correction and the ad covariate',
+  Validated: 'survived a pre-registered experiment',
+};
+
+function gradeChip(grade) {
+  const cls = {
+    Unavailable: 'danger', Observed: '', Hypothesised: 'warn',
+    Associated: 'ok', Validated: 'ok',
+  }[grade] ?? '';
+  return `<span class="chip ${cls}">${esc(grade)}</span>`;
+}

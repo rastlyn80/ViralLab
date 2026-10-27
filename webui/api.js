@@ -141,6 +141,8 @@ export const api = {
     request(`/api/hooks/videos/${videoId}/features/${featureId}/correct`,
       { method: 'POST', body }),
   hookRetention: () => request('/api/hooks/retention'),
+  featureCatalogue: (params) =>
+    request(`/api/features/catalogue${qs(params)}`),
 
   // -- AI providers, routing, visual analysis (Phase 6B) ------------------
   // `aiPlan` is a GET and must stay free: it shows what a request would

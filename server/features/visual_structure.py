@@ -38,7 +38,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from server.db.models import VideoFeature
@@ -586,3 +586,130 @@ def _mediate(a_name: str, a_vals: dict[int, float],
             f"they correlate {m.rho_ab:+.3f} with each other). Shrinkage "
             f"{shrink_a:+.3f} and {shrink_b:+.3f}. Not separable here.")
     return m
+
+
+# ---------------------------------------------------------------------------
+# M4: persisting the evidence a grade is read from
+# ---------------------------------------------------------------------------
+
+#: What the `feature_evidence` rows from this analysis are labelled
+#: with, so a finding traces back to the run that produced it.
+ANALYSIS = "part5_visual_structure"
+
+#: The controls `partial_ad_rho` holds constant. Recorded with every
+#: row because the identity of a finding includes its controls: the
+#: same correlation with and without the ad covariate is two different
+#: results, which is the whole of M1 (ADR 0008).
+AD_CONTROLS = ("duration_s", "age_days", "ad_exposure")
+BASE_CONTROLS = ("duration_s", "age_days")
+
+
+#: Arm B's outcome. Mirrors `VisualStructureReport.outcome`, named here
+#: so the evidence rows do not depend on a default argument elsewhere.
+OUTCOME = "reels_skip_rate"
+
+
+def _evidence_note(arm: str, has_ad: bool, existing: str | None) -> str | None:
+    """Why a row does or does not carry the ad covariate.
+
+    The distinction matters and the first version got it wrong. Arm A's
+    "outcome" is another extracted feature, not a platform metric, so
+    paid exposure cannot contaminate it and the covariate is not
+    *applicable* - which is a different statement from Arm B's case,
+    where the covariate applies and simply did not cover enough of the
+    sample. Reporting the second message for the first would invite a
+    reader to go and fix something that is not broken.
+    """
+    if has_ad:
+        return existing or None
+    if arm == "proxy":
+        base = ("both sides of this association are extracted features, "
+                "so paid exposure cannot contaminate it and the ad "
+                "covariate does not apply. It is still not an "
+                "Associated grade: nothing here is an outcome.")
+    else:
+        base = ("the ad-exposure covariate did not cover enough of this "
+                "sample, so this row controls for duration and age only "
+                "and cannot support an Associated grade")
+    return base + (f"; {existing}" if existing else "")
+
+
+def persist_evidence(session: Session, rep: "VisualStructureReport", *,
+                     population: str, outcome: str | None = None) -> int:
+    """Write this report's associations into `feature_evidence`.
+
+    Before this existed the numbers lived in a terminal and reached
+    `docs/benchmarks/6c-visual-density.md` by being pasted, so a grade
+    derived from them was a grade derived from prose. The catalogue
+    reads the table, not the document.
+
+    **An association is recorded with the ad covariate when it has
+    one.** Where `partial_ad_rho` is None the covariate did not cover
+    enough of the sample, and the row is written with the base controls
+    and that stated in its note — `catalogue.grade_for` then refuses it
+    `Associated`, which is the correct outcome rather than a missing
+    row that looks like nothing was tried.
+
+    Upserts on the uniqueness constraint, so a re-run replaces its own
+    findings instead of accumulating a second opinion.
+    """
+    from sqlalchemy.dialects.postgresql import insert
+
+    from server.db.models import FeatureEvidence
+
+    # The two arms test DIFFERENT outcomes and must be stored as such.
+    # Arm A asks whether a structural feature tracks the text proxy;
+    # Arm B asks whether it tracks retention. Filing both under one
+    # outcome name collapses them onto the same uniqueness key, which
+    # is how the first version of this function tried to write the same
+    # finding twice in one statement and was refused by the database -
+    # a better outcome than silently keeping whichever landed last.
+    arm_outcome = {"proxy": rep.proxy, "outcome": outcome or OUTCOME}
+    rows = []
+    for arm, assocs in (("proxy", rep.proxy_associations),
+                        ("outcome", rep.outcome_associations)):
+        for a in assocs:
+            has_ad = a.partial_ad_rho is not None
+            rows.append({
+                "feature": a.feature,
+                "method_version": a.method_version or "",
+                "outcome": arm_outcome[arm],
+                "population": population,
+                "analysis": ANALYSIS,
+                "n": a.partial_ad_n if has_ad else a.n,
+                "rho": a.rho,
+                "p_value": a.p,
+                "q_value": a.q,
+                "ci_low": a.ci[0] if a.ci else None,
+                "ci_high": a.ci[1] if a.ci else None,
+                "partial_rho": (a.partial_ad_rho if has_ad
+                                else a.partial_rho),
+                "controls": list(AD_CONTROLS if has_ad else BASE_CONTROLS),
+                "unavailable_n": a.unavailable,
+                "direction": (None if a.rho is None else
+                              "positive" if a.rho > 0 else
+                              "negative" if a.rho < 0 else "none"),
+                "note": _evidence_note(arm, has_ad, a.note),
+            })
+    if not rows:
+        return 0
+
+    stmt = insert(FeatureEvidence).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["feature", "method_version", "outcome",
+                        "population", "analysis"],
+        set_={**{c: stmt.excluded[c] for c in (
+            "n", "rho", "p_value", "q_value", "ci_low", "ci_high",
+            "partial_rho", "controls", "unavailable_n", "direction",
+            "note")},
+              # Set explicitly: `computed_at` is not in the inserted
+              # values, so `excluded.computed_at` would carry the
+              # column default rather than the time of this re-run,
+              # and a stale timestamp on fresh evidence is the kind of
+              # thing nobody notices until it matters.
+              "computed_at": func.now()})
+    session.execute(stmt)
+    session.flush()
+    logger.info("persisted %d feature_evidence row(s) for %s",
+                len(rows), population)
+    return len(rows)
