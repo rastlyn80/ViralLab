@@ -102,13 +102,22 @@ def _parse_tokens(raw: str) -> dict[str, str]:
 
 
 async def _reaper_loop(interval: int) -> None:
-    """Requeue batches whose lease expired without a heartbeat.
+    """Requeue dead leases, and enforce the competitor-media deadline.
 
     Without this running, a crashed worker leaves its batch 'leased' forever
     and the work silently stops — the reaper function alone is not a recovery
     guarantee unless something calls it. Runs in-process (plan 4.1: no second
     service); Phase 2 may move it onto APScheduler alongside the collection
     schedules.
+
+    The transient-media sweep rides the same loop for exactly that reason.
+    `server/collectors/transient.py` enforces a six-hour ceiling on
+    competitor bytes, and it was written and tested before anything called
+    it — a retention policy nothing executes is a policy nobody has. It is
+    deliberately in its own try block: a failure to sweep must not stop
+    leases being reaped, and a failure to reap must not stop the sweep,
+    because the two protect different things and one is a legal
+    commitment.
     """
     while True:
         await asyncio.sleep(interval)
@@ -123,6 +132,18 @@ async def _reaper_loop(interval: int) -> None:
             raise
         except Exception:                         # never kill the loop
             logger.exception("reaper pass failed; continuing")
+
+        try:
+            from server.collectors import transient
+            with deps.session_factory()() as session:
+                swept = transient.sweep(session, media_root=MEDIA_ROOT)
+                session.commit()
+            if swept["expired"] or swept["orphans_deleted"]:
+                logger.warning("transient media swept: %s", swept)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("transient sweep failed; continuing")
 
 
 @asynccontextmanager

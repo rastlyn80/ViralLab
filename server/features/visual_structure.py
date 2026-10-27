@@ -69,30 +69,73 @@ STRUCTURE_FEATURES: tuple[tuple[str, str], ...] = (
     ("background_subject_edge_ratio", hookbg.METHOD_VERSION),
 )
 
-#: The one model-derived field the benchmark cleared for use: 1.000
-#: accuracy, specificity 1.000, lift +0.083 over the majority baseline.
+#: Model-derived fields cleared for analytical use.
+#:
+#: **M3, 2026-10-27.** Re-measured on the fresh held-out set - 80
+#: publications (40 own, 40 competitor), labelled from frame strips
+#: before any inference, none of them in the 24-video tuning set that
+#: had already been used to disqualify two approaches. M3's rule, written
+#: down before scoring: specificity >= 0.80 and lift >= +0.10 on the
+#: held-out set. Both figures below are from the prompt this pipeline
+#: actually runs (`vision_task` variant `original`), pooled over all 80.
+#:
+#:   vision_text_overlay_present  specificity 0.917  lift +0.138
+#:   vision_face_visible          specificity 0.808  lift +0.175
+#:
+#: `vision_face_visible` is NEW here and carries a caveat that belongs
+#: next to it rather than in a document: it clears the bar pooled, but
+#: per half it scores 0.857 on the competitor publications and **0.750
+#: on the owner's own**, which is below the bar. The own-account half is
+#: the population any recommendation is actually about, so this field is
+#: the weakest thing in this tuple. Treat a face-related finding as
+#: provisional until the owner's own labels confirm it.
 VISION_FEATURES: tuple[str, ...] = (
     "vision_text_overlay_present",
+    "vision_face_visible",
 )
 
 #: Withheld, with the measured reason. These are stored in the database and
 #: visible in the interface; what they may not do is enter an analysis.
+#:
+#: Figures are from the held-out set (n=80) under the production prompt,
+#: except where a line says otherwise. The old 24-video tuning figures
+#: have been replaced rather than stacked beside the new ones - they
+#: measured a set that can no longer measure generalisation.
 WITHHELD_VISION: dict[str, str] = {
     "vision_piano_or_keyboard_visible":
-        "specificity 0.000 (0 of 3 correct denials) - the model reported a "
-        "piano in all three openings that contained none, including a man "
-        "walking through a garden",
+        "specificity 0.100 (1 of 10 correct denials), lift +0.012. The "
+        "model answers yes to essentially every opening, including a man "
+        "walking through a garden, an orchestral score with no instrument "
+        "in shot, and a piano filmed from above its open soundboard. A "
+        "prompt naming those cases moved specificity only to 0.200, and "
+        "the one case it fixed was the garden - the example the prompt "
+        "itself contained",
     "vision_hands_visible":
-        "specificity 0.000 (0 of 3 correct denials)",
+        "specificity 0.100 (1 of 10), lift +0.012 - the same base-rate "
+        "answering as the keyboard field",
     "vision_sheet_music_visible":
-        "specificity 0.235 (4 of 17) - reported sheet music in 13 openings "
-        "that had none",
+        "specificity 0.193 (11 of 57), lift -0.288 under the production "
+        "prompt: reports notation on blank stands, art books and "
+        "numbered keys. A negative-example prompt raises this to "
+        "specificity 0.807 and lift +0.125 (McNemar p=0.0004), which "
+        "clears the bar pooled - but only on the own-account half "
+        "(0.929) and not the competitor half (0.690), and adopting that "
+        "prompt costs the two fields currently promoted. Withheld, with "
+        "a known route forward rather than a dead end",
     "vision_shot_distance":
-        "accuracy 0.304 against a 0.500 majority baseline, lift -0.196; "
-        "answered 'medium' 16 times of 23 and missed all six wide shots",
+        "accuracy 0.418 against a 0.519 commonest-class baseline, lift "
+        "-0.101; still answers 'medium' for most openings",
+    "vision_setting":
+        "accuracy 0.362 against a 0.681 baseline, lift -0.319 - worse "
+        "than naming the commonest setting every time. It also declined "
+        "11 of 69, so the accuracy is over the 58 it was willing to "
+        "answer",
     "vision_performer_visible":
-        "the reference label is true for all 24 videos, so the field "
-        "carries no variance and nothing can be learned from it",
+        "specificity 1.000 but lift -0.012 pooled, and the own-account "
+        "half has no negatives at all, so the field cannot be measured "
+        "there. The only five negatives in 80 are competitor openings "
+        "with no person in shot - four piano-roll animations and one "
+        "dark abstract - and the model found all five",
 }
 
 #: Controls. Duration because a longer video has more opportunity to be

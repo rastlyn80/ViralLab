@@ -456,7 +456,22 @@ def _store_discovery(session: Session, job: DiscoveryJob,
                  "unavailable_fields": pub.unavailable_fields}))
 
     creators_new = counts["creators_new"]
-    job.status = "ok"
+
+    # A paid run that returned nothing is not a success. MEASURED
+    # 2026-10-26: `apidojo/tiktok-scraper` began answering every query with
+    # `{"noResults": true}` sentinels while Apify kept billing $0.0030 a
+    # run, and because the job landed as `ok` with zero rows it looked
+    # exactly like a search for something that genuinely does not exist.
+    # Three runs bought nothing before anyone noticed.
+    #
+    # `empty` separates "we paid and got nothing back" from both `ok` and
+    # `failed`: the provider answered, the answer was nothing, and money
+    # changed hands. A fixture run is never `empty` — it costs nothing, so
+    # an empty fixture is just an empty fixture.
+    billed = float(result.actual_usd or 0.0)
+    returned_nothing = not result.publications and not by_handle
+    job.status = ("empty" if returned_nothing and billed > 0
+                            and not job.is_fixture else "ok")
     job.finished_at = stamp
     job.publications_seen = len(result.publications)
     job.publications_new = pubs_new
@@ -473,13 +488,25 @@ def _store_discovery(session: Session, job: DiscoveryJob,
     job.item_errors = result.item_errors or []
     session.flush()
 
-    logger.info("discovery %s %s -> %d publication(s), %d creator(s), "
-                "%d new creator(s), cost %s", job.kind, job.query_value,
-                len(result.publications), len(by_handle), creators_new,
-                "fixture" if job.is_fixture else result.actual_usd)
+    message = None
+    if job.status == "empty":
+        message = (
+            f"The provider was paid ${billed:.4f} and returned no usable "
+            f"rows for {job.kind} {job.query_value!r}. That is either a "
+            f"query matching nothing or a broken actor; check "
+            f"item_errors for the 'provider_found_nothing' reason and "
+            f"compare against another query before spending again.")
+        logger.warning("discovery %s %s returned NOTHING and was billed "
+                       "$%.4f", job.kind, job.query_value, billed)
+    else:
+        logger.info("discovery %s %s -> %d publication(s), %d creator(s), "
+                    "%d new creator(s), cost %s", job.kind, job.query_value,
+                    len(result.publications), len(by_handle), creators_new,
+                    "fixture" if job.is_fixture else result.actual_usd)
 
     return DiscoveryOutcome(
-        job_id=job.id, status="ok", kind=job.kind, platform=job.platform,
+        job_id=job.id, status=job.status, kind=job.kind,
+        platform=job.platform, message=message,
         value=job.query_value, niche=niche, is_fixture=bool(job.is_fixture),
         publications_seen=len(result.publications), publications_new=pubs_new,
         creators_seen=len(by_handle), creators_new=creators_new,

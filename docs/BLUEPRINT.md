@@ -282,7 +282,7 @@ TikTok retention figure exists in the database from an import.
 |---|---|
 | every publication has a value or an explicit `unknown` | **met** — 385 of 385; 319 resolved, 66 refused with a stated reason (54 have zero total views, 12 have an unattributable gap) |
 | Part 5 re-reported with the covariate | **met** — `docs/benchmarks/6c-visual-density.md` §A.1–A.8 |
-| ≥ 1 TikTok retention figure from an import | **NOT met** — blocked on the owner |
+| ≥ 1 TikTok retention figure from an import | **NOT met** — and now known to be blocked by TikTok, not by the owner |
 
 What was built: ADR 0008 (verification), migration `c81f3a7e04d2`
 (`metrics_snapshots.total_views/facebook_views/crossposted_views`,
@@ -295,10 +295,16 @@ import_analytics.py` (the manual import), `server/collectors/meta_ads.py`
 
 What the owner has to do, and nothing else will substitute:
 
-1. **Export TikTok Studio content analytics** and run the importer. The
-   third criterion cannot be met any other way — TikTok's API has no
-   retention metric at all, and fabricating one is not an option.
-   Instructions: `docs/setup/analytics-export.md` §1.
+1. ~~Export TikTok Studio content analytics.~~ **Done 2026-10-26, and it
+   does not contain retention.** `[PRIMARY]` The Content-tab download
+   carries only `Time, Video title, Video link, Post time, Total likes,
+   Total comments, Total shares, Total views` — the same set the Display
+   API already returns. 15 rows imported, all matched to known
+   publications, and they agree with the API to within 0.1%, which at
+   least confirms the API figures are sound. Average watch time and
+   "watched full video" live on TikTok Studio's **per-video** screen.
+   Options are in `docs/setup/analytics-export.md` §1a; the only one that
+   yields TikTok retention today is transcribing a sample by hand.
 2. **Grant `ads_read`** if the real paid split is wanted rather than the
    upper bound. §3 of the same document.
 
@@ -333,6 +339,82 @@ existed on paper since Phase 4.
 end to end; zero competitor files older than six hours on disk at any
 audited moment; the frames endpoint refuses a competitor media id.
 
+#### Status, 2026-10-27 — COMPLETE as specified
+
+| criterion | state |
+|---|---|
+| ≥ 20 publications across ≥ 10 creators analysed end to end | **met** — **23 publications across 20 creators**, **1,127 feature rows** stored, 0 extraction failures |
+| zero competitor files older than six hours | **met, demonstrated** — one file's deadline was forced into the past and the running service deleted it unaided within 15 s; every audit since reports `guarantee_holds: true` with zero files remaining |
+| frames endpoint refuses a competitor media id | **met** — it already did; `is_own_account` returns 403 |
+
+The full audit ledger, which is the real evidence: **31** files released
+`features_persisted` (112.8 MB), **17** `crash_recovery` (75.0 MB — the
+honest record of the batch bug below), **1** `expired` (5.8 MB). Zero
+files remain on disk and every byte is accounted for by a row.
+
+**Cost: $0.1795** of the $3.00 `competitor_media` ceiling, at roughly
+$0.003–0.004 a file. Discovery has spent $0.15 of its $2.00.
+
+Built: `transient_media` (migration `e2b57c9a013f`),
+`server/collectors/transient.py` (quarantine, TTL, four-way release,
+two-directional sweep, `audit()`), `server/collectors/competitor_media.py`
+(provider acquisition under the `competitor_media` budget category), and
+the sweep wired into the existing reaper loop — it runs every 60 s.
+
+**Costs, measured `[PRIMARY, 2026-10-27]`.** One file: **$0.003**, the
+same as a metadata run, so the download add-on adds no separate per-file
+charge at this volume. Twenty publications projects to **$0.06** against
+the $3.00 `competitor_media` ceiling. Money is not the constraint here.
+
+**Provider facts verified against the actor's own input schema** (`GET
+/v2/actor-builds/{id}`, `clockworks/free-tiktok-scraper`): `postURLs`
+fetches named publications; `shouldDownloadVideos` is marked `($)` by the
+provider, confirming the blueprint's `[SECONDARY]` add-on claim; the
+file arrives in Apify's key-value store and needs the API token to
+retrieve, which an unauthenticated fetch reports as a bare 403.
+
+**A limit on what "transient" can honestly mean.** The same schema says
+unnamed key-value stores are **deleted after 7 days**. Our six-hour
+guarantee covers our disk; the provider keeps its own copy for up to a
+week and nothing we do shortens that. The claim is therefore "ViralLab
+does not retain competitor media", not "no copy exists" — recorded in
+`PERMISSION_BASIS` on every row, because the second sentence is what a
+legal review under §2.3 actually needs.
+
+**Three bugs that only appeared at realistic scale**, all now under
+regression test:
+
+1. **The sweep trusted deleted rows.** Quarantine paths derive from the
+   video id, so a re-acquired file lands where a *deleted* row recorded
+   it; the "known files" set included deleted rows, so the bytes were
+   skipped and sat on disk under an audit record saying they had been
+   removed. A false audit is worse than none.
+2. **`path` was globally unique**, so a publication could never be
+   re-acquired while its audit history existed. Now a partial unique
+   index over live rows, which is the invariant that actually matters.
+3. **A 25-file batch lost 17 paid downloads to its own reaper.**
+   Registrations committed only after the loop, so for the batch's
+   duration every file was invisible to the reaper's session and was
+   deleted as an orphan. Fixed with per-file commit *and* a ten-minute
+   `ORPHAN_GRACE`: the bytes necessarily reach disk before the row is
+   durable, so narrowing that window is not the same as closing it.
+
+**What is deliberately not done.** No vision — M3 has not established
+that any model can be trusted, and competitor frames reaching a cloud
+provider needs both a `cloud_vision` cap (currently $0.00) and a terms
+check that is recorded rather than assumed. No speech — Phase 0B
+measured Whisper hallucinating on music-only audio. Competitor
+publications therefore carry exactly what own publications get from the
+CPU path, under the same method versions, so the two are directly
+comparable.
+
+**And the criterion itself is too weak.** 23 publications across 20
+creators satisfies it while `creators_with_20_or_more` is **0** — the
+corpus is still one publication per creator, so no creator baseline can
+be computed and no relative performance derived. `competitor.coverage()`
+reports both numbers for that reason. M5 and M6 need depth, not breadth,
+and acquiring it costs about $0.003 a file.
+
 ### M3 — Vision that can be trusted *(old brief Stage 4.2)*
 
 The Gemma 3 4B benchmark returned a lift of **−0.020** over a constant
@@ -360,6 +442,90 @@ principle, which widens the options.
 
 *Acceptance:* a per-field table on the held-out set for every candidate;
 promoted fields listed; everything else still withheld.
+
+#### Status, 2026-10-27 — COMPLETE as specified
+
+| criterion | state |
+|---|---|
+| fresh held-out set, 40 own + 40 competitor, labelled from strips before inference | **met** (the competitor 40 span 33 creators, not 40 - the corpus holds 48 publications across 38) — `holdout_labels_own.json`, `holdout_labels_competitor.json`; 80 publications, none among the 24, two halves disjoint, all checked by test |
+| per-field table for every candidate | **met** — `docs/benchmarks/6c-vision-benchmark.md`, M3 addendum. Two candidates measured, one measured and failed, two blocked with the reason measured |
+| promoted fields listed, everything else withheld | **met** — `visual_structure.VISION_FEATURES` gained `vision_face_visible`; six fields withheld, each with its figure |
+| promotion rule applied as pre-registered | **met** — specificity ≥ 0.80 and lift ≥ +0.10 on the pooled 80 |
+
+**What was promoted.** Measured under the prompt the pipeline actually
+runs, pooled over all 80:
+
+| field | specificity | lift | status |
+|---|---|---|---|
+| `vision_text_overlay_present` | 0.917 | +0.138 | confirmed on fresh data; was already promoted |
+| `vision_face_visible` | 0.808 | +0.175 | **newly promoted**, with a caveat |
+| `vision_sheet_music_visible` | 0.193 | −0.288 | withheld; see the prompt result below |
+| `vision_piano_or_keyboard_visible` | 0.100 | +0.012 | withheld |
+| `vision_hands_visible` | 0.100 | +0.012 | withheld |
+| `vision_performer_visible` | 1.000 | −0.012 | withheld — only 5 negatives in 80, none on the own half |
+| `vision_shot_distance` | — | −0.101 | withheld |
+| `vision_setting` | — | −0.319 | withheld |
+
+`vision_face_visible` is the weakest thing now in use and the caveat
+travels with it in the registry: pooled it clears, but per half it is
+0.857 on competitor publications and **0.750 on the owner's own**,
+below the bar. The own half is the population recommendations are about.
+
+**The finding worth carrying forward.** A negative-example prompt —
+naming the base-rate shortcut, giving a visibility criterion per field,
+supplying the measured false positives — takes `sheet_music_visible`
+from specificity **0.193 to 0.807** (18 fixed against 2 broken on the
+own half, McNemar p = 0.0004; 17 against 0 on the competitor half). It
+is still not adopted, because it does not sharpen perception, it moves
+the model's whole operating point towards "no": `text_overlay_present`
+recall falls to 0.912, `face_visible` specificity to 0.750,
+`performer_visible` specificity to 0.400. A prompt is chosen per run,
+not per field, so adopting it would gain one field and lose two —
+and choosing the better arm per field after seeing the table would be
+selection on the test set. Both prompts stay in `vision_task` behind
+`VIRALLAB_VISION_PROMPT`; the default remains `original`.
+
+**The brief's central assumption was wrong.** M3 proposed that a piano
+keyboard and sheet music were the *easy* fields — "both likely
+detectable from pixels with far higher specificity than a 4B language
+model. Measured, not assumed." Measured: sheet music is fixable by
+prompt alone, and the keyboard is the hardest field in the task. It has
+now been attacked three ways — the VLM, the negative-example prompt,
+and row-wise autocorrelation — and sits at specificity 0.200 at best.
+The model answers from "this is a piano video", not from the pixels,
+and the one negative the prompt fixed was the one example the prompt
+itself contained.
+
+**Candidates not run, with the reason measured rather than assumed.**
+Qwen2.5-VL 7B Q4 needs 7634 MiB (Phase 0B, this card); the desktop
+floor measured with `llama-server` stopped is 1126 MiB, leaving
+**6864 MiB free** — 770 MiB short, so it cannot load. A reduced-context
+or Q3 build is untested. Cloud vision is capped at $0.00 and the owner
+has authorised Apify only; competitor frames could not go to a cloud
+provider regardless without first checking that provider's terms and
+the source's.
+
+**Cost: $0.1616** for the competitor half (40 files at $0.00404,
+measured), bringing `competitor_media` to $0.3411 of its $3.00 ceiling
+and total spend to **$0.4911 of $5.00**. All 40 files were deleted
+after labelling; `guarantee_holds: true`, zero files on disk.
+
+**Two defects found and fixed along the way.** `start_server()` treated
+an open socket as a loaded model, so a batch sent to a still-loading
+`llama-server` lost its **first 17 of 40** publications to 503s that
+were recorded as ordinary per-video failures — indistinguishable, in
+the results file, from the model genuinely failing. It now waits on
+`/health`, in both the launch branch and the reuse branch, with
+regression tests. Separately, the scorer's first draft required a field
+to clear the bar on *both halves*; that is a better rule, but inventing
+it after seeing which fields it excluded would be post-hoc tightening,
+so the pre-registered pooled rule decides and **the both-halves rule
+should be written into M4 before its first measurement.**
+
+**Open, and it is the owner's call.** The 80 labels were written by
+Claude. Each fixture flags its genuinely ambiguous cases — 10 own, 11
+competitor — and those are where a second opinion would move a number.
+`vision_face_visible` is in analytical use on that basis.
 
 ### M4 — The feature catalogue
 

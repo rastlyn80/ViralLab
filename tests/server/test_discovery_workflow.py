@@ -267,6 +267,67 @@ def test_expansion_stops_at_the_creator_ceiling(session, adapter):
     assert plan.within_budget is True
 
 
+def test_a_billed_run_that_returns_nothing_is_empty_not_ok(session,
+                                                           monkeypatch):
+    """Paying for nothing must not look like a successful search.
+
+    MEASURED 2026-10-26: `apidojo/tiktok-scraper` started answering every
+    query with ten `{"noResults": true}` sentinel rows while Apify kept
+    billing $0.0030 a run. The job landed as `ok` with zero publications,
+    which is exactly what a search for a genuinely nonexistent term looks
+    like, so three runs bought nothing before anyone noticed.
+    """
+    from server.discovery.base import DiscoveryResult
+
+    class PaidAndEmpty(FixtureDiscoveryAdapter):
+        name = "apify"
+        is_fixture = False
+
+        def estimate_usd(self, query):
+            return 0.05
+
+        def search(self, query):
+            return DiscoveryResult(
+                provider=self.name, query=query, observed_at=NOW,
+                creators=[], publications=[], actual_usd=0.003,
+                capabilities=self.capabilities(query.platform),
+                item_errors=[{"reason": "provider_found_nothing",
+                              "detail": "sentinel"}])
+
+    monkeypatch.setattr(
+        cfg, "settings",
+        lambda: cfg.Settings(raw={}, spending=cfg.Spending(
+            monthly_cap_usd=5.0, providers_authorised=("apify",))))
+
+    out = run_keyword(session, PaidAndEmpty())
+    assert out.status == "empty", (
+        f"a run billed $0.003 for zero rows reported {out.status!r}")
+    assert out.actual_usd == pytest.approx(0.003)
+    assert out.message and "returned no usable rows" in out.message
+    job = session.get(DiscoveryJob, out.job_id)
+    assert job.status == "empty"
+
+
+def test_a_free_fixture_returning_nothing_is_still_ok(session, adapter,
+                                                      monkeypatch):
+    """`empty` is about having paid, not about being empty.
+
+    A fixture costs nothing, so an empty fixture is just an empty fixture
+    and must not be flagged as money wasted.
+    """
+    from server.discovery.base import DiscoveryResult
+
+    class FreeAndEmpty(FixtureDiscoveryAdapter):
+        def search(self, query):
+            return DiscoveryResult(
+                provider=self.name, query=query, observed_at=NOW,
+                creators=[], publications=[], actual_usd=0.0,
+                capabilities=self.capabilities(query.platform))
+
+    out = run_keyword(session, FreeAndEmpty())
+    assert out.status == "ok"
+
+
 def test_expansion_stops_at_a_spend_ceiling(session, adapter, monkeypatch):
     class Paid(FixtureDiscoveryAdapter):
         name = "apify"

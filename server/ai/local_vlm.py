@@ -106,7 +106,18 @@ def start_server(*, wait_s: float = 120.0, gpu_layers: int = 99
     if not ok:
         return False, why
     if _port_open(HOST, PORT):
-        return True, None
+        # Listening is not the same as ready, and this branch is the one
+        # that bit: a server still loading its weights holds the port, so
+        # returning here sent a whole batch at a model that answered 503.
+        if _model_loaded():
+            return True, None
+        deadline = time.monotonic() + wait_s
+        while time.monotonic() < deadline:
+            if _model_loaded():
+                return True, None
+            time.sleep(1.0)
+        return False, (f"llama-server is listening on {HOST}:{PORT} but "
+                       f"still loading after {wait_s:.0f}s")
 
     log = Path(os.environ.get("TEMP", "/tmp")) / "virallab-llama-server.log"
     cmd = [
@@ -122,12 +133,38 @@ def start_server(*, wait_s: float = 120.0, gpu_layers: int = 99
                                                "CREATE_NO_WINDOW", 0))
     deadline = time.monotonic() + wait_s
     while time.monotonic() < deadline:
-        if _port_open(HOST, PORT):
-            time.sleep(1.0)
+        if _port_open(HOST, PORT) and _model_loaded():
             return True, None
         time.sleep(1.0)
     return False, (f"llama-server did not start within {wait_s:.0f}s; see "
                    f"{log}")
+
+
+def _model_loaded(timeout: float = 2.0) -> bool:
+    """Is the server ready to infer, not merely listening?
+
+    MEASURED, 2026-10-27: it accepts connections several seconds before
+    the weights finish loading, and answers requests in that window with
+    `503 {"code":503,"type":"unavailable_error","message":"Loading
+    model"}`. A readiness check that only opened the socket let a
+    benchmark run lose its first **17 of 40** publications to that 503 -
+    silently, because each one was recorded as an ordinary per-video
+    failure rather than as "the server was not up yet".
+
+    `/health` is the endpoint that distinguishes the two states, so the
+    check asks it rather than inferring readiness from the socket.
+    """
+    import urllib.error
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(f"{BASE_URL}/health",
+                                    timeout=timeout) as r:
+            return r.status == 200
+    except urllib.error.HTTPError as exc:
+        return exc.code == 200
+    except Exception:                      # noqa: BLE001 - not ready yet
+        return False
 
 
 def vram_used_mib() -> int | None:

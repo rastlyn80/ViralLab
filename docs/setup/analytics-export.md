@@ -6,8 +6,10 @@ few minutes.
 1. **TikTok retention.** TikTok's Display API returns views, likes,
    comments and shares and nothing about watch time (ADR 0001), and the
    Research API is permanently out of scope. Average watch time and
-   "watched full video" exist only inside TikTok Studio. Without an export,
-   half the project's retention science has no TikTok side at all.
+   "watched full video" exist only inside TikTok Studio — and, as of
+   2026-10-26, only on its **per-video** screen, not in the bulk Content
+   download (§1a). Without them, half the project's retention science has
+   no TikTok side at all.
 2. **Instagram paid delivery.** Readable through the Marketing API, but
    only with an `ads_read` scope the current credential does not have
    (ADR 0008 §4). Granting it is the better fix and is described in §3
@@ -20,6 +22,23 @@ mistaken for a measured one.
 ---
 
 ## 1. TikTok Studio — the important one
+
+> **Measured 2026-10-26 `[PRIMARY]`.** The owner supplied a real export
+> from this path. It contains **no retention metrics at all**. Its full
+> header is:
+>
+> `Time, Video title, Video link, Post time, Total likes, Total comments,
+> Total shares, Total views`
+>
+> That is the same metric set TikTok's Display API already returns, so a
+> Content-tab export **does not advance the retention science**. Verified
+> further: the exported figures agree with the API to within **0.1%**
+> across all 15 rows (largest divergence 37 views in 25,131), which is a
+> useful confirmation that the API numbers are trustworthy — and the
+> reason this export adds nothing beyond that.
+>
+> **Average watch time and "watched full video" are on the per-video
+> analytics screen**, not in the Content download. See §1a.
 
 **Where:** [tiktok.com/tiktokstudio](https://www.tiktok.com/tiktokstudio) →
 **Analytics** → **Content** tab → set the date range → **Download data**.
@@ -61,6 +80,40 @@ the wrong metric, and nothing downstream could detect that.
 **One thing to avoid:** do not rename columns or delete rows to "clean it
 up". A row for a post this system has not collected is still useful — it
 tells us our coverage is incomplete — and it is kept rather than dropped.
+
+---
+
+## 1a. Where the retention numbers actually are
+
+The Content download does not carry them. On the evidence of the real
+export, the only place they appear is the **per-video** analytics screen:
+TikTok Studio → **Analytics** → **Content** → click an individual video.
+That view shows *Average watch time*, *Watched full video*, *Total play
+time* and *New followers* for that one publication.
+
+So there are three options, and the choice is the owner's:
+
+1. **Check for a per-video export button** on that screen. If one exists,
+   its CSV is what this importer wants, and the parser already recognises
+   all four column names.
+2. **Transcribe a sample by hand.** Even 20–30 publications spanning
+   strong and weak performers would be enough to test whether the
+   Instagram density findings reproduce on TikTok. Tedious, but bounded,
+   and it is the only route that exists today. Send them in any format —
+   two columns, video link and average watch time, is enough.
+3. **Accept that TikTok retention is unavailable** and treat TikTok as an
+   engagement-rate-only platform. This is a legitimate choice: TikTok
+   still contributes saves/shares/comments per view, and because it is
+   unboosted it is the natural control for the Instagram ad confound.
+
+Option 3 costs nothing and still carries real scientific value. Option 2
+is the only one that makes TikTok retention possible at all.
+
+**What this means for M1.** Its third acceptance criterion — "at least one
+TikTok retention figure exists in the database from an import" — cannot be
+met by the Content export, and is not met. The import path itself is
+built, tested and proven end to end on real data (15 rows, all matched to
+known publications); what is missing is a source that carries the numbers.
 
 ---
 

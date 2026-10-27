@@ -622,3 +622,131 @@ def test_routing_the_visual_task_prefers_an_installed_local_model(monkeypatch):
     assert d.providers
     chosen = registry.get(d.providers[0])
     assert chosen.capabilities().hosting is Hosting.LOCAL
+
+
+# ---------------------------------------------------------------------------
+# M3: the prompt variants
+# ---------------------------------------------------------------------------
+
+def test_every_prompt_variant_carries_the_same_refusals(monkeypatch):
+    """The refusals are task policy, not prompt decoration.
+
+    `refusals()` is shown in the interface as what this task will not
+    answer. If a variant quietly drops one, the interface keeps making a
+    promise the model is no longer being asked to keep - so the invariant
+    is checked across all variants rather than only the default.
+    """
+    for variant in vision_task.PROMPT_VARIANTS:
+        monkeypatch.setenv("VIRALLAB_VISION_PROMPT", variant)
+        prompt = vision_task.build_prompt().lower()
+        assert "do not identify the musical work" in prompt, variant
+        assert "do not judge performance technique" in prompt, variant
+        assert "do not identify any person" in prompt, variant
+        assert "unknown" in prompt, variant
+
+
+def test_each_variant_has_its_own_method_version(monkeypatch):
+    """Two prompts must never write under one version.
+
+    The whole value of the M3 comparison is that control and treatment
+    rows can be told apart afterwards. Sharing a version would merge them
+    irreversibly.
+    """
+    seen = set()
+    for variant in vision_task.PROMPT_VARIANTS:
+        monkeypatch.setenv("VIRALLAB_VISION_PROMPT", variant)
+        mv = vision_task.method_version()
+        assert mv not in seen, f"{variant} reuses {mv}"
+        seen.add(mv)
+
+
+def test_an_unknown_variant_is_refused_rather_than_defaulted(monkeypatch):
+    """A typo in the environment must not file treatment rows as control.
+
+    Falling back to the default here would be the silent kind of wrong:
+    the run would succeed, the rows would look fine, and the arm they
+    belong to would be unrecoverable.
+    """
+    monkeypatch.setenv("VIRALLAB_VISION_PROMPT", "negative-example")
+    with pytest.raises(ValueError, match="not one of"):
+        vision_task.build_prompt()
+
+
+def test_the_pipeline_default_is_the_unproven_prompts_control(monkeypatch):
+    """Until the negative-example arm clears M3's bar on the held-out set,
+    the pipeline keeps asking with the prompt that was actually measured."""
+    monkeypatch.delenv("VIRALLAB_VISION_PROMPT", raising=False)
+    assert vision_task.active_variant() == "original"
+    assert vision_task.build_prompt() == vision_task.PROMPT.format(
+        hook=vision_task.HOOK_SECONDS)
+
+
+def test_the_negative_example_prompt_states_the_failure_it_targets(
+        monkeypatch):
+    """It exists to attack a specificity of 0.000, and says so.
+
+    A prompt that merely repeats "be accurate" would be untestable and
+    almost certainly useless. The thing being measured is whether naming
+    the base-rate shortcut and the concrete false positives changes the
+    answer, so those have to actually be in the text.
+    """
+    monkeypatch.setenv("VIRALLAB_VISION_PROMPT", "negative_example")
+    prompt = vision_task.build_prompt().lower()
+    assert "base rate" in prompt
+    assert "garden" in prompt          # the measured false positive
+    assert "piano keys" in prompt      # a visibility criterion, not a vibe
+    assert "white paper is not notation" in prompt
+
+
+# ---------------------------------------------------------------------------
+# llama-server readiness
+# ---------------------------------------------------------------------------
+
+def test_a_listening_port_is_not_treated_as_a_loaded_model(monkeypatch):
+    """MEASURED, 2026-10-27, and it cost a benchmark run.
+
+    `llama-server` accepts connections several seconds before the weights
+    finish loading and answers in that window with
+    `503 {"message":"Loading model"}`. `start_server` used to return as
+    soon as the socket opened, so the first **17 of 40** publications in
+    an M3 arm run were recorded as per-video inference failures when in
+    fact the server simply was not up. The two look identical in the
+    results file, which is what made it expensive to spot.
+
+    So: an open port with an unready model must NOT satisfy the wait.
+    """
+    from server.ai import local_vlm
+
+    monkeypatch.setattr(local_vlm, "installed", lambda: (True, None))
+    monkeypatch.setattr(local_vlm, "_port_open", lambda *a, **k: True)
+    monkeypatch.setattr(local_vlm, "_model_loaded", lambda *a, **k: False)
+    ok, why = local_vlm.start_server(wait_s=0.2)
+    assert not ok
+    # Both branches must refuse: the one that launches a server and the
+    # one that reuses an already-listening one. The second was the bug.
+    assert "still loading" in (why or "") or "did not start" in (why or "")
+
+
+def test_a_loaded_model_satisfies_the_wait(monkeypatch):
+    from server.ai import local_vlm
+
+    monkeypatch.setattr(local_vlm, "installed", lambda: (True, None))
+    monkeypatch.setattr(local_vlm, "_port_open", lambda *a, **k: True)
+    monkeypatch.setattr(local_vlm, "_model_loaded", lambda *a, **k: True)
+    ok, why = local_vlm.start_server(wait_s=0.2)
+    assert ok and why is None
+
+
+def test_readiness_asks_health_and_a_503_means_not_ready(monkeypatch):
+    """The 503 is the whole signal; treating any response as ready would
+    reintroduce the bug through the back door."""
+    import urllib.error
+
+    from server.ai import local_vlm
+
+    def raise_503(*a, **k):
+        raise urllib.error.HTTPError(
+            "http://x/health", 503, "Service Unavailable", {}, None)
+
+    monkeypatch.setattr("urllib.request.urlopen", raise_503)
+    assert local_vlm._model_loaded() is False

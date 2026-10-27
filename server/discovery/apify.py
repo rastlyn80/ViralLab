@@ -130,14 +130,20 @@ CAPS_TIKTOK = ProviderCapabilities(
     supported_queries=(QueryKind.CREATOR, QueryKind.KEYWORD,
                        QueryKind.HASHTAG),
     follower_count=True, creator_bio=True, creator_verified=True,
-    view_count=True, views_rounded=False, saves_count=True,
+    # Tracks ACTOR_TIKTOK_DEFAULT, which is the rounded actor as of
+    # 2026-10-26. Claiming exact counts while the actor in use rounds them
+    # would be a capability lie, and callers branch on this.
+    view_count=True, views_rounded=True, saves_count=True,
     shares_count=True, music_metadata=True, media_url=True,
     full_history=True,
     coverage_notes=(
-        "apidojo/tiktok-scraper returns exact view counts and a direct mp4 "
-        "URL; its free plan caps a run at 10 items regardless of maxItems.",
-        "clockworks/free-tiktok-scraper rounds large counts to ~3 "
-        "significant figures, which blurs outlier boundaries.",
+        "IN USE 2026-10-26: clockworks/free-tiktok-scraper. It rounds "
+        "large counts to ~3 significant figures, which blurs outlier "
+        "boundaries; every row carries counts_rounded=True.",
+        "apidojo/tiktok-scraper returns exact counts and a direct mp4 URL "
+        "and would be preferred, but as of 2026-10-26 it answers every "
+        "query with {'noResults': true} sentinels while still billing "
+        "$0.0030 a run. See ACTOR_TIKTOK_DEFAULT for the re-check trigger.",
     ))
 
 CAPS_INSTAGRAM = ProviderCapabilities(
@@ -523,6 +529,31 @@ NORMALISERS = {
 }
 
 
+#: The TikTok actor in use. **Changed 2026-10-26 from
+#: `ACTOR_TIKTOK_EXACT` after measuring that it stopped returning data.**
+#:
+#: `apidojo/tiktok-scraper` now answers every query type — creator and
+#: hashtag alike — with ten `{"noResults": true}` sentinel rows, and Apify
+#: bills $0.0030 for each such run. Verified against Apify's own API on
+#: 2026-10-26: `status: SUCCEEDED`, `exitCode: 0`, dataset `itemCount: 10`,
+#: every item the sentinel. Three consecutive runs across two creators and
+#: one hashtag behaved identically, so it is the actor, not the query.
+#:
+#: `clockworks/free-tiktok-scraper` was re-tested the same day and works:
+#: 20 publications across 17 creators for $0.06, with no 10-item cap.
+#:
+#: **What this costs us.** It is 10x the price ($3.00/1000 against
+#: $0.30/1000) and it ROUNDS large counts to ~3 significant figures, which
+#: blurs exactly the outlier boundaries the performance strata depend on
+#: (CLAUDE.md §3.12). Individual rows carry `counts_rounded=True` so no
+#: single figure lies, but the corpus is coarser than it was.
+#:
+#: **Re-check trigger.** Try `ACTOR_TIKTOK_EXACT` again before any large
+#: TikTok collection; if it returns real rows, switch back and restore
+#: `views_rounded=False` in `CAPS_TIKTOK`. A one-line change in each.
+ACTOR_TIKTOK_DEFAULT = ACTOR_TIKTOK_ROUNDED
+
+
 def actor_for(query: DiscoveryQuery) -> str:
     """Which validated actor serves this query.
 
@@ -530,7 +561,7 @@ def actor_for(query: DiscoveryQuery) -> str:
     hashtags discover creators, profiles measure them.
     """
     if query.platform is Platform.TIKTOK:
-        return ACTOR_TIKTOK_EXACT
+        return ACTOR_TIKTOK_DEFAULT
     if query.kind is QueryKind.HASHTAG:
         return ACTOR_IG_HASHTAG
     return ACTOR_IG_PROFILE

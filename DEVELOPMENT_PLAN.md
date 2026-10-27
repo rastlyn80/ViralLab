@@ -1988,6 +1988,43 @@ Other items:
   masters (§2.1). Any gap in your archive is a permanent gap in Tier 2/3
   coverage of your own history.
 
+**Vision — opened and partly closed by M3 (2026-10-27)**
+- **The 80 held-out labels were written by Claude, not the owner.**
+  `vision_face_visible` entered analytical use on that basis. The two
+  fixtures flag their genuinely ambiguous cases (10 own, 11 competitor)
+  — framed notation on a wall, notation composited as a graphic, painted
+  faces in an art book, rendered Synthesia keyboards. The owner
+  confirming or overturning those is the cheapest thing that would
+  strengthen every figure in `docs/benchmarks/6c-vision-benchmark.md`.
+  **[OPEN]**
+- **`vision_face_visible` clears the pooled bar but fails the half that
+  matters.** 0.808 specificity over all 80; 0.857 on competitor
+  publications and 0.750 on the owner's own. It is promoted because
+  M3's rule was pre-registered against the pooled set, and the caveat
+  is recorded beside it in `visual_structure.VISION_FEATURES`. **[OPEN]**
+- **The promotion rule should require both halves, from M4 onwards.** A
+  field passing pooled while failing the unseen-creator half has not
+  shown it generalises, and a field passing pooled while failing the
+  own-account half is not usable for recommendations. This was noticed
+  *during* M3 scoring and deliberately not applied retroactively
+  (CLAUDE.md §3.13). It must be written down before M4's first
+  measurement, not after. **[OPEN]**
+- **`sheet_music_visible` is fixable and is not fixed.** A
+  negative-example prompt takes it from specificity 0.193 to 0.807
+  (p = 0.0004), but shifts the model's whole operating point towards
+  "no" and costs the two promoted fields. Resolving it needs either a
+  second inference pass per video — a cost question, measured cold-load
+  dominates at 44.7 s — or a prompt that targets notation without
+  moving the global threshold. **[OPEN]**
+- **`piano_or_keyboard_visible` has resisted three independent
+  approaches** and sits at specificity 0.200 at best. The model answers
+  from "this is a piano video" rather than the pixels. No further route
+  is currently identified; it is not a threshold problem. **[OPEN]**
+- **Qwen2.5-VL 7B Q4 cannot load on this machine.** 7634 MiB required
+  (Phase 0B) against 6864 MiB free at the measured desktop floor of
+  1126 MiB — 770 MiB short. Whether a reduced-context or Q3 build fits
+  is untested. **[OPEN]**
+
 **Measurement integrity — opened and partly closed by M1 (2026-10-26)**
 - **`reels_skip_rate` may or may not be organic-only, and nobody knows.**
   Meta documents `views`, `likes`, `comments` and `total_interactions` as
@@ -2007,10 +2044,17 @@ Other items:
   error -1: Fatal`, retried four times each. Those publications cannot have
   a residual computed and are excluded from the covariate with a stated
   reason rather than counted as unexposed.
-- **No TikTok retention figure exists yet.** The import path is built and
-  tested, but the first file has to come from the owner (`docs/setup/
-  analytics-export.md`). Until then M1's third acceptance criterion is
-  unmet, and it is unmet rather than worked around.
+- **TikTok retention is not obtainable in bulk.** `[PRIMARY, 2026-10-26]`
+  The owner supplied a real TikTok Studio Content export; it carries only
+  views/likes/comments/shares — the Display API's own set — and **no watch
+  time**. The import path works end to end (15 rows, all matched, figures
+  within 0.1% of the API, which independently validates the API), but
+  M1's third acceptance criterion remains unmet because no bulk source of
+  TikTok retention exists. Average watch time and "watched full video"
+  appear only on TikTok Studio's per-video screen. Transcribing 20–30 by
+  hand is the only route that currently exists; the alternative is to
+  treat TikTok as engagement-rate-only, which is still useful because it
+  is unboosted and therefore a control for the Instagram ad confound.
 - **Two coverage claims in the docs were wrong, and both are now closed or
   corrected.** Retention metrics had never been *requested* for most of
   the back catalogue (49 publications carried one, now 286), and hook
@@ -2031,6 +2075,38 @@ Other items:
   `spectral_centroid_hz` dividing by a zero spectrum sum. Cause fixed,
   storage-level guard added, both under regression test — but the wrong
   predicate is the trap worth remembering.
+
+**Provider and spending findings, 2026-10-27**
+- **`apidojo/tiktok-scraper` is dead and was billing for it.** It answers
+  every query type with ten `{"noResults": true}` sentinel rows while
+  Apify reports SUCCEEDED and charges $0.0030. Verified against Apify's
+  API. The default TikTok actor is now
+  `clockworks/free-tiktok-scraper`, which works but costs 10x
+  ($3.00/1000) and **rounds large counts**, blurring the outlier
+  boundaries the performance strata depend on (§3.12). Re-check trigger
+  is recorded on `ACTOR_TIKTOK_DEFAULT`.
+- **A paid run returning nothing is now `empty`, not `ok`.** Three runs
+  bought nothing before anyone noticed, because an empty paid search was
+  indistinguishable from a search for something nonexistent.
+- **The competitor corpus is the wrong shape, not merely small.** 48 of
+  52 creators have exactly one publication, so no creator baseline can be
+  computed and therefore no relative performance — which every M5/M6
+  comparison is defined against. M2's acceptance criterion ("≥20
+  publications across ≥10 creators") is satisfiable by exactly this
+  unusable corpus and should be restated as ≥20 *each* for ≥10 creators.
+- **Competitor media costs $0.003 a file**, the same as a metadata run;
+  20 publications is ~$0.06 against a $3.00 ceiling. A paid Apify plan is
+  **not** needed for M2.
+- **The provider keeps its own copy for 7 days.** Our six-hour deletion
+  covers our disk only. Recorded per row in `PERMISSION_BASIS`; a legal
+  review under §2.3 needs this sentence, not "the file is gone".
+- **Two guards fired usefully and are worth keeping.** `budget.reserve()`
+  refused the first competitor download because `competitor_media` was in
+  the Python category tuple but not the database constraint — caught
+  before the actor ran and before any charge. And `config.require_spend`
+  turns out to have no caller outside its own tests; the real enforcement
+  is `budget.reserve()`, which reads `budget_reservations` rather than
+  the empty `collection_runs.cost_usd`.
 
 **Minor outstanding issues** (recorded, deliberately not fixed)
 - `GET /status/queue` requires no auth — read-only and tailnet-only, but it

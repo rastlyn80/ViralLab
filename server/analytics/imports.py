@@ -128,20 +128,27 @@ METRICS_BY_SOURCE = {"tiktok_studio": TIKTOK_METRICS,
 #: Headings that identify WHICH publication a row is about. Without one of
 #: these the file cannot be used at all, and the parser says so rather than
 #: importing rows it cannot attach to anything.
-REF_ALIASES = ("video link", "post link", "link", "url", "video url",
-               "post url", "share link", "permalink", "video id", "post id",
-               "media id", "id")
+#: ORDER MATTERS: most specific first. `parse` picks the column matching
+#: the earliest alias here, so a file carrying both "Video link" and a
+#: bare "id" uses the link.
+REF_ALIASES = ("video link", "post link", "share link", "permalink",
+               "video url", "post url", "video id", "post id", "media id",
+               "url", "link", "id")
 
 #: Headings carrying the publication time. Optional: used to age-anchor the
 #: imported figures and to match a row whose link is missing.
-TIME_ALIASES = ("post time", "publish time", "date", "posted", "created",
-                "publish date", "post date", "date posted", "time")
+#: ORDER MATTERS, as above. A real export carried both "Post time" (the
+#: publication date) and "Time" (the date the file was exported); the
+#: bare "time" must never win over "post time".
+TIME_ALIASES = ("post time", "publish time", "post date", "publish date",
+                "date posted", "posted", "created", "date", "time")
 
 #: Headings carrying a human title. Never used for matching — two takes of
 #: one piece share a caption — but kept so an unmatched row is identifiable
 #: by a person.
-TITLE_ALIASES = ("video title", "post title", "title", "caption",
-                 "description")
+#: ORDER MATTERS, as above.
+TITLE_ALIASES = ("video title", "post title", "caption", "description",
+                 "title")
 
 
 @dataclass
@@ -278,23 +285,38 @@ def parse(text: str, *, source: str, platform: str) -> ParsedFile:
         for alias in spec.aliases:
             by_alias.setdefault(alias, spec)
 
-    ref_col = time_col = title_col = None
+    # Role columns are chosen by the MOST SPECIFIC alias that matches, not
+    # by whichever column happens to come first.
+    #
+    # A real TikTok Studio export (2026-10-26) has both "Time" — the date
+    # the file was exported — and "Post time", the publication date. With
+    # first-column-wins, "Time" matched the generic `time` alias, became
+    # `posted_at`, and "Post time" was discarded as unrecognised: every
+    # row would have carried the export date as its publication date and
+    # age-anchored to zero. The alias lists are ordered specific-first, so
+    # ranking by alias index picks "Post time".
+    def _best(aliases: tuple[str, ...]) -> str | None:
+        best, best_rank = None, len(aliases)
+        for h in headings:
+            n = _norm(h)
+            if n in aliases and aliases.index(n) < best_rank:
+                best, best_rank = h, aliases.index(n)
+        return best
+
+    ref_col = _best(REF_ALIASES)
+    time_col = _best(TIME_ALIASES)
+    title_col = _best(TITLE_ALIASES)
+    role_cols = {c: r for c, r in ((ref_col, "external_ref"),
+                                   (time_col, "posted_at"),
+                                   (title_col, "title")) if c}
+    out.column_map.update(role_cols)
+
     metric_cols: dict[str, MetricSpec] = {}
     for h in headings:
         n = _norm(h)
         if not n:
             continue
-        if ref_col is None and n in REF_ALIASES:
-            ref_col = h
-            out.column_map[h] = "external_ref"
-            continue
-        if time_col is None and n in TIME_ALIASES:
-            time_col = h
-            out.column_map[h] = "posted_at"
-            continue
-        if title_col is None and n in TITLE_ALIASES:
-            title_col = h
-            out.column_map[h] = "title"
+        if h in role_cols:
             continue
         spec = by_alias.get(n)
         # First column wins per metric. A file carrying both "Total views"
@@ -344,6 +366,34 @@ def parse(text: str, *, source: str, platform: str) -> ParsedFile:
         out.warnings.append(
             f"{len(out.unmapped_columns)} column(s) were not recognised and "
             f"were NOT imported: {', '.join(out.unmapped_columns)}")
+
+    # A date column that yields nothing on every row is a parse failure
+    # wearing the shape of missing data. The real TikTok Studio export
+    # writes "14 March" with no year, which cannot be dated without
+    # guessing — refusing is right, doing it silently is not.
+    if time_col and out.rows and not any(r.posted_at for r in out.rows):
+        out.warnings.append(
+            f"the publication-date column {time_col!r} could not be parsed "
+            f"on any row (the export omits the year), so imported figures "
+            f"carry no publication date of their own; rows matched to a "
+            f"known publication still age-anchor against the platform's "
+            f"own `posted_at`, unmatched rows do not")
+
+    # The point of a TikTok export is the retention metrics; everything
+    # else duplicates what the Display API already returns. Say so when
+    # they are absent, rather than reporting a clean import of nothing new.
+    if source == "tiktok_studio":
+        retention = {"avg_watch_time_s", "watched_full_video_rate",
+                     "total_play_time_s"}
+        found = set().union(*(set(r.metrics) for r in out.rows)) \
+            if out.rows else set()
+        if not (retention & found):
+            out.warnings.append(
+                "NO RETENTION METRICS in this export. It carries only "
+                "views/likes/comments/shares, which TikTok's Display API "
+                "already provides, so it does not add watch-time evidence. "
+                "Average watch time and 'watched full video' live on the "
+                "per-video analytics screen in TikTok Studio.")
     return out
 
 

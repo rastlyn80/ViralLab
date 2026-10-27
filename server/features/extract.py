@@ -210,9 +210,31 @@ def _store(session: Session, video: Video, run: VideoFeatureRun,
     return written
 
 
+def _resolve_path(video: Video, media_root: Path | None,
+                  paths: dict[int, Path] | None) -> Path:
+    """Where this video's bytes are, for this run.
+
+    `paths` exists for competitor media (M2). Those publications keep
+    `media_status='absent'` and `media_path=NULL` on purpose — they have
+    no preserved file and must never look as though they do — so the
+    quarantined location is passed in for the duration of one extraction
+    rather than written to the row. Nothing about it ends up stored:
+    `_store` records `video.media_path`, which stays NULL, so a feature
+    row can never be used to find a file that has since been deleted.
+    """
+    if paths and video.id in paths:
+        return Path(paths[video.id])
+    path = Path(video.media_path or "")
+    if media_root is not None and not path.is_absolute():
+        path = media_root / path.name
+    return path
+
+
 def run_deterministic(session: Session, videos: list[Video], *,
                       hook_seconds: float = hookfeat.HOOK_SECONDS,
-                      media_root: Path | None = None) -> ExtractOutcome:
+                      media_root: Path | None = None,
+                      paths: dict[int, Path] | None = None
+                      ) -> ExtractOutcome:
     """Measure the opening of each video with signal processing only."""
     import time
 
@@ -232,9 +254,7 @@ def run_deterministic(session: Session, videos: list[Video], *,
 
     started = time.monotonic()
     for video in videos:
-        path = Path(video.media_path or "")
-        if media_root is not None and not path.is_absolute():
-            path = media_root / path.name
+        path = _resolve_path(video, media_root, paths)
         if not path.exists():
             out.failed += 1
             out.errors.append({"video_id": video.id,
@@ -279,7 +299,8 @@ def run_deterministic(session: Session, videos: list[Video], *,
 
 def run_speech(session: Session, videos: list[Video], *,
                hook_seconds: float = hookfeat.HOOK_SECONDS,
-               media_root: Path | None = None) -> ExtractOutcome:
+               media_root: Path | None = None,
+               paths: dict[int, Path] | None = None) -> ExtractOutcome:
     """VAD-gated speech detection and transcription.
 
     Separate pass and separate `method_version`, because it depends on a
@@ -309,9 +330,7 @@ def run_speech(session: Session, videos: list[Video], *,
     model_name = f"faster-whisper-{hookspeech.MODEL_SIZE}-" \
                  f"{hookspeech.COMPUTE_TYPE}"
     for video in videos:
-        path = Path(video.media_path or "")
-        if media_root is not None and not path.is_absolute():
-            path = media_root / path.name
+        path = _resolve_path(video, media_root, paths)
         if not path.exists():
             out.failed += 1
             out.errors.append({"video_id": video.id,
@@ -438,7 +457,8 @@ def coverage(session: Session) -> dict:
 
 def run_background(session: Session, videos: list[Video], *,
                    hook_seconds: float = hookfeat.HOOK_SECONDS,
-                   media_root: Path | None = None) -> ExtractOutcome:
+                   media_root: Path | None = None,
+                   paths: dict[int, Path] | None = None) -> ExtractOutcome:
     """Measure background complexity, separately from the v1 hook features.
 
     Kept out of `run_deterministic` on purpose. Adding measures to
@@ -467,9 +487,7 @@ def run_background(session: Session, videos: list[Video], *,
 
     started = time.monotonic()
     for video in videos:
-        path = Path(video.media_path or "")
-        if media_root is not None and not path.is_absolute():
-            path = media_root / path.name
+        path = _resolve_path(video, media_root, paths)
         if not path.exists():
             out.failed += 1
             out.errors.append({"video_id": video.id,
@@ -507,3 +525,110 @@ def run_background(session: Session, videos: list[Video], *,
                 run.id, out.done, out.failed, out.features_written,
                 out.compute_seconds)
     return out
+
+
+KIND_OCR = "hook_ocr"
+
+
+def run_ocr(session: Session, videos: list[Video], *,
+            hook_seconds: float = hookfeat.HOOK_SECONDS,
+            media_root: Path | None = None,
+            paths: dict[int, Path] | None = None) -> ExtractOutcome:
+    """Read on-screen text from the opening, with RapidOCR.
+
+    Lives here rather than in a provision script because it now has two
+    callers — the own-account backfill and competitor analysis (M2) — and
+    a copy in each is how two code paths start disagreeing about what
+    `hook-ocr-v1` means.
+
+    CPU only. The engine runs where the media already is, which is why
+    this never needed the Windows GPU box and why the own-account
+    backfill of 207 publications cost nothing but 856 seconds.
+    """
+    import time
+
+    from shared import hookocr
+
+    out = ExtractOutcome(kind=KIND_OCR,
+                         method_version=hookocr.METHOD_VERSION,
+                         requested=len(videos))
+    run = VideoFeatureRun(
+        method_version=hookocr.METHOD_VERSION, kind=KIND_OCR,
+        status="running", videos_requested=len(videos),
+        params={"engine": hookocr.ENGINE, "ocr_fps": hookocr.OCR_FPS,
+                "ocr_width": hookocr.OCR_WIDTH})
+    session.add(run)
+    session.flush()
+    out.run_id = run.id
+
+    started = time.monotonic()
+    for video in videos:
+        path = _resolve_path(video, media_root, paths)
+        if not path.exists():
+            out.failed += 1
+            out.errors.append({"video_id": video.id,
+                               "external_id": video.external_id,
+                               "error": f"file missing: {path}"})
+            continue
+        try:
+            info = hookfeat.probe(path)
+            w = hookocr.OCR_WIDTH
+            # Preserve aspect ratio; an even height is required by the
+            # rawvideo pipe, and OCR reads a squashed frame worse.
+            src_w = int(info.get("width") or w)
+            src_h = int(info.get("height") or w)
+            h = max(2, int(round(w * src_h / max(1, src_w))) // 2 * 2)
+            frames = hookfeat.decode_frames(
+                path, start=0.0, seconds=hook_seconds,
+                fps=hookocr.OCR_FPS, width=w, height=h)
+            if frames.shape[0] == 0:
+                raise hookfeat.ExtractionError("no frames decoded")
+            stamps = [i / hookocr.OCR_FPS for i in range(frames.shape[0])]
+            res = hookocr.analyse_frames(frames, timestamps=stamps,
+                                         hook_seconds=hook_seconds)
+            meas = hookocr.measurements(res, (0.0, hook_seconds))
+        except Exception as exc:                  # noqa: BLE001 - recorded
+            out.failed += 1
+            out.errors.append({"video_id": video.id,
+                               "external_id": video.external_id,
+                               "error": str(exc)[:300]})
+            continue
+        out.features_written += _store(
+            session, video, run, meas,
+            method_version=hookocr.METHOD_VERSION, model=hookocr.ENGINE)
+        out.done += 1
+        session.commit()
+
+    out.compute_seconds = round(time.monotonic() - started, 2)
+    run.videos_done = out.done
+    run.videos_failed = out.failed
+    run.features_written = out.features_written
+    run.compute_seconds = out.compute_seconds
+    run.finished_at = datetime.now(timezone.utc)
+    run.status = ("ok" if out.failed == 0
+                  else ("failed" if out.done == 0 else "partial"))
+    if out.errors:
+        run.notes = (f"{len(out.errors)} failure(s); first: "
+                     f"{out.errors[0]['error'][:200]}")
+    session.commit()
+    logger.info("ocr run %s: %d done, %d failed, %d features, %.1fs",
+                run.id, out.done, out.failed, out.features_written,
+                out.compute_seconds)
+    return out
+
+
+
+#: `run_detect` was removed on 2026-10-27, the day it was written.
+#:
+#: It wired `shared/hookdetect.py` into the extraction path before the
+#: detector had been scored. Scored against the 24 human reference
+#: labels it returned **recall 0.000** for keyboards — it never fired on
+#: any of the 21 publications that contain one — and 0.000 recall with
+#: six false positives for sheet music. Raising the analysis width from
+#: 160 px to 480 px made the separation worse, not better: positives
+#: topped out at 5 agreeing rows against 2 for negatives, which is no
+#: separation at all.
+#:
+#: A pipeline stage that writes a field nothing may use is worse than no
+#: stage. The module and its tests are kept as the record of what was
+#: tried and measured; see docs/benchmarks/6c-vision-benchmark.md.

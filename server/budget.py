@@ -86,7 +86,17 @@ def period_of(now: datetime | None = None) -> str:
 #: The spending categories. A charge must belong to exactly one, and a
 #: category that is not configured is NOT authorised - see
 #: `config.Spending.cap_for`.
-CATEGORIES = ("discovery", "cloud_vision", "cloud_audio", "strategy")
+#: Spending categories the guard recognises. `reserve()` refuses anything
+#: not listed, so adding a category here is a deliberate act and a new kind
+#: of spending cannot appear by typo.
+#:
+#: `competitor_media` (M2) is separate from `discovery` because downloading
+#: a competitor's video through the provider's paid add-on is a different
+#: decision from paying for its metadata, with a different legal basis and
+#: a different per-item price. Sharing one ceiling would let a batch of
+#: downloads quietly consume the budget metadata collection runs on.
+CATEGORIES = ("discovery", "competitor_media", "cloud_vision",
+              "cloud_audio", "strategy")
 
 
 def _lock_period(session: Session, provider: str, period: str,

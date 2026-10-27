@@ -50,94 +50,13 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger("virallab.backfill.features")
 
 
-def run_ocr(session, videos: list, *, media_root: Path | None):
-    """OCR the opening of each video. CPU-only, no GPU, no money.
-
-    RapidOCR on onnxruntime runs where the media already lives
-    (`shared/hookocr.py`), so this needs neither the Windows box nor a
-    paid provider — the AI layer's local OCR provider exists for requests
-    that arrive through the API, and this is the same engine driven
-    directly for a backfill.
-
-    Decoding is done here rather than inside `hookocr` because
-    `analyse_frames` deliberately takes frames, so a caller can decode
-    once and share them.
-    """
-    import time
-
-    out = extract.ExtractOutcome(kind="hook_ocr",
-                                 method_version=hookocr.METHOD_VERSION,
-                                 requested=len(videos))
-    run = VideoFeatureRun(
-        method_version=hookocr.METHOD_VERSION, kind="hook_ocr",
-        status="running", videos_requested=len(videos),
-        params={"engine": hookocr.ENGINE, "ocr_fps": hookocr.OCR_FPS,
-                "ocr_width": hookocr.OCR_WIDTH})
-    session.add(run)
-    session.flush()
-    out.run_id = run.id
-
-    started = time.monotonic()
-    hook_seconds = hookfeat.HOOK_SECONDS
-    for video in videos:
-        path = Path(video.media_path or "")
-        if media_root is not None and not path.is_absolute():
-            path = media_root / path.name
-        if not path.exists():
-            out.failed += 1
-            out.errors.append({"video_id": video.id,
-                               "error": f"file missing: {path}"})
-            continue
-        try:
-            info = hookfeat.probe(path)
-            w = hookocr.OCR_WIDTH
-            # Preserve aspect ratio: OCR on a squashed frame reads worse,
-            # and the height must be even for the rawvideo pipe.
-            src_w = int(info.get("width") or w)
-            src_h = int(info.get("height") or w)
-            h = max(2, int(round(w * src_h / max(1, src_w))) // 2 * 2)
-            frames = hookfeat.decode_frames(
-                path, start=0.0, seconds=hook_seconds,
-                fps=hookocr.OCR_FPS, width=w, height=h)
-            if frames.shape[0] == 0:
-                raise hookfeat.ExtractionError("no frames decoded")
-            stamps = [i / hookocr.OCR_FPS for i in range(frames.shape[0])]
-            res = hookocr.analyse_frames(frames, timestamps=stamps,
-                                         hook_seconds=hook_seconds)
-            meas = hookocr.measurements(res, (0.0, hook_seconds))
-        except Exception as exc:              # noqa: BLE001 - recorded
-            out.failed += 1
-            out.errors.append({"video_id": video.id,
-                               "external_id": video.external_id,
-                               "error": str(exc)[:300]})
-            continue
-        out.features_written += extract._store(
-            session, video, run, meas,
-            method_version=hookocr.METHOD_VERSION, model=hookocr.ENGINE)
-        out.done += 1
-        # Commit per video, as `run_deterministic` does: a crash half way
-        # through a 210-file run must leave the completed work behind.
-        session.commit()
-
-    out.compute_seconds = round(time.monotonic() - started, 2)
-    run.videos_done = out.done
-    run.videos_failed = out.failed
-    run.features_written = out.features_written
-    run.compute_seconds = out.compute_seconds
-    run.finished_at = datetime.now(timezone.utc)
-    run.status = ("ok" if out.failed == 0
-                  else ("failed" if out.done == 0 else "partial"))
-    if out.errors:
-        run.notes = (f"{len(out.errors)} failure(s); first: "
-                     f"{out.errors[0]['error'][:200]}")
-    session.commit()
-    logger.info("ocr run %s: %d done, %d failed, %d features, %.1fs",
-                run.id, out.done, out.failed, out.features_written,
-                out.compute_seconds)
-    return out
-
-
 def already_done(session, method_version: str) -> set[int]:
+    """Video ids that already carry this method version, any platform.
+
+    Not platform-scoped on purpose: the ids are compared against a pool
+    that is already filtered to one platform, so scoping here would be
+    redundant, and a set of ids cannot collide across platforms.
+    """
     return set(session.scalars(select(VideoFeature.video_id).where(
         VideoFeature.method_version == method_version).distinct()).all())
 
@@ -154,6 +73,11 @@ def main() -> int:
     ap.add_argument("--kind",
                     choices=["deterministic", "background", "ocr", "all"],
                     default="all")
+    ap.add_argument("--platform", choices=["instagram", "tiktok"],
+                    default="instagram",
+                    help="TikTok media came from the owner's own archive "
+                         "via yt-dlp (ADR 0007); the extractors do not care "
+                         "which platform a file came from.")
     args = ap.parse_args()
 
     media_root = os.environ.get("VIRALLAB_MEDIA_ROOT")
@@ -162,7 +86,8 @@ def main() -> int:
 
     summary: dict = {"media_root": media_root}
     with S() as s:
-        pool = extract.analysable(s, platform="instagram")
+        pool = extract.analysable(s, platform=args.platform)
+        summary["platform"] = args.platform
         summary["analysable"] = len(pool)
 
         plan = {}
@@ -199,7 +124,7 @@ def main() -> int:
             logger.info("%s (%s): %d video(s)", kind, mv, len(todo))
             fn = {"deterministic": extract.run_deterministic,
                   "background": extract.run_background,
-                  "ocr": run_ocr}[kind]
+                  "ocr": extract.run_ocr}[kind]
             out = fn(s, todo, media_root=root)
             s.commit()
             summary["runs"][kind] = {

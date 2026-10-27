@@ -7,18 +7,22 @@ gate: official APIs expose no competitor data, so discovery means paying a
 third-party provider, and CLAUDE.md §7 forbids silently introducing a paid
 dependency or exceeding a configured limit.
 
-`require_spend()` is the single door every paid call goes through. It
-refuses by default: `monthly_cap_usd` ships as `0.0` and
-`providers_authorised` ships empty, so a provider call cannot happen until
-the owner has authorised both.
+**`server.budget.reserve()` is the door every paid call goes through**,
+not `require_spend()` below. That was true when this module was written
+and stopped being true when `budget.py` arrived with locking, idempotent
+reservations and per-category caps. Verified 2026-10-26: `require_spend`
+has no caller outside its own tests.
 
-    from server.config import require_spend, SpendRefused
+The distinction matters because the two read different tables.
+`budget.reserve()` sums `budget_reservations`, which is where provider
+spend actually lands — $0.0810 committed in October 2026.
+`spent_this_month()` below sums `collection_runs.cost_usd`, which for the
+same period is $0.00. The advisory function is not wrong about what it
+measures; it measures something that is no longer where the money is.
 
-    try:
-        require_spend(session, provider="apify", estimated_usd=0.30)
-    except SpendRefused as exc:
-        # Not an error to retry. A human has to authorise it.
-        logger.warning("discovery skipped: %s", exc)
+Configuration still refuses by default: `monthly_cap_usd` ships as `0.0`
+and `providers_authorised` ships empty, so a provider call cannot happen
+until the owner has authorised both.
 """
 
 from __future__ import annotations
@@ -264,12 +268,22 @@ def month_start(now: datetime | None = None) -> datetime:
 
 def spent_this_month(session: Session, *, now: datetime | None = None
                      ) -> float:
-    """Total recorded provider spend in the current calendar month.
+    """Total `collection_runs.cost_usd` in the current calendar month.
 
-    Reads `collection_runs.cost_usd`, which is the only place cost is
-    recorded. A provider call that does not record its cost is a bug, so an
-    unrecorded call makes the budget look emptier than it is - hence
-    `record_spend` below exists and is the only sanctioned way to log one.
+    **Advisory only, and it does not see discovery spend.** The docstring
+    here used to say `collection_runs.cost_usd` "is the only place cost is
+    recorded"; that stopped being true when discovery moved to
+    `budget_reservations` via `server.budget`. Measured 2026-10-26, the
+    two disagree for October: $0.00 here against $0.0810 there.
+
+    Enforcement reads the right one — `budget.reserve()` sums
+    `budget_reservations`, and the API's budget endpoints call
+    `budget.budget_state`, not this. So nothing user-facing is misreported
+    and no cap is under-enforced. This function survives because
+    `require_spend` calls it, and `require_spend` survives because its
+    tests do.
+
+    Do not build anything new on this. Use `server.budget`.
     """
     from server.db.models import CollectionRun
     total = session.scalar(
@@ -295,13 +309,16 @@ def require_spend(session: Session, *, provider: str, estimated_usd: float,
                   now: datetime | None = None) -> dict:
     """Check whether a paid call *would* be allowed. Reserves nothing.
 
-    **This is not the enforcement path.** It answers "is there room?" for a
-    report or a UI, and it is subject to time-of-check/time-of-use: two
-    callers can both pass it and together exceed the cap.
+    **This is not the enforcement path, and it has no callers outside its
+    own tests** (verified 2026-10-26). It answers "is there room?" subject
+    to time-of-check/time-of-use, and it answers it from
+    `collection_runs.cost_usd`, which no longer carries discovery spend —
+    see `spent_this_month`.
 
     Anything that actually spends money must call
     `server.budget.reserve()`, which takes a lock, holds the budget until
-    settled, and is idempotent across retries.
+    settled, is idempotent across retries, enforces per-category caps, and
+    reads the table the money is actually recorded in.
     """
     s = settings().spending
     if provider not in s.providers_authorised:

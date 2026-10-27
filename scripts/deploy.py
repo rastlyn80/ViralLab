@@ -155,6 +155,14 @@ def main() -> int:
             f"VIRALLAB_WORKER_TOKENS=gpu-1:{e['SERVER_WORKER_TOKEN']}",
             f"VIRALLAB_PUBLIC_BASE_URL=https://{e['UBUNTU_HOST']}:8443",
             f"VIRALLAB_MEDIA_ROOT={REMOTE_ROOT}/media",
+            # Competitor bytes, held for hours not forever. A SIBLING of
+            # media/, never inside it: the signed-URL endpoint contains
+            # paths to MEDIA_ROOT, so keeping quarantine outside means
+            # that containment check refuses third-party media too,
+            # independently of the is_own_account check in the frames
+            # endpoint. `transient.assert_outside_media_root` fails loudly
+            # if this is ever pointed somewhere inside.
+            f"VIRALLAB_QUARANTINE_ROOT={REMOTE_ROOT}/media_transient",
             # The tailnet address. run_api_svc.sh re-derives this if it is
             # missing and refuses to bind 0.0.0.0 either way, but recording
             # it keeps the intended interface explicit.

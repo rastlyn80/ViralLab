@@ -226,3 +226,330 @@ python -c "from server.features import vision_benchmark as vb; ..."
 
 `server/features/vision_benchmark.py` carries the scoring logic and the
 reasoning behind each column.
+
+---
+
+## Addendum, 2026-10-27 — the deterministic detectors, and they fail too
+
+M3 proposed replacing the two worst-performing model fields with
+geometric detectors, on the reasoning that "a piano keyboard is a
+periodic black-and-white pattern and sheet music is five parallel
+lines; both are likely detectable from pixels with far higher
+specificity than a 4B language model. Measured, not assumed."
+
+Measured. They are not.
+
+`shared/hookdetect.py`, scored against the same 24 human reference
+labels used above (`human_labels_v2.json`), with `hookfeat`'s frame
+plan:
+
+| field | n | recall | specificity | accuracy | baseline | lift |
+|---|---|---|---|---|---|---|
+| `piano_or_keyboard_visible` | 24 | **0.000** | 1.000 | 0.125 | 0.875 | **−0.750** |
+| `sheet_music_visible` | 24 | **0.000** | 0.647 | 0.458 | 0.708 | **−0.250** |
+
+The keyboard detector's specificity of 1.000 looks like an improvement
+on the model's 0.000 and is not: it is the score for never answering
+yes. It fired on none of the 21 publications containing a keyboard. The
+sheet-music detector managed zero true positives and six false ones.
+
+**Resolution was tested as a hypothesis and rejected.** At the default
+160 px analysis width, white keys span about six pixels and adjacent
+rows disagree about the period, so the "agreeing rows" run fragments to
+one. That is a plausible starvation story, so it was tested at 480 px.
+It got *worse*: agreeing-row counts reached 5 on positives against 2 on
+negatives, where before the best positive reached 12. The distributions
+overlap at both widths.
+
+**Why — diagnosed on the single clearest case, not inferred.**
+Publication 75 shows a grand piano keyboard filling the lower half of
+the frame: large, high-contrast, evenly lit, close to front-parallel.
+It is the easiest keyboard in the corpus. The detector finds **1 or 2
+agreeing rows** on it at 160 px, 480 px and 720 px alike — the same as
+it finds on a blank wall.
+
+The reason is perspective. A keyboard photographed from a seated
+player's position recedes, so the key spacing is not constant down the
+image: each row crosses the keys at a slightly different pitch. The
+detector requires adjacent rows to agree on a period within ±2 px
+before it will call them a band, and perspective alone breaks that
+agreement. Occlusion by hands and uneven lighting make it worse, but
+they are not the cause — the cause is that **a keyboard in perspective
+is not a constant-period grating row to row**, and the whole method
+assumes it is.
+
+The synthetic unit tests pass easily because a synthetic keyboard is
+front-parallel by construction. That is exactly what makes them
+worthless as evidence: they encode the assumption instead of testing
+it. A fix would need a different algorithm — a 2D spectral method over
+a region, or line detection on the key edges with rectification — not a
+different threshold, and there is no evidence yet that either would
+work.
+
+**What was done about it.** `server/features/extract.run_detect` was
+written and removed the same day: a pipeline stage that writes a field
+no analysis may use is worse than no stage. The module and its eleven
+tests are kept as the record of an approach that was tried and
+measured. Both fields remain **withheld**, exactly as they were before.
+
+**What this means for M3.** One of its four candidate routes is closed.
+The remaining three are a negative-example prompt for Gemma 3 4B,
+Qwen2.5-VL 7B Q4 on the RTX 2070 (measured in Phase 0B to fit at
+~7.6 GB, co-residency impossible), and a cloud provider on own media
+only once `cloud_vision` is funded — it is currently capped at $0.00.
+The held-out set is still required before any of them may promote a
+field, and the 24 labels above can no longer serve as it: they have now
+been used to disqualify two different approaches.
+
+
+---
+
+## Addendum — M3: the held-out set, and what a prompt can and cannot fix
+
+*2026-10-27. Supersedes every figure above for decision purposes. The
+24-video tuning set has now been used to disqualify two approaches and
+can no longer measure generalisation; these numbers come from labels
+nobody had seen before inference ran.*
+
+### The set
+
+**80 publications. 40 own, 40 competitor, none of them among the 24.**
+
+* The own half is drawn across the whole account rather than the newest
+  40, so it is not one period of one style. Fixture:
+  `tests/fixtures/vision/holdout_labels_own.json`.
+* The competitor half is 40 TikTok publications from 33 different
+  creators — the only unseen-creator evidence M3 has. Fixture:
+  `tests/fixtures/vision/holdout_labels_competitor.json`. The media was
+  acquired for **$0.1616** (40 files, $0.00404 each, measured), labelled
+  inside its six-hour window, and deleted; ADR 0009 governs why the
+  labels persist and the frames do not.
+* **Both halves were labelled by Claude, not by the owner.** This is the
+  single largest caveat on everything below. Each fixture lists the
+  cases it flagged as genuinely ambiguous — 10 on the own half, 11 on
+  the competitor half — and those are where a second opinion would
+  change a number.
+* Labels were written before any inference. No model or detector output
+  was consulted.
+
+### Why the competitor half changes what is measurable
+
+The own half has **no negatives at all** for `performer_visible` and
+exactly one for `text_overlay_present`. Nothing can be learned from a
+field with no variance, and a lift bar is unreachable when the base rate
+is 0.975. The competitor half supplies 5 and 11 respectively — including
+four piano-roll animations with no person in shot, and one piece of dark
+abstract footage with no instrument anywhere. Several of the figures
+below exist only because that half exists.
+
+### The arms
+
+Two prompts, same model (Gemma 3 4B Q4_K_M), same GBNF grammar, same
+schema, same frame plan, same JPEG bytes, run back to back on each
+publication:
+
+* **control** — `vision_task.PROMPT`, the prompt this pipeline runs.
+* **treatment** — `vision_task.PROMPT_V2`, a negative-example prompt
+  written to attack the specificity collapse: it names the base-rate
+  shortcut explicitly, gives a visibility criterion per field ("TRUE
+  only if you can see piano KEYS", "White paper is not notation"), and
+  supplies the measured false positives, the garden among them, as
+  worked negatives.
+
+Holding everything but the prompt constant is what makes the difference
+attributable to the prompt. Note that **latency is not comparable
+between the arms** — the second arm reuses llama.cpp's warm image cache,
+which is why it runs *faster* despite a prompt 591 tokens longer.
+
+### Result, pooled over all 80 — the population M3's rule names
+
+| field | arm | n | spec | TN/neg | recall | acc | baseline | lift | clears |
+|---|---|---|---|---|---|---|---|---|---|
+| `performer_visible` | original | 80 | 1.000 | 5/5 | 0.920 | 0.925 | 0.938 | -0.012 | no |
+| `performer_visible` | negative_example | 80 | 0.400 | 2/5 | 1.000 | 0.963 | 0.938 | +0.025 | no |
+| `piano_or_keyboard_visible` | original | 80 | 0.100 | 1/10 | 1.000 | 0.887 | 0.875 | +0.012 | no |
+| `piano_or_keyboard_visible` | negative_example | 80 | 0.200 | 2/10 | 1.000 | 0.900 | 0.875 | +0.025 | no |
+| `hands_visible` | original | 80 | 0.100 | 1/10 | 1.000 | 0.887 | 0.875 | +0.012 | no |
+| `hands_visible` | negative_example | 80 | 0.000 | 0/10 | 1.000 | 0.875 | 0.875 | +0.000 | no |
+| `face_visible` | original | 80 | 0.808 | 42/52 | 0.857 | 0.825 | 0.650 | +0.175 | **yes** |
+| `face_visible` | negative_example | 80 | 0.750 | 39/52 | 1.000 | 0.838 | 0.650 | +0.188 | no |
+| `sheet_music_visible` | original | 80 | 0.193 | 11/57 | 1.000 | 0.425 | 0.713 | -0.288 | no |
+| `sheet_music_visible` | negative_example | 80 | 0.807 | 46/57 | 0.913 | 0.838 | 0.713 | +0.125 | **yes** |
+| `text_overlay_present` | original | 80 | 0.917 | 11/12 | 1.000 | 0.988 | 0.850 | +0.138 | **yes** |
+| `text_overlay_present` | negative_example | 80 | 1.000 | 12/12 | 0.912 | 0.925 | 0.850 | +0.075 | no |
+
+| field | arm | answered/labelled | declined | acc | baseline | lift |
+|---|---|---|---|---|---|---|
+| `shot_distance` | original | 79/79 | 0 | 0.418 | 0.519 | -0.101 |
+| `shot_distance` | negative_example | 79/79 | 0 | 0.494 | 0.519 | -0.025 |
+| `setting` | original | 58/69 | 11 | 0.362 | 0.681 | -0.319 |
+| `setting` | negative_example | 67/69 | 2 | 0.194 | 0.681 | -0.487 |
+
+**M3's rule, written down before any of this was measured: a field
+enters analytical use at specificity >= 0.80 and lift >= +0.10 on the
+held-out set.** Applied to the prompt actually in production:
+
+* **`vision_text_overlay_present` — confirmed.** Already promoted from
+  the 24-video benchmark; it holds on fresh held-out data at 0.917 /
+  +0.138. This is the one field in the vision stack with two
+  independent passes behind it.
+* **`vision_face_visible` — promoted, with the caveat attached to it in
+  the registry.** 0.808 / +0.175 pooled. Per half it is 0.857 on
+  competitor publications and **0.750 on the owner's own**, which is
+  below the bar. The own half is the population any recommendation is
+  actually about, so this is the weakest entry in `VISION_FEATURES`.
+* Everything else stays withheld.
+
+An earlier draft of the scorer required a field to clear the bar on
+*both halves independently*. That is a stricter and probably better
+rule — but M3 pre-registered "on the held-out set", and tightening a
+threshold after seeing which fields it would exclude is the move
+CLAUDE.md §3.13 exists to prevent. The pooled figure therefore decides,
+and the per-half split is reported beside it as a diagnostic. Requiring
+both halves should be written into M4 *before* its first measurement.
+
+### The prompt did one thing, very well, and paid for it
+
+| field | control only right | treatment only right | agreed | McNemar p |
+|---|---|---|---|---|
+| `performer_visible` | 0 | 3 | 37 | 0.250 |
+| `piano_or_keyboard_visible` | 0 | 1 | 39 | 1.000 |
+| `hands_visible` | 0 | 0 | 40 | — |
+| `face_visible` | 3 | 2 | 35 | 1.000 |
+| `sheet_music_visible` | 2 | 18 | 20 | 0.000 |
+| `text_overlay_present` | 2 | 0 | 38 | 0.500 |
+
+*(own half; `b` = control right and treatment wrong, `c` = the reverse)*
+
+| field | control only right | treatment only right | agreed | McNemar p |
+|---|---|---|---|---|
+| `performer_visible` | 3 | 3 | 34 | 1.000 |
+| `piano_or_keyboard_visible` | 1 | 1 | 38 | 1.000 |
+| `hands_visible` | 1 | 0 | 39 | 1.000 |
+| `face_visible` | 2 | 4 | 34 | 0.688 |
+| `sheet_music_visible` | 0 | 17 | 23 | 0.000 |
+| `text_overlay_present` | 4 | 1 | 35 | 0.375 |
+
+*(competitor half)*
+
+`sheet_music_visible` goes from **0.193 to 0.807** specificity pooled —
+18 publications fixed against 2 broken on the own half (p = 0.0004), 17
+against 0 on the competitor half (p < 0.001). That is not noise and it
+is not a threshold nudge: the model genuinely stops calling blank music
+stands, art books and numbered keys "notation" once it is told in so
+many words that white paper is not notation.
+
+And it is still **not promoted**, for a reason worth stating plainly.
+The prompt does not sharpen the model's perception; it moves the model's
+whole operating point towards "no". That is a trade, and the invoice
+arrives on the fields that were already fine —
+
+* `text_overlay_present` recall falls 1.000 → 0.912, dropping its lift
+  from +0.138 to +0.075, below the bar;
+* `face_visible` specificity falls 0.808 → 0.750, below the bar;
+* `performer_visible` specificity collapses 1.000 → 0.400 — it begins
+  claiming a performer in the piano-roll animations;
+* `setting` accuracy halves, 0.362 → 0.194.
+
+A prompt is selected per run, not per field. Adopting the treatment
+prompt would gain one field and lose two, and picking the better arm for
+each field *after* seeing this table would be selection on the test set.
+So the pipeline keeps the control prompt
+(`vision_task.DEFAULT_VARIANT = "original"`), and `sheet_music_visible`
+stays withheld with a known route forward rather than a dead end:
+either two inference passes, or a prompt that fixes notation without
+shifting the global operating point. Which of those is worth paying for
+is a cost question for M4.
+
+### What the prompt could not fix at all
+
+`piano_or_keyboard_visible` moved from specificity 0.100 to 0.200 — and
+**the single case it fixed is the garden, the example written into the
+prompt**. That is close enough to teaching the test to be worth saying
+out loud. The ten negatives in 80 are a harder problem than the garden:
+a grand piano shot side-on from the stalls, a piano filmed from above
+its open soundboard, an orchestral score with no instrument in frame, a
+face against black. The model answers *yes* to all of them, because it
+is reasoning from "this is a piano video" rather than from the pixels,
+and no amount of instruction dislodged that.
+
+Together with the geometric detectors' failure recorded above, the
+keyboard field has now been attacked three ways — a 4B VLM, a
+negative-example prompt, and row-wise autocorrelation — and has not
+moved. It is the hardest field in this task, not the easiest, which is
+the opposite of what the M3 brief assumed.
+
+### Per-half tables
+
+Own (n=40):
+
+| field | arm | n | spec | TN/neg | recall | acc | baseline | lift | clears |
+|---|---|---|---|---|---|---|---|---|---|
+| `performer_visible` | original | 40 | — | 0/0 | 0.925 | 0.925 | 1.000 | -0.075 | n/a |
+| `performer_visible` | negative_example | 40 | — | 0/0 | 1.000 | 1.000 | 1.000 | +0.000 | n/a |
+| `piano_or_keyboard_visible` | original | 40 | 0.000 | 0/6 | 1.000 | 0.850 | 0.850 | +0.000 | no |
+| `piano_or_keyboard_visible` | negative_example | 40 | 0.167 | 1/6 | 1.000 | 0.875 | 0.850 | +0.025 | no |
+| `hands_visible` | original | 40 | 0.000 | 0/3 | 1.000 | 0.925 | 0.925 | +0.000 | no |
+| `hands_visible` | negative_example | 40 | 0.000 | 0/3 | 1.000 | 0.925 | 0.925 | +0.000 | no |
+| `face_visible` | original | 40 | 0.750 | 18/24 | 0.938 | 0.825 | 0.600 | +0.225 | no |
+| `face_visible` | negative_example | 40 | 0.667 | 16/24 | 1.000 | 0.800 | 0.600 | +0.200 | no |
+| `sheet_music_visible` | original | 40 | 0.286 | 8/28 | 1.000 | 0.500 | 0.700 | -0.200 | no |
+| `sheet_music_visible` | negative_example | 40 | 0.929 | 26/28 | 0.833 | 0.900 | 0.700 | +0.200 | **yes** |
+| `text_overlay_present` | original | 40 | 1.000 | 1/1 | 1.000 | 1.000 | 0.975 | +0.025 | no |
+| `text_overlay_present` | negative_example | 40 | 1.000 | 1/1 | 0.949 | 0.950 | 0.975 | -0.025 | no |
+
+| field | arm | answered/labelled | declined | acc | baseline | lift |
+|---|---|---|---|---|---|---|
+| `shot_distance` | original | 40/40 | 0 | 0.375 | 0.525 | -0.150 |
+| `shot_distance` | negative_example | 40/40 | 0 | 0.375 | 0.525 | -0.150 |
+| `setting` | original | 36/39 | 3 | 0.278 | 0.667 | -0.389 |
+| `setting` | negative_example | 38/39 | 1 | 0.132 | 0.667 | -0.535 |
+
+Competitor (n=40):
+
+| field | arm | n | spec | TN/neg | recall | acc | baseline | lift | clears |
+|---|---|---|---|---|---|---|---|---|---|
+| `performer_visible` | original | 40 | 1.000 | 5/5 | 0.914 | 0.925 | 0.875 | +0.050 | no |
+| `performer_visible` | negative_example | 40 | 0.400 | 2/5 | 1.000 | 0.925 | 0.875 | +0.050 | no |
+| `piano_or_keyboard_visible` | original | 40 | 0.250 | 1/4 | 1.000 | 0.925 | 0.900 | +0.025 | no |
+| `piano_or_keyboard_visible` | negative_example | 40 | 0.250 | 1/4 | 1.000 | 0.925 | 0.900 | +0.025 | no |
+| `hands_visible` | original | 40 | 0.143 | 1/7 | 1.000 | 0.850 | 0.825 | +0.025 | no |
+| `hands_visible` | negative_example | 40 | 0.000 | 0/7 | 1.000 | 0.825 | 0.825 | +0.000 | no |
+| `face_visible` | original | 40 | 0.857 | 24/28 | 0.750 | 0.825 | 0.700 | +0.125 | **yes** |
+| `face_visible` | negative_example | 40 | 0.821 | 23/28 | 1.000 | 0.875 | 0.700 | +0.175 | **yes** |
+| `sheet_music_visible` | original | 40 | 0.103 | 3/29 | 1.000 | 0.350 | 0.725 | -0.375 | no |
+| `sheet_music_visible` | negative_example | 40 | 0.690 | 20/29 | 1.000 | 0.775 | 0.725 | +0.050 | no |
+| `text_overlay_present` | original | 40 | 0.909 | 10/11 | 1.000 | 0.975 | 0.725 | +0.250 | **yes** |
+| `text_overlay_present` | negative_example | 40 | 1.000 | 11/11 | 0.862 | 0.900 | 0.725 | +0.175 | **yes** |
+
+| field | arm | answered/labelled | declined | acc | baseline | lift |
+|---|---|---|---|---|---|---|
+| `shot_distance` | original | 39/39 | 0 | 0.462 | 0.513 | -0.051 |
+| `shot_distance` | negative_example | 39/39 | 0 | 0.615 | 0.513 | +0.103 |
+| `setting` | original | 22/30 | 8 | 0.500 | 0.700 | -0.200 |
+| `setting` | negative_example | 29/30 | 1 | 0.276 | 0.700 | -0.424 |
+
+### Candidate status after this round
+
+| candidate | status |
+|---|---|
+| Gemma 3 4B, production prompt | **measured.** Two fields clear the bar; the rest withheld |
+| Gemma 3 4B, negative-example prompt | **measured.** Fixes sheet music decisively, costs two other fields; not adopted |
+| Deterministic geometric detectors | **measured and failed** (see above) |
+| Qwen2.5-VL 7B Q4 | **blocked on this hardware.** Phase 0B measured it at 7634 MiB; the desktop floor measured 2026-10-27 with llama-server stopped is 1126 MiB, leaving **6864 MiB free** — 770 MiB short. A reduced-context or Q3 build is untested and is the only way it could fit |
+| One cloud provider, own media only | **not run.** `cloud_vision` is capped at $0.00 and the owner has authorised Apify only. Competitor frames could not go to a cloud provider in any case without first checking that provider's terms and the source's, which has not been done |
+
+### Reproducing this
+
+```
+python scripts/provision/m3_prompt_arms.py --out arms_own.json
+# competitor half, only while its transient_media rows are live:
+#   on the server:  python m3_competitor_frames.py
+#   then locally:   --frames-file <that file> --labels <competitor fixture>
+python scripts/provision/score_m3_arms.py \
+    --half own        --arms arms_own.json  --labels tests/fixtures/vision/holdout_labels_own.json \
+    --half competitor --arms arms_comp.json --labels tests/fixtures/vision/holdout_labels_competitor.json
+```
+
+Every figure in this addendum was emitted by that scorer and checked
+back against its JSON. None was computed by hand.

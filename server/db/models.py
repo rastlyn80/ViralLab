@@ -723,7 +723,13 @@ class DiscoveryJob(Base):
         CheckConstraint("kind in ('creator','keyword','hashtag')",
                         name="ck_discovery_job_kind"),
         CheckConstraint(
-            "status in ('queued','running','ok','failed','refused')",
+            # `empty` is distinct from both `ok` and `failed` on purpose:
+            # the provider answered, the answer was nothing, and the run
+            # was billed anyway. Added 2026-10-26 after three paid runs
+            # returning `{"noResults": true}` sentinels were recorded as
+            # successful searches.
+            "status in ('queued','running','ok','empty','failed',"
+            "'refused')",
             name="ck_discovery_job_status"),
         Index("ix_discovery_jobs_lookup",
               "platform", "kind", "query_value", "started_at"),
@@ -887,10 +893,17 @@ class BudgetReservation(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     provider: Mapped[str] = mapped_column(String(64))
-    #: discovery | cloud_vision | cloud_audio | strategy. Part of the budget
-    #: grain, because "I will pay for discovery but not for frame analysis"
-    #: is the control the owner actually needs and a single cap cannot
-    #: express it.
+    #: discovery | competitor_media | cloud_vision | cloud_audio |
+    #: strategy. Part of the budget grain, because "I will pay for
+    #: discovery but not for frame analysis" is the control the owner
+    #: actually needs and a single cap cannot express it.
+    #:
+    #: The allowed set is enforced by `ck_reservation_category` in the
+    #: database as well as by `budget.CATEGORIES` in Python. Both, not
+    #: either: the Python tuple was extended for `competitor_media` once
+    #: without the constraint, and the first real acquisition was refused
+    #: by Postgres at the moment of reserving — which is the right place
+    #: to find out, but only because the constraint existed.
     category: Mapped[str] = mapped_column(
         String(32), default="discovery", server_default="discovery")
     #: The caller's identifier for this unit of work. A retry presenting the
@@ -1445,4 +1458,92 @@ class ImportedMetric(Base):
         CheckConstraint("provenance = 'manual_export'",
                         name="ck_imported_metric_provenance"),
         Index("ix_imported_metrics_video", "video_id", "metric"),
+    )
+
+
+class TransientMedia(Base):
+    """A competitor media file on disk, and the clock it dies by.
+
+    `docs/MULTIMODAL_PIPELINE.md` §0 states the rule this table enforces:
+    competitor media is **fetched, analysed and deleted**, never
+    accumulated. Features survive, bytes do not. That rule was written
+    before anything checked it, and one collector was found violating it.
+    A row here exists for exactly as long as a file does, and the reaper
+    reconciles the two in both directions — a file with no row is as much
+    a violation as a row past its expiry.
+
+    Three properties the schema itself carries:
+
+    * **`expires_at` is NOT NULL.** There is no way to record a competitor
+      file without also recording when it must be gone. A nullable column
+      here would make "forever" representable, and forever is the thing
+      this table exists to prevent.
+    * **`path` is unique among LIVE rows.** Two live rows claiming the
+      same file would let one be reaped while the other still believes
+      the file is there. It is deliberately not globally unique: the
+      quarantine path is derived from the video id, so a publication
+      acquired, analysed, deleted and later re-acquired reuses the same
+      path, and a global constraint would make re-acquisition impossible
+      while the historical record existed. Enforced by a partial index.
+    * **`deleted_at` plus `delete_reason`.** The row outlives the file on
+      purpose: an audit needs to show that something was acquired and
+      then removed, which a deleted row cannot do.
+
+    `videos.media_status` for a competitor publication stays `absent`
+    throughout, because it genuinely is — nothing here is a preserved
+    file and nothing here may be served.
+    """
+
+    __tablename__ = "transient_media"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_id: Mapped[int] = mapped_column(
+        ForeignKey("videos.id", ondelete="CASCADE"))
+    #: Absolute path inside the quarantine root, which lives OUTSIDE
+    #: `MEDIA_ROOT` so the signed media endpoint cannot address it even by
+    #: accident or by a crafted relative path.
+    path: Mapped[str] = mapped_column(Text)
+    sha256: Mapped[str | None] = mapped_column(String(64))
+    size_bytes: Mapped[int | None] = mapped_column(BigInteger)
+
+    acquired_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+    #: Hard deadline. Enforced by the reaper, not by intention.
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    #: Who delivered the bytes, e.g. `apify:clockworks/free-tiktok-scraper`.
+    #: Recorded per file rather than assumed globally: the answer to "were
+    #: we allowed to have this" depends on which provider's terms applied,
+    #: and the provider in use has already changed once.
+    source: Mapped[str] = mapped_column(String(128))
+    #: Why acquiring it was permitted, in words. Free text on purpose —
+    #: this is the field a human reads during a legal review, and an enum
+    #: would flatten exactly the nuance such a review needs.
+    permission_basis: Mapped[str] = mapped_column(Text)
+    #: What the download itself cost, where the provider bills per file.
+    cost_usd: Mapped[float | None] = mapped_column(Numeric(12, 6))
+
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    #: features_persisted | expired | cancelled | crash_recovery | manual
+    delete_reason: Mapped[str | None] = mapped_column(String(32))
+    #: Anything a later audit needs that the columns do not carry.
+    audit: Mapped[dict | None] = mapped_column(JSONB)
+
+    __table_args__ = (
+        Index("uq_transient_media_live_path", "path", unique=True,
+              postgresql_where=text("deleted_at is null")),
+        CheckConstraint(
+            "delete_reason is null or delete_reason in "
+            "('features_persisted','expired','cancelled','crash_recovery',"
+            "'manual')",
+            name="ck_transient_media_delete_reason"),
+        # A deletion has both a time and a reason, or neither. Half a
+        # deletion record is worse than none: it reads as audited.
+        CheckConstraint(
+            "(deleted_at is null) = (delete_reason is null)",
+            name="ck_transient_media_deletion_complete"),
+        Index("ix_transient_media_live", "expires_at",
+              postgresql_where=text("deleted_at is null")),
+        Index("ix_transient_media_video", "video_id"),
     )

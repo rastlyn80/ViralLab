@@ -23,6 +23,10 @@ from server.features.retention import (partial_spearman, partial_spearman2,
                                        partial_spearman_n, spearman)
 from tests.conftest import TEST_DB_URL, assert_disposable
 
+#: CSV fixtures are built by joining lines, so no literal escape
+#: sequences appear in this file.
+NL = chr(10)
+
 
 # ---------------------------------------------------------------------------
 # pure functions — no database needed
@@ -272,6 +276,56 @@ def test_an_ambiguous_percent_reaches_the_import_warnings():
     assert p.rows[0].metrics["watched_full_video_rate"][0] == pytest.approx(
         0.43)
     assert any("100x" in w for w in p.warnings), p.warnings
+
+
+def test_post_time_beats_a_bare_time_column():
+    """The real TikTok Studio export has BOTH "Time" and "Post time".
+
+    "Time" is the date the file was exported; "Post time" is the
+    publication date. First-column-wins mapped "Time" to `posted_at` and
+    discarded "Post time", which would have age-anchored every unmatched
+    row to the export date. Role columns are now chosen by the most
+    specific alias that matches.
+    """
+    csv = NL.join([
+        '"Time","Video title","Video link","Post time","Total views"',
+        '"26 October","t",'
+        '"https://www.tiktok.com/@gb/video/7617078828682267926",'
+        '"14 March","60301"',
+        ''])
+    p = imports.parse(csv, source="tiktok_studio", platform="tiktok")
+    assert p.column_map.get("Post time") == "posted_at"
+    assert p.column_map.get("Video link") == "external_ref"
+    assert "Time" in p.unmapped_columns
+
+
+def test_a_tiktok_export_without_retention_says_so():
+    """Views/likes/comments/shares duplicate the Display API.
+
+    The entire reason for a manual TikTok export is watch time. An export
+    that lacks it must not be reported as a clean import — it adds no
+    evidence the API did not already have.
+    """
+    csv = NL.join([
+        '"Video link","Total views","Total likes"',
+        '"https://www.tiktok.com/@gb/video/7617078828682267926",'
+        '"60301","3575"',
+        ''])
+    p = imports.parse(csv, source="tiktok_studio", platform="tiktok")
+    assert any("NO RETENTION METRICS" in w for w in p.warnings), p.warnings
+
+
+def test_an_unparseable_date_column_is_flagged_not_silent():
+    """"14 March" has no year. Refusing to date it is right; doing so
+    without saying anything is not."""
+    csv = NL.join([
+        '"Video link","Post time","Total views"',
+        '"https://www.tiktok.com/@gb/video/7617078828682267926",'
+        '"14 March","60301"',
+        ''])
+    p = imports.parse(csv, source="tiktok_studio", platform="tiktok")
+    assert p.rows[0].posted_at is None
+    assert any("could not be parsed on any row" in w for w in p.warnings)
 
 
 def test_importer_refuses_a_file_it_cannot_attach_to_publications():

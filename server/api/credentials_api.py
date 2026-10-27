@@ -300,13 +300,25 @@ def list_credentials() -> CredentialsView:
         spending=SpendingStatus(
             monthly_cap_usd=sp.monthly_cap_usd,
             providers_authorised=list(sp.providers_authorised),
-            category_caps_usd={c: sp.cap_for(c) for c in ("discovery", "cloud_vision", "cloud_audio", "strategy")},
+            # Every category the project can spend against, so the
+            # dashboard shows a $0.00 one rather than omitting it. An
+            # absent category reads as "not applicable"; a $0.00 one
+            # reads as "not authorised", and only the second is true.
+            category_caps_usd={c: sp.cap_for(c) for c in SPEND_CATEGORIES},
             any_authorised=sp.any_authorised,
             research_provider=provider, research_reason=reason),
         env_path_writable=writable,
         note=("Values are never returned by this API. The fingerprint is the "
               "first 8 characters of the SHA-256 of the stored value, which "
               "is enough to check that what you pasted is what is stored."))
+
+
+#: Categories the spending guard knows about. `competitor_media` was
+#: added for M2: downloading a competitor's video through the provider's
+#: paid add-on is a different decision from paying for metadata, and
+#: giving it its own ceiling stops one starving the other.
+SPEND_CATEGORIES = ("discovery", "competitor_media", "cloud_vision",
+                    "cloud_audio", "strategy")
 
 
 @router.put("/spending", response_model=SpendingStatus,
