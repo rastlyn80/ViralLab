@@ -66,6 +66,7 @@ import urllib.error                                        # noqa: E402
 import urllib.request                                      # noqa: E402
 
 from server.ai import local_vlm                            # noqa: E402
+from server.ai.base import AnalysisRequest                 # noqa: E402
 
 #: The five the holdout exists to judge, plus the two already verified
 #: as a control: if a prompt change breaks `face_visible`, that is a
@@ -182,6 +183,60 @@ def parse(text: str) -> dict:
         return got
 
 
+def run_cloud_arm(arm: str, frames: dict[int, list], labels: dict,
+                  provider, budget) -> dict:
+    """The same two prompts, sent to a paid model.
+
+    Every call is reserved against the ledger before it is made and
+    settled with the token counts the API itself returns, so the cost
+    reported here is measured rather than estimated and the cap is
+    enforced by the same machinery that governs media acquisition. A
+    refused reservation stops the run; it is never worked around.
+    """
+    import base64
+
+    prompt = ARMS[arm]
+    preds, raw, failures = {}, {}, []
+    spent = 0.0
+    t0 = time.time()
+    for vid, fr in sorted(frames.items()):
+        blobs = []
+        for f in fr[:4]:
+            b64 = f.get("jpeg_b64") if isinstance(f, dict) else f
+            blobs.append((float(f.get("at_s", 0.0)) if isinstance(f, dict)
+                          else 0.0, base64.b64decode(b64)))
+        req = AnalysisRequest(task="describe_then_answer", schema={},
+                              prompt=prompt, frames=blobs, video_id=vid,
+                              max_output_tokens=900)
+        est = provider.estimate_usd(req)
+        res = budget(est, f"describe_then_answer:{provider.name}:"
+                          f"{arm}:{vid}")
+        if res is None:
+            failures.append({"video_id": vid, "why": "budget refused"})
+            break
+        try:
+            out = provider.analyse(req)
+        except Exception as exc:               # noqa: BLE001 - recorded
+            res("failed", 0.0)
+            failures.append({"video_id": vid, "why": str(exc)[:160]})
+            continue
+        actual = (out.usage.actual_usd if out.usage else None) or est
+        res("ok", actual)
+        spent += actual
+        got = parse(out.text or "")
+        if not got:
+            failures.append({"video_id": vid, "why": "no JSON in reply"})
+            continue
+        preds[vid] = {f: got.get(f) for f in FIELDS}
+        raw[vid] = {"descriptions": got.get("frame_descriptions"),
+                    "in_tok": out.usage.input_tokens if out.usage else None,
+                    "out_tok": out.usage.output_tokens if out.usage else None}
+    return {"arm": arm, "seconds": round(time.time() - t0, 1),
+            "answered": len(preds), "failures": failures,
+            "billed_usd": round(spent, 4),
+            "predictions": preds, "raw": raw}
+
+
 def run_arm(name: str, frames: dict[int, list], labels: dict) -> dict:
     prompt = ARMS[name]
     preds, raw, failures = {}, {}, []
@@ -243,15 +298,128 @@ def score(preds: dict, labels: dict) -> dict:
     return out
 
 
+def run_cloud(args) -> int:
+    """A paid run, with two independent brakes.
+
+    `--max-usd` is this script's own ceiling, checked before every
+    call. The budget ledger's monthly cap and per-category allowance
+    are checked by `budget.reserve` underneath it. Neither is
+    bypassable from here and the lower of the two binds.
+    """
+    import os
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from server import budget as bud
+    from server.ai.providers import (AnthropicSonnetVisionProvider,
+                                     AnthropicVisionProvider)
+
+    provider = (AnthropicSonnetVisionProvider()
+                if args.model == "claude-sonnet" else
+                AnthropicVisionProvider())
+    ok, why = provider.available()
+    if not ok:
+        print(f"cannot run: {why}")
+        return 1
+
+    url = os.environ.get("VIRALLAB_DB_URL")
+    if not url:
+        print("VIRALLAB_DB_URL is not set; the spend ledger lives there "
+              "and an unledgered paid run is not allowed")
+        return 1
+    engine = create_engine(url, future=True)
+    Session = sessionmaker(engine, expire_on_commit=False, future=True)
+
+    spent = {"usd": 0.0}
+
+    def budget(estimate: float, key: str):
+        """Reserve, then hand back a settle function. None = refused.
+
+        The idempotency key is required by `reserve` and is the thing
+        that stops a re-run paying twice for the same publication and
+        arm. It is derived from both, never from a counter.
+        """
+        if spent["usd"] + estimate > args.max_usd:
+            print(f"stopping: --max-usd {args.max_usd:.2f} reached "
+                  f"(spent {spent['usd']:.4f})")
+            return None
+        with Session() as s:
+            try:
+                r = bud.reserve(s, provider=provider.name,
+                                estimated_usd=estimate,
+                                idempotency_key=key,
+                                category="cloud_vision",
+                                detail={"script": "describe_then_answer"})
+                s.commit()
+            except Exception as exc:          # noqa: BLE001 - reported
+                print(f"budget refused: {exc}")
+                return None
+        rid = r.id
+
+        def settle(outcome: str, actual: float):
+            with Session() as s2:
+                if outcome == "ok":
+                    bud.settle(s2, rid, actual_usd=actual)
+                    spent["usd"] += actual
+                else:
+                    bud.release(s2, rid, reason=outcome)
+                s2.commit()
+        return settle
+
+    frames = load_frames(Path(args.frames))
+    labels = {int(k): v for k, v in
+              json.loads(Path(args.labels).read_text(
+                  encoding="utf-8"))["labels"].items()}
+    print(f"{len(frames)} publications, {provider.name} "
+          f"({provider.MODEL}), ceiling ${args.max_usd:.2f}")
+
+    results = {}
+    for arm in args.arms.split(","):
+        r = run_cloud_arm(arm, frames, labels, provider, budget)
+        r["scores"] = score(r["predictions"], labels)
+        results[arm] = r
+        print(f"\n=== {arm}  {r['seconds']}s  answered "
+              f"{r['answered']}/{len(frames)}  failures "
+              f"{len(r['failures'])}  billed ${r['billed_usd']}")
+        for f, sc in r["scores"].items():
+            print(f"  {f:28s} says yes {sc['says_yes']:>2}/{sc['n']:<3} "
+                  f"spec {sc['specificity'] if sc['specificity'] is not None else '-':>5} "
+                  f"recall {sc['recall'] if sc['recall'] is not None else '-':>5} "
+                  f"lift {sc['lift'] if sc['lift'] is not None else '-':>6}")
+
+    print(f"\ntotal billed: ${spent['usd']:.4f}")
+    if args.out:
+        Path(args.out).write_text(json.dumps(
+            {"model": provider.MODEL, "provider": provider.name,
+             "billed_usd": round(spent["usd"], 4),
+             "arms": {k: {kk: vv for kk, vv in v.items()
+                          if kk != "predictions"}
+                      | {"predictions": {str(a): b for a, b in
+                                         v["predictions"].items()}}
+                      for k, v in results.items()}},
+            indent=1), encoding="utf-8")
+        print(f"wrote {args.out}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--frames", required=True)
     ap.add_argument("--labels", default="tests/fixtures/vision/"
                                         "holdout_labels_own.json")
     ap.add_argument("--arms", default="bare,describe_first")
-    ap.add_argument("--model", default="gemma", choices=sorted(MODELS))
+    ap.add_argument("--model", default="gemma",
+                    choices=sorted(MODELS) + ["claude-sonnet", "claude-haiku"])
+    ap.add_argument("--max-usd", type=float, default=0.80,
+                    help="hard ceiling for a cloud run. The ledger cap "
+                         "still applies on top of this; whichever is "
+                         "lower wins.")
     ap.add_argument("--out", default="")
     args = ap.parse_args()
+
+    if args.model.startswith("claude-"):
+        return run_cloud(args)
 
     model_file, mmproj_file, model_name = MODELS[args.model]
     local_vlm.MODEL = local_vlm.ROOT / "models" / model_file

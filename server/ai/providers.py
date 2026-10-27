@@ -532,6 +532,35 @@ class AnthropicVisionProvider(CloudProvider):
                            latency_s=time.monotonic() - started)
 
 
+class AnthropicSonnetVisionProvider(AnthropicVisionProvider):
+    """The same verified request format, a larger model.
+
+    Added 2026-10-27 to answer a specific question the owner asked:
+    the local 4B model fails `piano_or_keyboard_visible` by answering
+    yes almost regardless of the frame, and a stronger model might
+    not. Qwen2.5-VL 7B, run locally and free, already showed the
+    direction - face specificity 0.38 to 0.88 - so the remaining
+    question is how much further a frontier model goes and whether it
+    is worth paying for.
+
+    Inherits everything but the model and its prices, because the
+    request format, the image-token formula and the people-identifying
+    refusal are properties of the API rather than of the model.
+
+    `[SECONDARY]` the two prices below are list prices as understood on
+    2026-10-27 and are NOT read from a pricing endpoint. Every figure
+    this provider reports as `actual_usd` is computed from the token
+    counts the API itself returns, so a price change shows up as a
+    wrong cost rather than a wrong token count. Confirm against the
+    billing console before any sustained use.
+    """
+
+    name = "anthropic-sonnet"
+    MODEL = "claude-sonnet-5"
+    USD_PER_MTOK_IN = 3.00
+    USD_PER_MTOK_OUT = 15.00
+
+
 def default_registry():
     from server.ai.base import Registry
     reg = Registry()
@@ -540,4 +569,5 @@ def default_registry():
     reg.register(OpenAIVisionProvider())
     reg.register(GeminiVisionProvider())
     reg.register(AnthropicVisionProvider())
+    reg.register(AnthropicSonnetVisionProvider())
     return reg

@@ -44,9 +44,46 @@ def make_request(**kw):
 def test_the_registry_lists_every_provider_with_its_hosting():
     rows = {r["provider"]: r for r in default_registry().describe()}
     assert set(rows) == {"local-ocr", "local-vlm", "openai", "gemini",
-                         "anthropic"}
+                         "anthropic", "anthropic-sonnet"}
     assert rows["local-ocr"]["hosting"] == "local"
     assert rows["openai"]["hosting"] == "cloud"
+
+
+def test_the_two_claude_entries_differ_only_in_model_and_price():
+    """`anthropic-sonnet` exists because the owner asked whether a
+    stronger model would succeed where the local 4B one fails. It
+    inherits the request format, the image-token formula and the
+    people-identifying refusal, because those are properties of the
+    API rather than of the model - so the only things that may differ
+    are the model name and what it costs.
+
+    Stated as a test because a subclass that quietly diverged would
+    make the benchmark compare two things at once.
+    """
+    from server.ai.providers import (AnthropicSonnetVisionProvider,
+                                     AnthropicVisionProvider)
+    haiku, sonnet = AnthropicVisionProvider(), AnthropicSonnetVisionProvider()
+    assert sonnet.MODEL != haiku.MODEL
+    assert sonnet.USD_PER_MTOK_IN > haiku.USD_PER_MTOK_IN
+    assert sonnet.URL == haiku.URL
+    assert sonnet.API_VERSION == haiku.API_VERSION
+    assert sonnet.PATCH == haiku.PATCH
+    assert sonnet.STANDARD_MAX_TOKENS == haiku.STANDARD_MAX_TOKENS
+    assert sonnet.env_var == haiku.env_var
+
+
+def test_neither_claude_provider_runs_without_a_credential():
+    """The guard that makes an unapproved paid call impossible rather
+    than merely discouraged."""
+    from server.ai.providers import (AnthropicSonnetVisionProvider,
+                                     AnthropicVisionProvider)
+    import os
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        pytest.skip("a credential is configured on this machine")
+    for p in (AnthropicVisionProvider(), AnthropicSonnetVisionProvider()):
+        ok, why = p.available()
+        assert ok is False
+        assert "ANTHROPIC_API_KEY" in (why or "")
 
 
 def test_only_gemini_claims_native_video():
