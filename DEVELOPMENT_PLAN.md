@@ -2009,6 +2009,34 @@ Other items:
   over 20 of 31 publications is a sample, and the comparison says so.
   **[OPEN]**
 
+**Visual intelligence — Phase 1 detector comparison (2026-10-27)**
+- **The corpus cannot answer the piano or hands question at all.** The
+  pre-registered bar is specificity >= 0.80, and the 80 labelled
+  publications contain 4 and 6 negatives for
+  `piano_or_keyboard_visible` and 7 and 3 for `hands_visible`. With
+  three negatives the attainable specificities are 0, 0.33, 0.67 and
+  1.00, so the bar can be met only by a perfect score and one
+  borderline video decides it. Every piano and hands figure in
+  `docs/benchmarks/7-detector-comparison.md` is therefore **unmeasured,
+  not failed** — a distinction that changes what the next holdout has
+  to look like. `text_overlay_present` rests on a single negative in
+  the own cohort. **[OPEN — resolved only by a holdout carrying
+  deliberate negatives in both cohorts]**
+- **No approach clears both bars in both directions.** OWLv2-base on
+  sheet music comes closest at 0.90/+0.20 and 0.79/+0.10, missing the
+  specificity bar in the second direction by less than one video.
+  Asserted by a test so the report cannot drift from the data. **[OPEN]**
+- **The 80 publications have now been spent twice** — once choosing a
+  prompt in M3, once choosing a model here. Phase 1 promoted nothing
+  and a test enforces it; `sheet_music_visible` stays withheld despite
+  being the best result the project has produced. **[OPEN]**
+- **A discriminative-query remedy was tried and failed.** Subtracting
+  "a grand piano seen from the side with no keys visible" from "a piano
+  keyboard" did not improve specificity and drove lift negative:
+  OWLv2 scores both phrasings on the same box. Kept behind
+  `--owl-discriminative`, off by default, so the negative result is
+  reproducible rather than retried. **[CLOSED — recorded]**
+
 **Vision — opened and partly closed by M3 (2026-10-27)**
 - **The 80 held-out labels are now SPENT.** They promoted
   `vision_face_visible`, confirmed `vision_text_overlay_present` and
