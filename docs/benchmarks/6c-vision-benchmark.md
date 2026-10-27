@@ -553,3 +553,29 @@ python scripts/provision/score_m3_arms.py \
 
 Every figure in this addendum was emitted by that scorer and checked
 back against its JSON. None was computed by hand.
+
+**The predictions are committed, so this is reproducible.** The raw
+model output for both arms now lives beside the labels, in
+`tests/fixtures/vision/holdout_predictions_own.json` and
+`holdout_predictions_competitor.json`. Until it did, every figure here
+rested on a file in a temporary directory: the labels were in the
+repository and the predictions were not, so nothing could be rechecked
+and nothing could be re-scored. `tests/server/test_vision_promotion.py`
+rebuilds the confusion matrix for every promoted field from those
+fixtures, longhand, and fails if the registry, the published figures
+and the raw output ever disagree. The fixtures contain model answers
+and token counts only — no frames, no bytes.
+
+### These 80 labels are now spent
+
+They chose a prompt and promoted a field. That is selection, and a set
+used to select can no longer measure generalisation of what it
+selected — which is exactly what happened to the 24 tuning labels,
+twice, and is why this set had to be built in the first place.
+
+The benchmark above stands as published and is not revised. What it
+may not do is serve as the holdout for the *next* decision. **M4 and
+anything after it need a new prospective holdout, labelled before the
+candidate's output exists.** Both fixtures record this under
+`_spent_by` and a test asserts the record is there, so the constraint
+travels with the data rather than living only in this paragraph.

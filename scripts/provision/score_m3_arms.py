@@ -8,15 +8,37 @@ the geometric one as a measured dead end.
 
 Four things this reports that a plain accuracy table would not:
 
-**The halves stay apart, and the verdict needs both.** The own-account
-40 are the V4 transfer population - the owner's own publications, the
-ones any recommendation would actually be about. The competitor 40 are
-33 different creators the model has never been tuned on, which is the
-only unseen-creator evidence M3 has. A field that clears the bar on one
-and fails the other has not generalised, and averaging the two would
-hide exactly that. So `promote` requires both halves to clear it
-independently; the pooled table is reported for reading, never for
-deciding.
+**The pooled figure decides; the halves are the diagnostic.** M3's rule
+was written down before any of this was measured and names "the
+held-out set", which is all 80 publications pooled - so that is what
+`clears_under_control` and `clears_under_treatment` are computed on.
+
+An earlier draft of this script required a field to clear the bar on
+*both halves independently*. That is a stricter rule and probably a
+better one, but it was written after the per-half numbers were visible,
+and tightening a threshold once you can see which fields it would
+exclude is the move CLAUDE.md 3.13 exists to prevent. It was reverted
+rather than kept. Requiring both halves is logged in
+DEVELOPMENT_PLAN.md 11 as something to write down **before** M4
+measures anything.
+
+The halves are therefore still reported, and reported separately,
+because the pooled number cannot answer the question that matters:
+whether a pooled pass rests on one half. `generalisation_diagnostic`
+carries that per field, and `pooled_pass_rests_on_one_half` flags it.
+It is flagged for every field that currently passes:
+
+  * the own-account 40 are the V4 transfer population - the owner's
+    own publications, which any recommendation is actually about;
+  * the competitor 40 span 33 creators the model has never been tuned
+    on, and are the only unseen-creator evidence M3 has.
+
+**`face_visible` is the case this exists for.** It clears the pooled
+bar at specificity 0.808 - and scores 0.857 on competitor publications
+against **0.750 on the owner's own**, which is below the bar. It is
+promoted because the pre-registered rule says so, and the caveat
+travels with it in `visual_structure.VISION_FEATURES` rather than
+living only here. Read the diagnostic before trusting it.
 
 **Baselines, per half.** `performer_visible` is true in all 40 own
 labels, so nothing can be learned from it there - it has five negatives

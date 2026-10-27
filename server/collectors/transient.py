@@ -263,32 +263,147 @@ def sweep(session: Session, *, now: datetime | None = None,
     return out
 
 
-def audit(session: Session, *, now: datetime | None = None) -> dict:
+def _file_age_s(path: Path, stamp: datetime) -> float | None:
+    """Age of a file by its own mtime, in seconds. None if it is gone."""
+    try:
+        mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+    except OSError:
+        return None
+    return (stamp - mtime).total_seconds()
+
+
+def audit(session: Session, *, now: datetime | None = None,
+          ttl: timedelta = TTL) -> dict:
     """Is the six-hour guarantee currently true? Answers, does not assume.
 
     This is the check M2's acceptance criterion names — "zero competitor
-    files older than six hours on disk at any audited moment" — expressed
-    so it can be run rather than argued about.
+    files older than six hours on disk at any audited moment".
+
+    **It asks the disk, not only the ledger.** An earlier version of this
+    function decided the guarantee purely from `expires_at`, which means
+    it would have passed a directory full of six-hour-old bytes as long
+    as every row said they were still fresh. The ledger is exactly the
+    thing that is wrong when something has gone wrong, so the file's own
+    mtime is now the primary evidence and the row is cross-checked
+    against it:
+
+    * `stale_files` counts files whose **mtime** is older than the TTL,
+      whatever any row claims. This is the criterion as written, and it
+      is the one that fails the guarantee.
+    * `expiry_inconsistencies` counts live rows whose `expires_at` is
+      not `acquired_at + ttl`, within a second of slack. A row with a
+      deadline nobody set from the TTL is a row the reaper will honour
+      and a human would not expect — the most likely way a file
+      legitimately outlives six hours without anything looking broken.
+    * `rows_disagreeing_with_disk` counts live rows whose file is
+      measurably older than the row's own `acquired_at` implies. That is
+      a path reused by a file the ledger did not see arrive.
+    * `rows_with_missing_file` counts live rows whose file is already
+      gone. Normal for a moment between a deletion and the next sweep,
+      so it does not fail the guarantee — but it is reported, because a
+      number that never falls back to zero means the sweep is not
+      running.
+    * `rows_with_delete_errors` counts rows where `release()` caught an
+      OSError and recorded it instead of raising. Those files are still
+      on disk and still ageing, and nothing else surfaces them.
+
+    **Any unregistered file still fails the guarantee**, as it did
+    before. A file no live row claims has no deadline governing it at
+    all, which is the "research cache becomes a creator database" case
+    this whole module exists to prevent, and it should be loud even when
+    the file is seconds old. `unregistered_beyond_grace` is reported
+    alongside as the subset `sweep()` would delete right now — useful
+    for telling a mid-acquisition race apart from a real orphan, but it
+    does not soften the verdict.
+
+    **Ages are reported from both ends.** The previous version reported
+    `min()` of the file ages under the name `newest_file_age_s`, which
+    is accurate and useless: the guarantee is about the OLDEST file, and
+    that number was never computed. Both are reported now.
     """
     stamp = now or datetime.now(timezone.utc)
     rows = live_rows(session)
-    overdue = [r for r in rows if r.expires_at <= stamp]
     root = quarantine_root()
     on_disk = [p for p in root.glob("*") if p.is_file()]
-    known = {Path(r.path).resolve() for r in rows}
+
+    ages = {p: _file_age_s(p, stamp) for p in on_disk}
+    present = [a for a in ages.values() if a is not None]
+    ttl_s = ttl.total_seconds()
+    grace_s = ORPHAN_GRACE.total_seconds()
+
+    stale = [p for p, a in ages.items() if a is not None and a > ttl_s]
+
+    known = {Path(r.path).resolve(): r for r in rows}
     unregistered = [p for p in on_disk if p.resolve() not in known]
-    oldest = None
-    if on_disk:
-        oldest = min(
-            (stamp - datetime.fromtimestamp(p.stat().st_mtime,
-                                            tz=timezone.utc)).total_seconds()
-            for p in on_disk)
+    unregistered_old = [p for p in unregistered
+                        if (ages.get(p) or 0.0) >= grace_s]
+
+    overdue = [r for r in rows if r.expires_at <= stamp]
+    missing_file = [r for r in rows if not Path(r.path).exists()]
+    delete_errors = [r for r in rows if (r.audit or {}).get("delete_error")]
+
+    expiry_bad, disagreeing = [], []
+    for r in rows:
+        want = r.acquired_at + ttl
+        if abs((r.expires_at - want).total_seconds()) > 1.0:
+            expiry_bad.append(r)
+        age = _file_age_s(Path(r.path), stamp)
+        if age is None:
+            continue
+        # The file claims to predate the acquisition that registered it,
+        # by more than the orphan grace. Either the path was reused or
+        # the row is describing different bytes than the ones present.
+        row_age = (stamp - r.acquired_at).total_seconds()
+        if age - row_age > grace_s:
+            disagreeing.append(r)
+
+    violations = []
+    if stale:
+        violations.append(f"{len(stale)} file(s) on disk older than the "
+                          f"{ttl_s / 3600:.0f}h TTL by mtime")
+    if unregistered:
+        violations.append(
+            f"{len(unregistered)} unregistered file(s) in quarantine"
+            + (f", {len(unregistered_old)} past the orphan grace"
+               if unregistered_old else ""))
+    if overdue:
+        violations.append(f"{len(overdue)} live row(s) past expires_at")
+
+    inconsistencies = []
+    if expiry_bad:
+        inconsistencies.append(f"{len(expiry_bad)} row(s) whose expires_at "
+                               f"is not acquired_at + TTL")
+    if disagreeing:
+        inconsistencies.append(f"{len(disagreeing)} row(s) whose file is "
+                               f"older than the row")
+    if delete_errors:
+        inconsistencies.append(f"{len(delete_errors)} row(s) with a "
+                               f"recorded delete failure")
+    if missing_file:
+        inconsistencies.append(f"{len(missing_file)} live row(s) with no "
+                               f"file on disk")
+
     return {
         "live_rows": len(rows),
         "files_on_disk": len(on_disk),
         "overdue_rows": len(overdue),
         "unregistered_files": len(unregistered),
-        "newest_file_age_s": round(oldest, 1) if oldest is not None else None,
-        "guarantee_holds": not overdue and not unregistered,
+        "unregistered_beyond_grace": len(unregistered_old),
+        "stale_files": len(stale),
+        "rows_with_missing_file": len(missing_file),
+        "rows_with_delete_errors": len(delete_errors),
+        "expiry_inconsistencies": len(expiry_bad),
+        "rows_disagreeing_with_disk": len(disagreeing),
+        "oldest_file_age_s": (round(max(present), 1) if present else None),
+        "newest_file_age_s": (round(min(present), 1) if present else None),
+        "ttl_hours": ttl_s / 3600.0,
+        # The retention guarantee, decided from the disk.
+        "guarantee_holds": not violations,
+        "violations": violations,
+        # Bookkeeping. A failure here is not a retention breach, but it
+        # means the ledger and the directory have drifted and the next
+        # sweep has work to do.
+        "ledger_consistent": not inconsistencies,
+        "inconsistencies": inconsistencies,
         "quarantine_root": str(root),
     }

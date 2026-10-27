@@ -13,6 +13,7 @@ it until someone requests a signed URL.
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -421,3 +422,155 @@ def test_permission_basis_records_the_providers_own_retention(session,
     basis = cm.PERMISSION_BASIS.format(actor=cm.ACTOR, hours=6)
     assert "7 days" in basis
     assert "does not reach it" in basis
+
+
+# ---------------------------------------------------------------------------
+# the audit asks the disk, not only the ledger
+# ---------------------------------------------------------------------------
+
+def _age_file(path: Path, seconds: float, now: datetime = NOW) -> None:
+    """Backdate a file's mtime so its real age can be exercised."""
+    when = (now - timedelta(seconds=seconds)).timestamp()
+    os.utime(path, (when, when))
+
+
+def test_a_file_older_than_the_ttl_fails_the_audit_whatever_the_row_says(
+        session, quarantine):
+    """The criterion is about bytes on disk, not about a database column.
+
+    The previous audit decided the guarantee purely from `expires_at`,
+    so a row claiming a fresh deadline made a six-hour-old file
+    invisible to it. The ledger is the thing that is wrong when
+    something has gone wrong, so mtime is now the primary evidence.
+    """
+    v = _competitor_video(session)
+    p = _file(quarantine)
+    row = transient.register(session, video_id=v.id, path=p,
+                             source="apify:test", permission_basis="test",
+                             now=NOW)
+    # The row insists there are hours left...
+    row.expires_at = NOW + timedelta(hours=5)
+    session.flush()
+    # ...while the bytes have been there for seven.
+    _age_file(p, seconds=7 * 3600)
+
+    state = transient.audit(session, now=NOW)
+    assert state["stale_files"] == 1
+    assert state["overdue_rows"] == 0, "the row is deliberately not overdue"
+    assert state["guarantee_holds"] is False
+    assert any("older than" in v_ for v_ in state["violations"])
+
+
+def test_the_audit_reports_the_oldest_file_not_only_the_newest(
+        session, quarantine):
+    """The guarantee is about the oldest file, and that number used to
+    not be computed at all - `min()` of the ages was reported under the
+    name `newest_file_age_s`, which is accurate and useless here."""
+    v = _competitor_video(session)
+    old = _file(quarantine, "competitor_1.mp4")
+    new = _file(quarantine, "competitor_2.mp4")
+    transient.register(session, video_id=v.id, path=old,
+                       source="apify:test", permission_basis="test", now=NOW)
+    transient.register(session, video_id=v.id, path=new,
+                       source="apify:test", permission_basis="test", now=NOW)
+    _age_file(old, seconds=3600)
+    _age_file(new, seconds=60)
+
+    state = transient.audit(session, now=NOW)
+    assert state["oldest_file_age_s"] == pytest.approx(3600, abs=5)
+    assert state["newest_file_age_s"] == pytest.approx(60, abs=5)
+
+
+def test_an_expiry_that_is_not_acquired_at_plus_ttl_is_an_inconsistency(
+        session, quarantine):
+    """A deadline nobody derived from the TTL is the quiet way a file
+    legitimately outlives six hours with nothing looking broken."""
+    v = _competitor_video(session)
+    p = _file(quarantine)
+    row = transient.register(session, video_id=v.id, path=p,
+                             source="apify:test", permission_basis="test",
+                             now=NOW)
+    row.expires_at = NOW + timedelta(days=30)
+    session.flush()
+
+    state = transient.audit(session, now=NOW)
+    assert state["expiry_inconsistencies"] == 1
+    assert state["ledger_consistent"] is False
+    # Not a retention breach *yet* - the bytes are still young. The two
+    # verdicts are deliberately separate.
+    assert state["guarantee_holds"] is True
+
+
+def test_a_file_older_than_the_row_that_claims_it_is_reported(
+        session, quarantine):
+    """A reused quarantine path: the row was written now, the bytes
+    have been there far longer, so the row is describing something it
+    did not see arrive."""
+    v = _competitor_video(session)
+    p = _file(quarantine)
+    transient.register(session, video_id=v.id, path=p,
+                       source="apify:test", permission_basis="test", now=NOW)
+    _age_file(p, seconds=2 * 3600)
+
+    state = transient.audit(session, now=NOW)
+    assert state["rows_disagreeing_with_disk"] == 1
+    assert state["ledger_consistent"] is False
+
+
+def test_a_live_row_whose_file_vanished_is_reported_but_is_not_a_breach(
+        session, quarantine):
+    """Normal for the moment between a deletion and the next sweep. A
+    count that never returns to zero means the sweep is not running."""
+    v = _competitor_video(session)
+    p = _file(quarantine)
+    transient.register(session, video_id=v.id, path=p,
+                       source="apify:test", permission_basis="test", now=NOW)
+    p.unlink()
+
+    state = transient.audit(session, now=NOW)
+    assert state["rows_with_missing_file"] == 1
+    assert state["ledger_consistent"] is False
+    assert state["guarantee_holds"] is True
+
+
+def test_a_failed_deletion_is_surfaced_by_the_audit(session, quarantine,
+                                                    monkeypatch):
+    """`release()` swallows an OSError on purpose, so a batch is not
+    aborted mid-flight — it records the error on the row and returns
+    False. Nothing else surfaced that, which meant a file that could
+    not be deleted kept ageing with no sign of it anywhere.
+    """
+    v = _competitor_video(session)
+    p = _file(quarantine)
+    row = transient.register(session, video_id=v.id, path=p,
+                             source="apify:test", permission_basis="test",
+                             now=NOW)
+
+    def refuse(self, *a, **k):
+        raise OSError(16, "Device or resource busy")
+
+    monkeypatch.setattr(Path, "unlink", refuse)
+    assert transient.release(session, row, reason="expired", now=NOW) is False
+
+    # The row is still live, because the file is still there.
+    assert row.deleted_at is None
+    assert (row.audit or {}).get("delete_error")
+
+    state = transient.audit(session, now=NOW)
+    assert state["rows_with_delete_errors"] == 1
+    assert state["ledger_consistent"] is False
+    assert any("delete failure" in i for i in state["inconsistencies"])
+
+
+def test_a_clean_quarantine_passes_both_verdicts(session, quarantine):
+    """The negative control: with nothing wrong, nothing is reported
+    wrong. A checker that always finds a problem is not a checker."""
+    v = _competitor_video(session)
+    p = _file(quarantine)
+    transient.register(session, video_id=v.id, path=p,
+                       source="apify:test", permission_basis="test", now=NOW)
+    state = transient.audit(session, now=NOW + timedelta(minutes=5))
+    assert state["guarantee_holds"] is True
+    assert state["ledger_consistent"] is True
+    assert state["violations"] == []
+    assert state["inconsistencies"] == []

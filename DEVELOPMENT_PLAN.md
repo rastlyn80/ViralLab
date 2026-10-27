@@ -1989,6 +1989,18 @@ Other items:
   coverage of your own history.
 
 **Vision — opened and partly closed by M3 (2026-10-27)**
+- **The 80 held-out labels are now SPENT.** They promoted
+  `vision_face_visible`, confirmed `vision_text_overlay_present` and
+  rejected the negative-example prompt — so they have been used to
+  select, and a set used to select cannot measure generalisation of
+  what it selected. That is the second time this has happened, after
+  the 24 in `human_labels_v2.json`. The original benchmark stays as
+  published and must not be restated as fresh evidence for the thing it
+  chose. **Any future model-selection decision needs a new prospective
+  holdout, labelled before that candidate's output exists.** Recorded
+  in both fixtures under `_spent_by` and enforced by a test, so the
+  next person cannot reuse them without noticing. **[OPEN]**
+
 - **The 80 held-out labels were written by Claude, not the owner.**
   `vision_face_visible` entered analytical use on that basis. The two
   fixtures flag their genuinely ambiguous cases (10 own, 11 competitor)
@@ -2024,6 +2036,30 @@ Other items:
   (Phase 0B) against 6864 MiB free at the measured desktop floor of
   1126 MiB — 770 MiB short. Whether a reduced-context or Q3 build fits
   is untested. **[OPEN]**
+
+**Legal posture of competitor media — corrected 2026-10-27**
+- **Acquiring through a paid provider establishes nothing about
+  platform authorisation, and the code said otherwise.**
+  `competitor_media.PERMISSION_BASIS`, written against every acquired
+  file, claimed the bytes arrived "under the provider's own terms; not
+  fetched from the platform by ViralLab" — which reads as though the
+  Apify contract settled the question. §2.3 policy 4 of this document
+  already said the opposite: vendors are preferred for reliability,
+  **not** for risk transfer, because Apify's terms place liability on
+  the customer. The record now separates what is established (public
+  logged-out publication, no circumvention, contracted delivery,
+  quarantined, never served, never redistributed, deleted within the
+  TTL) from what is not (platform ToS not verified against this use;
+  the provider's own authorisation unknown; no copyright licence for
+  the reproduction a download makes; no TDM or fair-dealing exception
+  assessed; no documented GDPR lawful basis). **[OPEN]** — none of the
+  second list is resolved, and legal review is required before any
+  commercialisation or redistribution.
+- **Rows acquired before this correction keep their original text.**
+  49 deleted `transient_media` rows carry the old wording. They are an
+  audit record of what was believed at acquisition, which is the entire
+  reason the basis is stored per file, so they are not rewritten. A
+  reviewer reading them should read this entry alongside. **[OPEN]**
 
 **Measurement integrity — opened and partly closed by M1 (2026-10-26)**
 - **`reels_skip_rate` may or may not be organic-only, and nobody knows.**

@@ -66,16 +66,75 @@ METHOD_VERSION = "competitor-media-v1"
 ACTOR = "clockworks/free-tiktok-scraper"
 CATEGORY = "competitor_media"
 
-#: What we believe permits holding these bytes at all, stored per file so
-#: a later reviewer reads the basis that applied at acquisition rather
-#: than whatever the policy says by then.
+#: The permission record written against every acquired file, stored per
+#: file so a later reviewer reads the basis that applied at acquisition
+#: rather than whatever the policy says by then.
+#:
+#: **Paying a provider is not authorisation, and this text used to imply
+#: it was.** The previous wording said the bytes arrived "under the
+#: provider's own terms; not fetched from the platform by ViralLab",
+#: which reads as though the contract with Apify settled the question.
+#: It does not, and DEVELOPMENT_PLAN.md §2.3(4) already said so before
+#: this module was written: vendors are preferred "for lower maintenance
+#: and better reliability — **not** for risk transfer. Apify's terms
+#: explicitly push liability onto the customer ... so legal exposure is
+#: the same as scraping directly" (`docs/benchmarks/0A-tos-review.md`
+#: §1). The code was claiming the opposite of the project's own rule.
+#:
+#: So the record is now split into what is actually established and what
+#: is not, because a legal review needs to be able to tell them apart.
 PERMISSION_BASIS = (
-    "Delivered by {actor} through its paid video-download add-on, under "
-    "the provider's own terms; not fetched from the platform by ViralLab. "
-    "Held for internal research only under DEVELOPMENT_PLAN.md §2.3, "
-    "deleted within {hours:g}h, never served and never redistributed. "
-    "NOTE: the provider retains its own copy in its key-value store for "
-    "up to 7 days; our deletion does not reach it."
+    "ESTABLISHED: the publication is public and reachable logged-out; "
+    "ViralLab circumvented no authentication, captcha or other technical "
+    "access control, and used no credentialed access and no fake account "
+    "(DEVELOPMENT_PLAN.md §2.3 policy 1). The bytes were delivered by a "
+    "third-party provider, {actor}, under a paid contract between "
+    "ViralLab and that provider. Use is internal research input only: "
+    "the file is held in quarantine outside the served media root, is "
+    "never served over any endpoint, is never redistributed, and is "
+    "deleted within {hours:g}h, after which only derived numeric "
+    "features remain. "
+    "NOT ESTABLISHED: that any of the above amounts to authorisation "
+    "from the platform or from the creator. Paying a provider transfers "
+    "no permission and no liability — Apify's terms place liability on "
+    "the customer (DEVELOPMENT_PLAN.md §2.3 policy 4, "
+    "docs/benchmarks/0A-tos-review.md §1), so the exposure is the same "
+    "as collecting directly. The platform's own Terms of Service have "
+    "NOT been verified against this use; whether the provider holds any "
+    "authorisation of its own is unknown; no copyright licence has been "
+    "obtained for the reproduction a download makes, and no fair-dealing "
+    "or text-and-data-mining exception has been assessed for the "
+    "applicable jurisdiction; no GDPR lawful basis has been formally "
+    "documented for the personal data a creator's video contains. "
+    "CONSEQUENCE: internal research use only while the project is "
+    "private, and legal review before any commercialisation or any "
+    "redistribution (CLAUDE.md §7, DEVELOPMENT_PLAN.md §2.3 policy 3). "
+    "ALSO: the provider retains its own copy in its key-value store for "
+    "up to 7 days; deleting ours does not reach it."
+)
+
+#: The claims above that are verified facts about what this code does,
+#: as opposed to legal conclusions. Separated so a reviewer can see at a
+#: glance which half of the record is engineering and which half is an
+#: open question.
+PERMISSION_ESTABLISHED = (
+    "public logged-out publication",
+    "no circumvention of technical access controls",
+    "no credentialed access, no fake account",
+    "delivered by a contracted third-party provider",
+    "quarantined outside the served media root, never served",
+    "never redistributed",
+    "deleted within the TTL; only derived features persist",
+)
+
+#: The questions a legal review would have to answer. None of these is
+#: settled, and nothing in this module may behave as though one is.
+PERMISSION_OPEN = (
+    "platform Terms of Service not verified against this use",
+    "provider's own authorisation from the platform unknown",
+    "no copyright licence for the reproduction a download makes",
+    "no TDM or fair-dealing exception assessed for the jurisdiction",
+    "no documented GDPR lawful basis for the personal data involved",
 )
 
 #: Refuse to start a download larger than this. A competitor reel is a few
