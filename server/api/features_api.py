@@ -71,19 +71,29 @@ def catalogue(
         "showing": len(shown),
         "features": [e.as_dict() for e in shown],
         "grade_meanings": {
-            "Unavailable": ("The data or a reliable measure does not "
-                            "exist. May never drive a recommendation, "
-                            "and the gap is shown."),
-            "Observed": ("A direct measurement on specific "
-                         "publications. May be used as a description."),
-            "Hypothesised": ("Suggested by the data but not tested, or "
-                             "n too small. May only become an "
-                             "experiment proposal."),
-            "Associated": ("A correlation that survived correction and "
-                           "the ad covariate, with n, rho and CI. May "
-                           "be used as a hypothesis to test."),
-            "Validated": ("Survived a pre-registered own-account "
-                          "experiment. May drive a recommendation."),
+            "Unavailable": ("Either nothing measures this yet, or what "
+                            "we can measure was wrong too often to "
+                            "trust. Never used for anything, and the "
+                            "gap is shown rather than hidden."),
+            "Observed": ("We measured this on real publications. It "
+                         "describes what is there; nothing yet links "
+                         "it to whether people watch."),
+            "Hypothesised": ("There is a hint of something, but it did "
+                             "not survive the checks that guard against "
+                             "finding patterns by chance, or too few "
+                             "videos were involved. An idea to test, "
+                             "nothing more."),
+            "Associated": ("Videos with this characteristic tended to "
+                           "do better or worse, and the pattern held "
+                           "after allowing for video length, age and "
+                           "paid promotion, and after correcting for "
+                           "the fact that many things were tested at "
+                           "once. Worth testing deliberately; not "
+                           "proof of cause."),
+            "Validated": ("Confirmed by an experiment planned in "
+                          "advance on your own account. This is the "
+                          "only grade that may drive a recommendation, "
+                          "and nothing has reached it yet."),
         },
     }
 

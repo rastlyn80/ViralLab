@@ -224,9 +224,10 @@ def refusals() -> list[str]:
         "pedalling and articulation are audible properties.",
         "No person is identified. One provider refuses this outright and "
         "the task does not ask for it from any of them.",
-        "`emotional_presentation` and `narrative_structure` are "
-        "interpretations, flagged as such in the data, and describe the "
-        "presentation rather than the performer.",
+        "The mood and shape of an opening are read as interpretations "
+        "rather than measurements. They are flagged as such in the "
+        "data, and they describe how the video presents itself, not "
+        "what the performer was feeling.",
     ]
 
 

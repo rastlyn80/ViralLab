@@ -330,3 +330,50 @@ def test_every_written_entry_says_what_it_measures():
     for name, p in lex.PLAIN.items():
         assert p.display_name and p.measures, name
         assert "_" not in p.display_name, name
+
+
+# ---------------------------------------------------------------------------
+# the glossary has to actually cover everything
+# ---------------------------------------------------------------------------
+
+def test_every_feature_in_the_registry_has_plain_english():
+    """The usability bar, as an assertion.
+
+    A glossary that covers a fifth of the measurements is not a
+    glossary - the reader hits a gap and is back to guessing from the
+    column name. This was 17 of 79 when the owner first tried the
+    product and said nothing was usable; it is the whole list now and
+    a new feature cannot be added without one.
+    """
+    missing = sorted(s.name for s in cat.SPEC
+                     if not lex.as_dict(s.name)["written"])
+    assert not missing, (
+        f"{len(missing)} measurement(s) with no plain-English record: "
+        f"{missing}")
+
+
+def test_every_outcome_has_plain_english_and_a_direction():
+    for name, o in lex.OUTCOMES.items():
+        assert o.display_name and o.measures, name
+        assert o.better_when in ("higher", "lower"), name
+
+
+def test_a_plain_record_never_just_restates_the_key():
+    """"Background edge density measures background edge density" is a
+    dictionary entry that helps nobody."""
+    for name, p in lex.PLAIN.items():
+        words = set(name.replace("_", " ").split())
+        measures = set(p.measures.lower().split())
+        assert not words.issubset(measures) or len(p.measures) > 60, name
+
+
+def test_the_unavailable_placeholders_say_they_measure_nothing():
+    """These exist so a question returns "we cannot tell you" instead
+    of a missing value something reads as "no". The wording has to make
+    that unmistakable."""
+    for name in ("performer_visible", "piano_visible", "hands_visible",
+                 "face_visible", "framing_class", "emotional_presentation",
+                 "on_screen_text_content"):
+        p = lex.PLAIN[name]
+        assert "not measured here" in p.display_name.lower(), name
+        assert "cannot say" in p.measures.lower(), name

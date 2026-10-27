@@ -117,6 +117,11 @@ class VideoListItem(BaseModel):
     id: int
     platform: str
     external_id: str
+    #: The public URL of the post, so a figure can be checked against
+    #: the thing it describes. Null where none is known - Instagram
+    #: permalinks carry a shortcode that cannot be computed from the
+    #: media id, so one that was never collected cannot be invented.
+    permalink: str | None = None
     caption_preview: str | None = None
     posted_at: datetime | None = None
     duration_s: float | None = None
@@ -183,6 +188,11 @@ class PairSide(BaseModel):
     video_id: int
     platform: str
     external_id: str
+    #: The public URL of the post, so a figure can be checked against
+    #: the thing it describes. Null where none is known - Instagram
+    #: permalinks carry a shortcode that cannot be computed from the
+    #: media id, so one that was never collected cannot be invented.
+    permalink: str | None = None
     posted_at: datetime | None = None
     duration_s: float | None = None
     caption: str | None = None
@@ -226,6 +236,11 @@ class VideoDetail(BaseModel):
     id: int
     platform: str
     external_id: str
+    #: The public URL of the post, so a figure can be checked against
+    #: the thing it describes. Null where none is known - Instagram
+    #: permalinks carry a shortcode that cannot be computed from the
+    #: media id, so one that was never collected cannot be invented.
+    permalink: str | None = None
     caption: str | None = None
     hashtags: list[str] = Field(default_factory=list)
     posted_at: datetime | None = None

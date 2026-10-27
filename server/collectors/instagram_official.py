@@ -252,6 +252,13 @@ class InstagramOfficialAdapter(DataSourceAdapter):
                     media_url=raw.get("media_url"),
                     # Signed CDN link: download on collection or lose it.
                     media_url_expires=bool(raw.get("media_url")),
+                    # `permalink` has been in MEDIA_FIELDS since the
+                    # first version of this collector and was dropped
+                    # on the floor every time. It is the only way to
+                    # reach an Instagram post from here: the permalink
+                    # carries a shortcode, and a shortcode cannot be
+                    # computed from the media id in either direction.
+                    permalink=raw.get("permalink"),
                     raw=raw,
                 )
             # Safe to stop only when this page was ordered, every earlier

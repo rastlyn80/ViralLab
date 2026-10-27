@@ -204,3 +204,22 @@ export function player(url, { status, reason, poster } = {}) {
   }
   return note(`No media stored${reason ? ` (${esc(reason)})` : ''}.`, '');
 }
+
+
+/**
+ * A link out to the actual post on the platform.
+ *
+ * Returns '' when there is no URL rather than a dead link: an
+ * Instagram permalink carries a shortcode that cannot be computed
+ * from the media id, so one that was never collected cannot be
+ * invented, and a guessed URL that 404s reads as "the post is gone"
+ * rather than "we never stored the link".
+ */
+export function postLink(url, platform, { label = '' } = {}) {
+  if (!url) return '';
+  const where = platform === 'tiktok' ? 'TikTok'
+    : (platform === 'instagram' ? 'Instagram' : 'the platform');
+  return `<a class="postlink" href="${esc(url)}" target="_blank"
+    rel="noopener noreferrer" title="Open on ${where}"
+    >${esc(label || `Open on ${where}`)} \u2197</a>`;
+}

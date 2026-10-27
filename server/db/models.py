@@ -177,6 +177,13 @@ class Video(Base):
     #: actually relied on; the URL is kept for provenance. For TikTok this is
     #: the ONLY content signal available - the API returns no media file - so
     #: without it cross-platform matching has no visual evidence at all.
+    #: The public URL of the post, as the platform gave it. Null where
+    #: we never kept one. TikTok is NOT stored here - its canonical URL
+    #: is fully determined by handle plus id and is rebuilt on demand,
+    #: so a column would only go stale at the first rename. Instagram
+    #: is stored, because a permalink carries a shortcode that cannot
+    #: be computed from the media id in either direction.
+    permalink: Mapped[str | None] = mapped_column(Text)
     cover_url: Mapped[str | None] = mapped_column(Text)
     cover_hash: Mapped[str | None] = mapped_column(String(32))
     cover_fetched_at: Mapped[datetime | None] = mapped_column(

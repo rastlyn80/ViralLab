@@ -9,13 +9,14 @@ import { aiModels, aiPlan } from './aimodels.js';
 import { api, ApiError } from './api.js';
 import { collectionDetail, collections } from './collections.js';
 import { esc, spinner, toast } from './components.js';
+import { loadLexicon } from './lexicon.js';
 import { discover } from './discover.js';
 import { hookDetail, hookRetention, hooks } from './hooks.js';
 import { research, researchCreator } from './research.js';
 import { settings } from './settings.js';
 import { creatorReport, creatorTimeline } from './timeline.js';
 import {
-  competitors, dashboard, featureCatalogue, library, notFound,
+  competitors, dashboard, featureCatalogue, glossary, library, notFound,
   reviewMasters, reviewPairs, videoDetail,
 } from './views.js';
 
@@ -39,6 +40,7 @@ const ROUTES = [
   { pattern: /^\/hooks$/, view: hooks, nav: 'hooks' },
   { pattern: /^\/hooks\/retention$/, view: hookRetention, nav: 'hooks' },
   { pattern: /^\/hooks\/(\d+)$/, view: hookDetail, nav: 'hooks' },
+  { pattern: /^\/glossary$/, view: glossary, nav: 'glossary' },
   { pattern: /^\/features$/, view: featureCatalogue,
     nav: 'features' },
   { pattern: /^\/ai$/, view: aiModels, nav: 'ai' },
@@ -48,31 +50,35 @@ const ROUTES = [
 
 const NAV = [
   { group: 'Your content' },
-  { id: 'dashboard', href: '#/', label: 'Dashboard' },
-  { id: 'library', href: '#/library', label: 'Content library' },
-  { group: 'Review' },
-  { id: 'review-masters', href: '#/review/masters', label: 'Master links',
+  { id: 'dashboard', href: '#/', label: 'Home' },
+  { id: 'library', href: '#/library', label: 'My videos' },
+  { group: 'Needs you' },
+  { id: 'review-masters', href: '#/review/masters', label: 'Match my files',
     count: (o) => o?.review.master_links_pending },
-  { id: 'review-pairs', href: '#/review/pairs', label: 'Cross-platform',
+  { id: 'review-pairs', href: '#/review/pairs',
+    label: 'Same video, both platforms',
     count: (o) => o?.review.publication_links_proposed },
-  { group: 'Intelligence' },
-  { id: 'discover', href: '#/discover', label: 'Discover creators' },
-  { id: 'research', href: '#/research', label: 'Creator research' },
-  { id: 'collections', href: '#/collections', label: 'Collections' },
-  { id: 'competitors', href: '#/competitors', label: 'Capability status' },
-  { group: 'Your videos, analysed' },
-  { id: 'hooks', href: '#/hooks', label: 'Hook intelligence' },
+  { group: 'What we have learned' },
+  { id: 'hooks', href: '#/hooks', label: 'How my openings look' },
   { id: 'hook-retention', href: '#/hooks/retention',
-    label: 'Hooks vs retention' },
+    label: 'What keeps people watching' },
+  { id: 'glossary', href: '#/glossary',
+    label: 'What everything means' },
   { id: 'features', href: '#/features',
-    label: 'Feature catalogue' },
-  { id: 'ai', href: '#/ai', label: 'AI models' },
+    label: 'Everything we can measure' },
+  { group: 'Other creators' },
+  { id: 'discover', href: '#/discover', label: 'Find creators' },
+  { id: 'research', href: '#/research', label: 'Creators we study' },
+  { id: 'collections', href: '#/collections', label: 'Groups of creators' },
+  { id: 'competitors', href: '#/competitors', label: 'What we cannot do yet' },
+  { group: 'Under the bonnet' },
+  { id: 'ai', href: '#/ai', label: 'AI models and spending' },
   // Planned surfaces are listed but not linked: the navigation shape is
   // part of the architecture, and showing where things will live is honest
   // as long as nothing pretends to work.
-  { id: 'strategist', label: 'AI strategist', planned: 'Phase 8' },
+  { id: 'strategist', label: 'Ask ViralLab', planned: 'not built yet' },
   { group: 'Setup' },
-  { id: 'settings', href: '#/settings', label: 'Platform connections' },
+  { id: 'settings', href: '#/settings', label: 'Connections' },
 ];
 
 let overviewCache = null;
@@ -119,6 +125,7 @@ function renderShell() {
       <aside class="sidebar">
         <div class="brand">ViralLab <small>phase 6B</small></div>
         <nav class="nav" id="nav"></nav>
+        <div id="tech-toggle-host" class="tech-host"></div>
         <div style="margin-top:auto;padding:10px">
           <button id="logout" style="width:100%">Sign out</button>
         </div>
@@ -179,10 +186,15 @@ async function boot() {
     return;
   }
   renderShell();
+  mountTechnicalToggle();
   // The dashboard numbers double as nav badges, so they are fetched once
   // here and reused rather than re-requested per navigation.
+  // The lexicon is fetched alongside: every view turns stored keys
+  // into English through it, and awaiting it here means no view has
+  // to, and none ever renders a key for a frame before the names
+  // arrive.
   try {
-    overviewCache = await api.overview();
+    [overviewCache] = await Promise.all([api.overview(), loadLexicon()]);
   } catch { /* the view will surface its own error */ }
   window.addEventListener('hashchange', route);
   await route();
@@ -190,3 +202,48 @@ async function boot() {
 
 document.getElementById('shell').innerHTML = spinner('Starting');
 boot();
+
+
+/**
+ * The two presentation levels, as one switch.
+ *
+ * Default is Creative Intelligence: plain language, no column names,
+ * no coefficients. Technical Details reveals everything marked
+ * `.technical` - exact feature names, rho, sample sizes, method
+ * versions - without removing or duplicating anything.
+ *
+ * The preference is remembered, because a person who wants the
+ * numbers wants them on every page and should not have to say so
+ * twice. It is applied to <html> rather than per-view so a freshly
+ * rendered page is never briefly wrong.
+ */
+const TECH_KEY = 'virallab.technical';
+
+export function technicalOn() {
+  return localStorage.getItem(TECH_KEY) === '1';
+}
+
+function applyTechnical() {
+  document.documentElement.classList.toggle('show-technical',
+    technicalOn());
+  const b = document.getElementById('tech-toggle');
+  if (b) {
+    b.setAttribute('aria-pressed', technicalOn() ? 'true' : 'false');
+    b.textContent = technicalOn()
+      ? 'Hide technical details' : 'Show technical details';
+  }
+}
+
+function mountTechnicalToggle() {
+  const host = document.getElementById('tech-toggle-host');
+  if (!host) return;
+  host.innerHTML = `<button id="tech-toggle" class="ghost"
+    aria-pressed="false" title="Exact feature names, coefficients and
+    sample sizes. Nothing is removed when this is off - it is moved
+    out of the way.">Show technical details</button>`;
+  document.getElementById('tech-toggle').addEventListener('click', () => {
+    localStorage.setItem(TECH_KEY, technicalOn() ? '0' : '1');
+    applyTechnical();
+  });
+  applyTechnical();
+}

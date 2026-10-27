@@ -27,6 +27,7 @@ from server.api.ui import MEDIA_TTL, SESSION_SECRET, require_ui, require_ui_writ
 from server.db.models import (Creator, MetricsSnapshot, Video, VideoFeature,
                               VideoFeatureRun)
 from server.features import extract as fx
+from server.features import lexicon as lex
 from server.features import retention as rt
 from shared import hookfeat
 from shared.schemas.hooks import (AnalysedVideoPage, AnalysedVideoRow,
@@ -297,8 +298,14 @@ def _result_view(o: fx.ExtractOutcome) -> ExtractionResultView:
 def retention_report(session: Session = Depends(get_session)
                      ) -> RetentionReportView:
     rep = rt.analyse(session)
+    # The analysis writes its prose naming columns and statistics,
+    # which is right for a notebook and wrong for the product. One
+    # pass through the lexicon turns those into the names a reader
+    # already met everywhere else; the exact terms stay in the
+    # technical disclosure, which renders the untranslated figures.
     return RetentionReportView(
-        outcome=rep.outcome, outcome_note=rep.outcome_note,
+        outcome=rep.outcome,
+        outcome_note=lex.humanise(rep.outcome_note),
         n_videos=rep.n_videos, n_with_media=rep.n_with_media,
         n_with_features=rep.n_with_features, n_analysed=rep.n_analysed,
         duration_range_s=(list(rep.duration_range_s)
@@ -307,13 +314,15 @@ def retention_report(session: Session = Depends(get_session)
                         if rep.age_range_days else None),
         skip_range=list(rep.skip_range) if rep.skip_range else None,
         associations=[AssociationView(**vars(a)) for a in rep.associations],
-        survivors=rep.survivors,
-        survivor_collinearity=rep.survivor_collinearity,
-        method_version=rep.method_version, verdict=rep.verdict,
-        limitations=rep.limitations,
+        survivors=lex.humanise_all(rep.survivors),
+        survivor_collinearity=lex.humanise_all(
+            rep.survivor_collinearity),
+        method_version=rep.method_version,
+        verdict=lex.humanise(rep.verdict),
+        limitations=lex.humanise_all(rep.limitations),
         ad_covariate_source=rep.ad_covariate_source,
         ad_covariate_n=rep.ad_covariate_n,
         ad_covariate_exposed=rep.ad_covariate_exposed,
         ad_outcome_rho=rep.ad_outcome_rho,
         ad_outcome_p=rep.ad_outcome_p,
-        ad_covariate_note=rep.ad_covariate_note)
+        ad_covariate_note=lex.humanise(rep.ad_covariate_note))

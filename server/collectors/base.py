@@ -41,6 +41,10 @@ class NormalizedVideo:
     media_url: str | None = None
     #: Instagram CDN URLs expire; download on collection or lose it.
     media_url_expires: bool = False
+    #: The public URL of the post, where the platform supplies one.
+    #: Instagram does and it was being discarded; TikTok does not need
+    #: to, because its canonical form is derivable from handle and id.
+    permalink: str | None = None
     raw: dict = field(default_factory=dict)
 
 
@@ -155,6 +159,8 @@ def upsert_video(session: Session, creator: Creator, v: NormalizedVideo, *,
         row.posted_at = v.posted_at
     if v.duration_s is not None:
         row.duration_s = v.duration_s
+    if v.permalink:
+        row.permalink = v.permalink
     session.flush()
     return row, created
 

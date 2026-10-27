@@ -394,3 +394,63 @@ tr.is-unavailable { background: var(--danger-soft); }
 details.group > summary { cursor: pointer; padding: 10px 0; }
 details.group > summary h2 { display: inline-block; margin: 0 8px 0 0; }
 details.group > summary::-webkit-details-marker { color: var(--fg-muted); }
+
+
+/* A link out to the real post. Visually distinct from an internal
+   link, because leaving the app is a different action from moving
+   around inside it. */
+.postlink { white-space: nowrap; text-decoration: none; }
+.postlink:hover { text-decoration: underline; }
+td .postlink { margin-left: 4px; }
+
+
+/* Glossary. Plain language is the content here, so it gets the space
+   and the variable name gets the footnote. */
+.gl-entry { padding: 16px 0; border-top: 1px solid var(--line); }
+.gl-entry:first-of-type { border-top: 0; }
+.gl-entry h3 { margin: 0 0 6px; font-size: 15.5px; }
+.gl-entry p { margin: 0 0 8px; max-width: 70ch; line-height: 1.55; }
+.gl-key { font-size: 12px; color: var(--fg-muted); margin-top: 8px; }
+.gl-key code { font-size: 11.5px; }
+.hilo { display: grid; gap: 4px; margin: 0 0 8px; max-width: 70ch; }
+.tag { display: inline-block; min-width: 54px; font-size: 11.5px;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--fg-muted); }
+.not-a-measure { border-left: 3px solid var(--warn);
+  padding: 4px 0 4px 10px; background: var(--warn-soft); }
+input.search { width: 100%; max-width: 420px; padding: 8px 10px;
+  border: 1px solid var(--line-strong); border-radius: 6px;
+  font: inherit; background: var(--bg); color: var(--fg); }
+
+
+/* Two presentation levels.
+
+   Default is Creative Intelligence. Everything marked .technical -
+   feature names, coefficients, sample sizes, method versions - is
+   hidden until the reader asks for it, and nothing is deleted or
+   duplicated to achieve that. */
+.technical { display: none; }
+html.show-technical .technical { display: inline; }
+html.show-technical div.technical,
+html.show-technical details.technical,
+html.show-technical table.technical,
+html.show-technical tr.technical,
+html.show-technical section.technical { display: revert; }
+.tech-host { padding: 10px 14px 18px; }
+.tech-host button.ghost { width: 100%; font-size: 12.5px;
+  background: transparent; border: 1px solid var(--line-strong);
+  color: var(--fg-muted); border-radius: 6px; padding: 7px 8px;
+  cursor: pointer; }
+.tech-host button.ghost[aria-pressed="true"] { color: var(--fg);
+  border-color: var(--accent); }
+
+
+/* Home. The first thing on the screen is what we know, not how the
+   collector is feeling. */
+.home-hero h2 { margin-top: 0; }
+.home-plats { display: flex; flex-wrap: wrap; gap: 24px; margin: 6px 0 12px; }
+.home-plat-name { font-size: 12.5px; color: var(--fg-muted);
+  text-transform: uppercase; letter-spacing: .04em; }
+.home-plat-n { font-size: 30px; font-weight: 650; line-height: 1.1; }
+.home-hero h3 { font-size: 13px; color: var(--fg-muted);
+  text-transform: uppercase; letter-spacing: .04em; margin: 14px 0 6px; }
+a.chip { text-decoration: none; }

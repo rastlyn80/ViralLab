@@ -30,6 +30,7 @@ from server.research import analysis_seam as seam
 from server.research import collections as coll
 from server.research import discover as disc
 from server.research import preflight
+from server.collectors import permalink
 from server.research import report as rep
 from server.research import service
 from server.research import timeline as tlmod
@@ -323,6 +324,13 @@ def creator_report(creator_id: int,
         r = rep.build(session, creator_id)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
+    # Every publication the report points at, resolved once. The
+    # report links dozens per section and a per-mention lookup would
+    # be hundreds of queries for one page.
+    referenced = {v for s in r.sections for v in s.evidence_video_ids}
+    referenced |= {c.get("video_id") for s in r.sections
+                   for c in s.contradictions if c.get("video_id")}
+    _post_urls = permalink.bulk(session, sorted(referenced))
     return CreatorReportView(
         creator_id=r.creator_id, platform=r.platform, handle=r.handle,
         display_name=r.display_name, profile_url=r.profile_url,
@@ -332,7 +340,11 @@ def creator_report(creator_id: int,
             caveats=s.caveats, unavailable_reason=s.unavailable_reason,
             group=s.group, grade=s.grade, grade_reason=s.grade_reason,
             evidence_video_ids=s.evidence_video_ids,
-            contradictions=_jsonable(s.contradictions))
+            contradictions=_jsonable(s.contradictions),
+            permalinks={str(k): v for k, v in _post_urls.items()
+                        if k in set(s.evidence_video_ids)
+                        or k in {c.get("video_id")
+                                 for c in s.contradictions}})
             for s in r.sections],
         # The four M5 sections, in reading order, each naming the
         # blocks it holds. Sent rather than hard-coded in the client so

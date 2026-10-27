@@ -169,18 +169,16 @@ def _already_held(session: Session, video_id: int) -> bool:
 def canonical_url(session: Session, video: Video) -> str | None:
     """The platform URL for a publication, rebuilt rather than stored.
 
-    `videos` has no `url` column — an earlier draft of this module assumed
-    one and would have raised at the first real call. TikTok's canonical
-    form is fully determined by the handle and the publication id, so it
-    is derived here instead of denormalised into the table.
+    Delegates to `collectors.permalink`, which is the one place a
+    public URL is worked out. This function used to build the TikTok
+    form itself; two implementations of "where does this post live"
+    would eventually disagree, and the interface now depends on the
+    answer as much as the downloader does.
     """
+    from server.collectors import permalink as pl
+
     creator = session.get(Creator, video.creator_id)
-    if creator is None or not creator.handle or not video.external_id:
-        return None
-    if video.platform == "tiktok":
-        return (f"https://www.tiktok.com/@{creator.handle}"
-                f"/video/{video.external_id}")
-    return None
+    return pl.for_video(video, creator)
 
 
 def _assert_competitor(session: Session, video: Video) -> None:

@@ -27,8 +27,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from server.api import (ai_api, credentials_api, deps, discovery_api,
-                        features_api, frames_api, hooks_api, research_api,
-                        ui, vision_api)
+                        features_api, frames_api, home_api, hooks_api,
+                        research_api, ui, vision_api)
 from server.api.deps import get_session
 from server.db.models import Video
 from server.queue.queue import (
@@ -219,6 +219,7 @@ app.include_router(frames_api.router)
 app.include_router(vision_api.router)
 app.include_router(credentials_api.router)
 app.include_router(features_api.router)
+app.include_router(home_api.router)
 
 
 @app.get("/health")

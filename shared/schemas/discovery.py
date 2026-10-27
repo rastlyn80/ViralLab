@@ -283,6 +283,10 @@ class ReportSectionView(BaseModel):
     evidence_video_ids: list[int] = Field(default_factory=list)
     #: Examples that cut against this block's own reading.
     contradictions: list[dict] = Field(default_factory=list)
+    #: video id -> the public URL of that post, for the ids above.
+    #: Sent as a map rather than inlined so the same link is not
+    #: repeated once per mention of a publication.
+    permalinks: dict[str, str] = Field(default_factory=dict)
 
 
 class ReportGroupView(BaseModel):

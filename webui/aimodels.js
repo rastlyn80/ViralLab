@@ -44,7 +44,8 @@ export const aiModels = {
         providers are not interchangeable, and the differences below are
         read from each vendor's own documentation rather than assumed.</p>
 
-      ${note(`<strong>Mode: <code>${esc(policy.mode)}</code>.</strong>
+      ${note(`<strong>${esc(modeLabel(policy.mode))}</strong>
+        <span class="technical">(<code>${esc(policy.mode)}</code>)</span>
         ${esc(policy.note)}`, policy.mode === 'local_only' ? 'ok' : 'warn')}
       ${anyCloudAuthorised ? '' : note(`No cloud analysis category is
         authorised, so nothing here can spend money. A category with no
@@ -63,7 +64,8 @@ function categoryTable(policy) {
       <th class="num">Committed</th><th class="num">Remaining</th>
       <th>Status</th></tr></thead><tbody>
     ${policy.categories.map((c) => `<tr>
-      <td><code>${esc(c.category)}</code></td>
+      <td><b>${esc(categoryLabel(c.category))}</b>
+        <div class="sub technical"><code>${esc(c.category)}</code></div></td>
       <td class="num">$${c.cap_usd.toFixed(2)}</td>
       <td class="num">$${c.committed_usd.toFixed(4)}</td>
       <td class="num">$${c.remaining_usd.toFixed(2)}</td>
@@ -92,7 +94,8 @@ function providerTable(providers) {
       <td>${p.available
     ? '<span class="chip ok"><span class="dot"></span>ready</span>'
     : '<span class="chip warn"><span class="dot"></span>no</span>'}</td>
-      <td class="muted">${esc((p.accepts || []).join(', '))}
+      <td class="muted">${esc((p.accepts || [])
+    .map(modalityLabel).join(', '))}
         ${p.accepts_video_natively
     ? '<div><span class="chip accent"><span class="dot"></span>native video'
       + '</span></div>' : ''}</td>
@@ -162,7 +165,8 @@ export const aiPlan = {
     ? `$${plan.estimated_usd.toFixed(4)}` : 'free')}
         ${stat('Your own media', plan.is_own_media ? 'yes' : 'no',
     plan.is_own_media ? '' : 'never sent to cloud by default')}
-        ${stat('Category', plan.category, plan.category_authorised
+        ${stat('Category', categoryLabel(plan.category),
+    plan.category_authorised
     ? `cap $${plan.category_cap_usd.toFixed(2)}` : 'not authorised')}
       </div>
       ${card('Providers considered', consideredTable(plan))}
@@ -343,4 +347,46 @@ function queueBlock(queue, videoId) {
     ? `<button class="cancel-req danger" data-req="${r.id}">Cancel</button>`
     : ''}</td>
       </tr>`).join('')}</tbody></table>` : ''}`;
+}
+
+
+/**
+ * A spending category is a budget bucket, not a phrase.
+ *
+ * `cloud_vision` reads as a setting name; "Looking at video frames
+ * using a paid service" reads as the thing money would be spent on,
+ * which is the decision the reader is actually making on this page.
+ */
+function categoryLabel(key) {
+  return ({
+    cloud_vision: 'Analysing video frames with a paid service',
+    cloud_audio: 'Analysing audio with a paid service',
+    cloud_text: 'Analysing text with a paid service',
+    strategy: 'The AI strategist conversation',
+    discovery: 'Finding new creators to study',
+    competitor_media: 'Downloading other creators’ videos',
+    local_only: 'Runs on your own machines, costs nothing',
+  })[key] || String(key || '').replace(/_/g, ' ');
+}
+
+
+/** What the AI policy mode means, rather than what it is called. */
+function modeLabel(mode) {
+  return ({
+    local_only: 'Everything runs on your own machines. Nothing is sent '
+      + 'anywhere and nothing can cost money.',
+    cloud_allowed: 'Paid services may be used, within the limits below.',
+    disabled: 'AI analysis is switched off.',
+  })[mode] || `Mode: ${String(mode || '').replace(/_/g, ' ')}`;
+}
+
+/** The kinds of input a model accepts, in words. */
+function modalityLabel(m) {
+  return ({
+    text: 'text',
+    image: 'single images',
+    image_sequence: 'sequences of frames',
+    audio: 'audio',
+    video: 'video',
+  })[m] || String(m || '').replace(/_/g, ' ');
 }

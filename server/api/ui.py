@@ -35,6 +35,7 @@ from sqlalchemy.orm import Session
 
 from server import config
 from server.api.deps import get_session
+from server.collectors import permalink
 from server.collectors.media_preservation import coverage as media_coverage
 from server.db.models import (BreakthroughCandidate, CollectionRun, Creator,
                               LocalMaster, MetricsSnapshot, OAuthToken,
@@ -390,12 +391,18 @@ def build_video_page(session: Session, *, platform: str | None,
                     .where(col.in_(ids)).group_by(col)).all():
                 pub_counts[vid] = pub_counts.get(vid, 0) + n
 
+    # One query for every post URL on the page rather than one per
+    # row: the list renders 50 at a time and a per-row lookup would
+    # turn the cheapest page in the app into the slowest.
+    post_urls = permalink.bulk(session, ids)
+
     items = []
     for v in videos:
         snap = latest.get(v.id)
         links = per_video.get(v.id, [])
         items.append(VideoListItem(
             id=v.id, platform=v.platform, external_id=v.external_id,
+            permalink=post_urls.get(v.id),
             caption_preview=(v.caption or "")[:140] or None,
             posted_at=v.posted_at, duration_s=v.duration_s,
             latest_views=snap.views if snap else None,
@@ -486,6 +493,7 @@ def build_video_detail(session: Session, video_id: int) -> VideoDetail:
 
     return VideoDetail(
         id=v.id, platform=v.platform, external_id=v.external_id,
+        permalink=permalink.for_video(v, creator),
         caption=v.caption, hashtags=list(v.hashtags or []),
         posted_at=v.posted_at, duration_s=v.duration_s, source=v.source,
         media_status=v.media_status, media_reason=v.media_reason,
@@ -555,10 +563,13 @@ def build_master_link_queue(session: Session, *, status: str = "pending",
 
 
 def _pair_side(video: Video, snap: MetricsSnapshot | None,
-               master: str | None, perf: str | None) -> PairSide:
+               master: str | None, perf: str | None,
+               creator: Creator | None = None) -> PairSide:
     return PairSide(
         video_id=video.id, platform=video.platform,
-        external_id=video.external_id, posted_at=video.posted_at,
+        external_id=video.external_id,
+        permalink=permalink.for_video(video, creator),
+        posted_at=video.posted_at,
         duration_s=video.duration_s, caption=video.caption,
         media_url=_signed_media_url(video), cover_url=video.cover_url,
         latest_views=snap.views if snap else None,
@@ -606,8 +617,10 @@ def build_pair_queue(session: Session, *, status: str = "proposed",
             id=pl.id, relationship_type=pl.relationship_type,
             status=pl.status, score=pl.score, decided_by=pl.decided_by,
             evidence=pl.evidence,
-            a=_pair_side(a, latest.get(a.id), ma, pa),
-            b=_pair_side(b, latest.get(b.id), mb, pb)))
+            a=_pair_side(a, latest.get(a.id), ma, pa,
+                         session.get(Creator, a.creator_id)),
+            b=_pair_side(b, latest.get(b.id), mb, pb,
+                         session.get(Creator, b.creator_id))))
     return out
 
 

@@ -570,6 +570,39 @@ And one that matters as much: **a withheld or unavailable measurement can
 never be phrased as a finding.** It appears as a gap, with the reason, in
 the same place a finding would have appeared.
 
+### How this is enforced, 2026-10-27
+
+The principle above was stated before the interface obeyed it. An audit
+of the running application found **202 places** where a column name, a
+method version or a bare statistic was the primary content on a page.
+That is now **1**, and the remaining one is a creator's own username.
+
+Three mechanisms, in order of how much they prevent:
+
+1. **One vocabulary.** `server/features/lexicon.py` holds the plain
+   English for all 79 measurements and every outcome — display name,
+   what it measures, what high and low mean, *what it does not
+   measure*, method, limitations. `webui/lexicon.js` is the only thing
+   the interface may use to turn a key into a label, and a test fails
+   if a view hard-codes one.
+2. **Two presentation levels.** Anything marked `.technical` — exact
+   feature names, coefficients, sample sizes, method versions — is
+   hidden until the reader presses *Show technical details*. Nothing is
+   deleted or duplicated to achieve it, and a live browser test asserts
+   that `edge_density` is absent before the toggle and present after.
+3. **An audit that reads the screen.** `scripts/provision/ui_audit.py`
+   drives a real headless Chromium, signs in, visits every page at
+   desktop and phone widths, and reads the *visible* text. It is the
+   only check that can distinguish "the API returns a display name"
+   from "the page shows one", and that distinction is the whole of this
+   section.
+
+Server-side prose written by analysts — a verdict line, a caveat, an
+outcome note — passes through `lexicon.humanise()` at the API boundary,
+which swaps stored keys for display names longest-first and softens the
+statistical vocabulary. Rewriting each string by hand would have worked
+once and drifted back.
+
 **The eventual conversational assistant is an interpreter, not an oracle.**
 It may use an external frontier model — running it locally is not a
 requirement — but it retrieves verified observations and evidence records

@@ -735,6 +735,7 @@
  * @property {number} video_id
  * @property {string} platform
  * @property {string} external_id
+ * @property {string|null=} permalink
  * @property {string|null=} posted_at
  * @property {number|null=} duration_s
  * @property {string|null=} caption
@@ -879,6 +880,7 @@
  * @property {string=} grade_reason
  * @property {Array<number>=} evidence_video_ids
  * @property {Array<Object>=} contradictions
+ * @property {Object<string, string>=} permalinks
  */
 
 /**
@@ -1172,6 +1174,7 @@
  * @property {number} id
  * @property {string} platform
  * @property {string} external_id
+ * @property {string|null=} permalink
  * @property {string|null=} caption
  * @property {Array<string>=} hashtags
  * @property {string|null=} posted_at
@@ -1194,6 +1197,7 @@
  * @property {number} id
  * @property {string} platform
  * @property {string} external_id
+ * @property {string|null=} permalink
  * @property {string|null=} caption_preview
  * @property {string|null=} posted_at
  * @property {number|null=} duration_s

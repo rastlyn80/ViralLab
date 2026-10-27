@@ -9,17 +9,30 @@
 import { api, bridgeMediaUrl, localBridge } from './api.js';
 import {
   ageQualified, bar, card, compact, dateOnly, dateTime, empty, esc, evidence,
+  postLink,
   kv, note, num, platformChip, player, secs, spinner, stat, stateChip, table,
   toast,
 } from './components.js';
 
 // ---------------------------------------------------------------- dashboard
 
+/**
+ * The home screen, answering questions rather than reporting health.
+ *
+ * What was here before - snapshot counts, token expiry, media
+ * coverage, collection runs - is all still here, below, under "How
+ * the system is doing". It is necessary and it is not what a creator
+ * opens the product to find out, so it is second rather than gone.
+ */
 export const dashboard = {
-  title: 'Dashboard',
+  title: 'Home',
   async render(root) {
-    root.innerHTML = `<h1>Dashboard</h1>${spinner()}`;
-    const o = await api.overview();
+    root.innerHTML = `<h1>Home</h1>${spinner()}`;
+    let h = null;
+    const [o] = await Promise.all([
+      api.overview(),
+      api.home().then((d) => { h = d; }).catch(() => { h = null; }),
+    ]);
 
     const platforms = o.platforms.map((p) => {
       const health = !p.connected
@@ -51,7 +64,8 @@ export const dashboard = {
           uses metadata only.`, 'warn'));
       }
       const reasons = Object.entries(m.by_reason_class || {})
-        .map(([k, v]) => `<span class="chip">${esc(k)} ${v}</span>`).join(' ');
+        .map(([k, v]) => `<span class="chip" title="${esc(k)}">${
+          esc(reasonLabel(k))} ${v}</span>`).join(' ');
       return card(`${m.platform} media`, `
         <div class="row between"><span class="num" style="font-size:22px;font-weight:650">
           ${m.coverage_pct === null ? '—' : `${m.coverage_pct}%`}</span>
@@ -70,7 +84,7 @@ export const dashboard = {
         { label: 'new', cls: 'right' }, { label: 'snapshots', cls: 'right' }],
       o.recent_runs.map((r) => `<tr>
         <td>${platformChip(r.platform)}</td>
-        <td class="muted">${esc(r.kind)}</td>
+        <td class="muted" title="${esc(r.kind)}">${esc(runLabel(r.kind))}</td>
         <td>${stateChip(r.status, null)}</td>
         <td class="nowrap muted">${dateTime(r.started_at)}</td>
         <td class="right">${num(r.videos_seen)}</td>
@@ -83,7 +97,12 @@ export const dashboard = {
     const oneDay = o.snapshot_days <= 1;
 
     root.innerHTML = `
-      <h1>Dashboard</h1>
+      <h1>Home</h1>
+      ${h ? homeTop(h) : note(`The summary could not be loaded, so only
+        system health is shown below.`, 'warn')}
+
+      <details class="group"><summary><h2>How the system is doing</h2>
+        <span class="sub">collection, media, review queue</span></summary>
       <p class="lede">System health and what needs you.
         <span class="faint">Generated ${dateTime(o.generated_at)}.</span></p>
 
@@ -129,9 +148,81 @@ export const dashboard = {
       </div>
 
       <h2>Recent collection runs</h2>
-      ${card('', runs, { flush: true })}`;
+      ${card('', runs, { flush: true })}
+      </details>`;
   },
 };
+
+/**
+ * The six questions a creator opens the product with, answered from
+ * counts taken at request time. Nothing here is configured.
+ */
+function homeTop(h) {
+  const mine = h.mine.map((m) => `
+    <div class="home-plat">
+      <div class="home-plat-name">${esc(m.label)}</div>
+      <div class="home-plat-n">${num(m.publications)}</div>
+      <div class="sub">videos collected &middot; ${num(m.analysed)} measured</div>
+    </div>`).join('');
+
+  const findings = h.findings.length
+    ? `<ul class="plain-list">${h.findings.map((f) => `<li>
+        ${esc(f.headline)}
+        <span class="chip ${f.direction === 'encouraging' ? 'ok' : 'warn'}"
+          >${esc(f.platform === 'instagram' ? 'Instagram' : 'TikTok')}</span>
+      </li>`).join('')}</ul>
+      ${h.findings_total > h.findings.length
+    ? `<p class="sub">${h.findings_total - h.findings.length} more on the
+        <a href="#/hooks/retention">findings page</a>.</p>` : ''}`
+    : `<p>Nothing yet. Findings need videos that have been measured and
+        that carry retention data, which today means your Instagram
+        account only.</p>`;
+
+  const reports = h.reports.length
+    ? `<div class="row" style="flex-wrap:wrap;gap:6px">${h.reports.map(
+      (r) => `<a class="chip ${r.is_own_account ? 'ok' : ''}"
+        href="#/research/${r.creator_id}/report">${
+  r.is_own_account ? 'You' : esc(r.handle)} &middot; ${
+  r.platform === 'tiktok' ? 'TikTok' : 'Instagram'}</a>`).join('')}</div>`
+    : '';
+
+  const tries = h.try_next.length
+    ? `<ul class="plain-list">${h.try_next.map(
+      (t) => `<li>${esc(t)}</li>`).join('')}</ul>`
+    : `<p>Nothing worth proposing yet. Suggesting an experiment from
+        this much data would be dressing a guess as a plan.</p>`;
+
+  return `
+    <section class="card home-hero">
+      <h2>What we have</h2>
+      <div class="home-plats">${mine}</div>
+      <p class="sub">Plus ${num(h.competitors.publications)} videos from
+        ${num(h.competitors.creators)} other creators we are studying.
+        ${h.measurement_counts.usable} of
+        ${h.measurement_counts.total} things we can measure are currently
+        trustworthy enough to act on.</p>
+      ${reports ? `<h3>Your reports</h3>${reports}` : ''}
+    </section>
+
+    <section class="card">
+      <h2>What we have found</h2>
+      ${findings}
+    </section>
+
+    <section class="card">
+      <h2>How much to trust it</h2>
+      <p>${esc(h.uncertain.nothing_is_proven)}</p>
+      <p class="sub">${h.uncertain.measurements_we_do_not_trust} of the
+        things we can measure are not reliable enough to use. They are
+        listed, with the reason, in
+        <a href="#/glossary">What everything means</a>.</p>
+    </section>
+
+    <section class="card">
+      <h2>What you could try next</h2>
+      ${tries}
+    </section>`;
+}
 
 // ------------------------------------------------------------------ library
 
@@ -222,7 +313,10 @@ export const library = {
       <td>${platformChip(v.platform)}</td>
       <td class="nowrap">${dateOnly(v.posted_at)}</td>
       <td><a href="#/video/${v.id}">${esc(
-        v.caption_preview || v.external_id)}</a></td>
+        v.caption_preview || v.external_id)}</a>
+        ${v.permalink ? `<div class="sub">${
+    postLink(v.permalink, v.platform, { label: 'see the post' })}</div>` : ''}
+      </td>
       <td class="right nowrap">${secs(v.duration_s)}</td>
       <td class="right nowrap">${ageQualified(v.latest_views, v.latest_age_days)}</td>
       <td>${v.master_links
@@ -363,11 +457,17 @@ export const videoDetail = {
             ['posted', dateTime(v.posted_at)],
             ['duration', secs(v.duration_s)],
             ['creator', v.creator_handle ? esc(v.creator_handle) : '—'],
-            ['own account', v.is_own_account ? 'yes' : 'no'],
-            ['provenance', `<span class="chip">${esc(v.source)}</span>`],
-            ['media', `${stateChip(v.media_status, null)}${v.media_reason
-              ? ` <span class="faint">${esc(v.media_reason)}</span>` : ''}`],
+            ['whose account', v.is_own_account ? 'yours' : 'another creator'],
+            ['where it came from', sourceLabel(v.source)],
+            ['video file', `${stateChip(v.media_status, null)}${v.media_reason
+              ? ` <span class="faint">${esc(reasonLabel(v.media_reason))}
+                </span>` : ''}`],
           ])}
+          ${v.permalink
+    ? `<div style="margin-top:10px">${postLink(v.permalink, v.platform,
+      { label: 'See this post on ' + (v.platform === 'tiktok'
+        ? 'TikTok' : 'Instagram') })}</div>`
+    : ''}
           <h3 style="margin-top:14px">Caption</h3>
           <div class="caption-text">${esc(v.caption || '(no caption)')}</div>
           ${v.hashtags.length ? `<div class="row" style="margin-top:9px">${
@@ -640,7 +740,8 @@ export const competitors = {
       <p class="muted" style="margin:0 0 10px">${esc(c.summary)}</p>
       ${Object.keys(c.counts).length ? `<div class="row" style="margin-bottom:10px">${
         Object.entries(c.counts).map(([k, v]) =>
-          `<span class="chip">${esc(k.replace(/_/g, ' '))}: ${v}</span>`).join('')
+          `<span class="chip" title="${esc(k)}">${
+    esc(reasonLabel(k))}: ${v}</span>`).join('')
       }</div>` : ''}
       <h3>Not available yet because</h3>
       <ul class="muted" style="margin:0;padding-left:18px;font-size:13px">
@@ -665,11 +766,14 @@ export const competitors = {
       <h2>What has to happen first</h2>
       ${card('', `
         <ol class="muted" style="margin:0;padding-left:20px">
-          <li><strong>Authorise a budget.</strong> Official APIs expose no
-            competitor data, so discovery needs the validated third-party
-            provider. <code>spending.monthly_cap_usd</code> is
-            <code>0.00</code> and <code>providers_authorised</code> is empty,
-            and the collector refuses to spend against either.</li>
+          <li><strong>Authorise a budget.</strong> The platforms' own APIs
+            expose nothing about other creators, so studying them needs the
+            paid provider. No monthly spending limit has been set and no
+            provider has been approved, and the collector refuses to spend
+            a penny against either.
+            <span class="technical">(<code>spending.monthly_cap_usd</code>
+            is <code>0.00</code>; <code>providers_authorised</code> is
+            empty.)</span></li>
           <li><strong>Discovery adapter.</strong> Keyword, hashtag, niche,
             genre and composer searches against that provider, writing into
             the same tables as own-account collection.</li>
@@ -737,17 +841,29 @@ export const featureCatalogue = {
         .filter((p) => !p.available)
         .map((p) => `<span class="chip danger" title="${esc(p.reason || '')}"
           >no ${esc(p.platform)}</span>`).join(' ');
+      // Plain name first, description second, variable name last and
+      // small. A reader who does not already know the key has no way
+      // into a table that leads with it.
+      const plain = f.plain || {};
       return `<tr${unavailable ? ' class="is-unavailable"' : ''}>
-        <td><code>${esc(f.name)}</code>${f.withheld
+        <td><strong>${esc(f.display_name || f.name)}</strong>${f.withheld
           ? ' <span class="chip warn">withheld</span>' : ''}
-          <div class="sub">${esc(f.describes)}</div></td>
+          <div class="sub">${esc(plain.measures || f.describes)}</div>
+          ${plain.not_a_measure_of
+    ? `<div class="sub"><em>Not a measure of ${
+      esc(plain.not_a_measure_of)}</em></div>` : ''}
+          <div class="gl-key technical"><code>${esc(f.name)}</code>${
+  f.method_version ? ` &middot; ${esc(f.method_version)}` : ''}</div></td>
         <td>${esc(f.modality)}</td>
         <td>${gradeChip(f.grade)}</td>
         <td class="num">${unavailable && !f.coverage
           ? '<span class="sub">none</span>' : num(f.coverage)}</td>
-        <td><div class="sub">${esc(why)}</div>${platforms}</td>
+        <td><div class="sub technical">${esc(why)}</div>
+          <div class="sub">${esc(plainWhy(f))}</div>${platforms}</td>
         <td>${f.evidence.length
-          ? evidence(f.evidence, `${f.evidence.length} finding(s)`)
+          ? `<span class="chip ok">${f.evidence.length} finding(s)</span>
+             <div class="technical">${evidence(f.evidence,
+    'Exact figures')}</div>`
           : '<span class="sub">not tested</span>'}</td>
       </tr>`;
     }).join('');
@@ -755,7 +871,8 @@ export const featureCatalogue = {
     root.innerHTML = `
       <h1>Feature catalogue</h1>
       ${note(`Every feature this project can measure, with the grade it has
-        earned from evidence. A grade is derived on every request from
+        earned from evidence. For plain-English definitions of all of
+        them, see <a href="#/glossary">What everything means</a>. A grade is derived on every request from
         extractor coverage, the withheld list and the stored association
         results - it is never written down, so it cannot go stale.
         <strong>${s.usable_in_a_recommendation}</strong> of
@@ -786,4 +903,206 @@ function gradeChip(grade) {
     Associated: 'ok', Validated: 'ok',
   }[grade] ?? '';
   return `<span class="chip ${cls}">${esc(grade)}</span>`;
+}
+
+
+// ------------------------------------------------------------- glossary
+
+/**
+ * What everything means, in English.
+ *
+ * This page exists because the rest of the product was unusable
+ * without it. Every other surface shows measurements; a reader who
+ * does not already know what `background_edge_density` is has no way
+ * in, and "it is in the code" is not an answer. So: one page, every
+ * measurement, plain language first, the variable name last and small.
+ *
+ * The most important line in each entry is "This is NOT a measure
+ * of". A name like `text_region_score` invites exactly one wrong
+ * reading, and the only reliable defence is to print the wrong
+ * reading next to the right one.
+ */
+export const glossary = {
+  title: 'What everything means',
+  async render(root, params) {
+    const q = (params?.q || '').toLowerCase();
+    root.innerHTML = `<h1>What everything means</h1>${spinner()}`;
+    const [lexicon, cat] = await Promise.all([
+      api.featureLexicon(), api.featureCatalogue(),
+    ]);
+
+    const grades = {};
+    for (const f of cat.features) grades[f.name] = f;
+
+    const match = (key, p) => !q
+      || key.toLowerCase().includes(q)
+      || (p.display_name || '').toLowerCase().includes(q)
+      || (p.measures || '').toLowerCase().includes(q);
+
+    const outcomes = Object.entries(lexicon.outcomes)
+      .filter(([k, p]) => match(k, p))
+      .map(([k, p]) => entry(k, p, null, true)).join('');
+
+    const groups = {};
+    for (const [k, p] of Object.entries(lexicon.features)) {
+      if (!match(k, p)) continue;
+      const m = grades[k]?.modality || 'other';
+      (groups[m] = groups[m] || []).push(entry(k, p, grades[k], false));
+    }
+
+    const sections = Object.entries(groups)
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([m, items]) => `<section class="card">
+        <h2>${esc(m[0].toUpperCase() + m.slice(1))} (${items.length})</h2>
+        ${items.join('')}</section>`).join('');
+
+    const total = Object.keys(lexicon.features).length;
+    root.innerHTML = `
+      <h1>What everything means</h1>
+      ${note(`Every measurement ViralLab can take, in plain English.
+        You should never need to know a variable name to read this
+        product &mdash; if you meet one anywhere else, it is listed
+        here. <strong>${total}</strong> measurements and
+        <strong>${Object.keys(lexicon.outcomes).length}</strong>
+        outcomes.`)}
+      <div class="filters">
+        <input id="gl-q" class="search" type="search" placeholder="Search
+          for a word, e.g. detail, text, speech, skip" value="${esc(q)}">
+      </div>
+      ${outcomes ? `<section class="card">
+        <h2>What we measure success by</h2>
+        ${note(`These are the outcomes. Everything else is something
+          about the video that might relate to one of them.`, '')}
+        ${outcomes}</section>` : ''}
+      ${sections || empty('Nothing matches', 'Try a different word.')}`;
+
+    const box = document.getElementById('gl-q');
+    box?.addEventListener('change', () => {
+      location.hash = `#/glossary${box.value
+        ? `?q=${encodeURIComponent(box.value)}` : ''}`;
+    });
+  },
+};
+
+function entry(key, p, cat, isOutcome) {
+  const bits = [];
+  if (p.measures) bits.push(`<p>${esc(p.measures)}</p>`);
+  if (p.high_means || p.low_means) {
+    bits.push(`<div class="hilo">
+      ${p.high_means ? `<div><span class="tag">Higher</span>
+        ${esc(p.high_means)}</div>` : ''}
+      ${p.low_means ? `<div><span class="tag">Lower</span>
+        ${esc(p.low_means)}</div>` : ''}</div>`);
+  }
+  if (isOutcome && p.better_when && p.better_when !== 'unknown') {
+    bits.push(`<p class="sub"><span class="tag">Good when</span>
+      this number is ${esc(p.better_when)}.</p>`);
+  }
+  // The line that stops a name being misread. Styled to be noticed.
+  if (p.not_a_measure_of) {
+    bits.push(`<p class="not-a-measure"><strong>This is NOT a measure
+      of</strong> ${esc(p.not_a_measure_of)}</p>`);
+  }
+  if (p.method) {
+    bits.push(`<p class="sub"><span class="tag">How</span>
+      ${esc(p.method)}</p>`);
+  }
+  if (p.limitations) bits.push(note(esc(p.limitations), 'warn'));
+
+  const grade = cat ? `<span class="chip ${
+    cat.grade === 'Unavailable' ? 'danger'
+      : (cat.grade === 'Associated' || cat.grade === 'Validated' ? 'ok'
+        : '')}">${esc(cat.grade)}</span>` : '';
+  const where = (cat?.platforms || []).filter((x) => !x.available)
+    .map((x) => `<span class="chip danger">not on ${esc(x.platform)}</span>`)
+    .join(' ');
+
+  return `<div class="gl-entry">
+    <h3>${esc(p.display_name)} ${grade} ${where}</h3>
+    ${bits.join('')}
+    ${cat?.coverage ? `<div class="gl-key">Measured on ${
+    cat.coverage} of your publications.</div>` : ''}
+    <div class="gl-key technical">stored as <code>${esc(key)}</code></div>
+  </div>`;
+}
+
+
+/**
+ * Why a feature has the grade it does, without the arithmetic.
+ *
+ * `grade_reason` from the server is precise and quotes coefficients;
+ * precise is what Technical Details is for. This is the same fact in
+ * the words a creator needs: can I act on this, or not.
+ */
+function plainWhy(f) {
+  switch (f.grade) {
+    case 'Associated':
+      return `Measured across ${f.coverage} of your videos, and the
+        relationship held after allowing for video length, how long it
+        has been online, and paid promotion. Worth testing.`;
+    case 'Validated':
+      return 'Confirmed by a planned experiment.';
+    case 'Hypothesised':
+      return `There is a hint of something here, but it did not survive
+        the checks that guard against finding patterns by chance. Only
+        worth treating as an idea to test.`;
+    case 'Observed':
+      return f.coverage
+        ? `Measured on ${f.coverage} of your videos. Nothing yet relates
+           it to whether people watch.`
+        : 'Nothing measured yet.';
+    default:
+      return f.not_built_reason
+        ? 'Nothing measures this yet, so there is nothing to show.'
+        : (f.withheld
+          ? `We can produce a number for this, but it was wrong too
+             often when checked against openings a person had labelled,
+             so it is not used for anything.`
+          : 'Not available for this account.');
+  }
+}
+
+
+/**
+ * Why a video has no stored copy, in words.
+ *
+ * These come from the collectors as short codes. A reader seeing
+ * `not_a_video` on a dashboard has to guess whether that is a problem;
+ * "image post, nothing to download" tells them it is not.
+ */
+/** How we came to have this publication, in words. */
+function sourceLabel(key) {
+  return ({
+    official_api: 'the platform’s own API',
+    provider: 'a third-party research provider',
+    local_master: 'your local archive',
+    own_api: 'the platform’s own API',
+  })[key] || String(key || '').replace(/_/g, ' ');
+}
+
+
+/** What a collection run was doing, in words rather than a job name. */
+function runLabel(kind) {
+  return ({
+    surface_backfill: 'filling in missing view breakdowns',
+    daily: 'daily refresh',
+    backfill: 'back-catalogue collection',
+    metrics: 'metrics refresh',
+    discovery: 'finding new creators',
+    research: 'researching a creator',
+    media: 'downloading video files',
+  })[kind] || String(kind || '').replace(/_/g, ' ');
+}
+
+
+function reasonLabel(key) {
+  return ({
+    not_a_video: 'image post, nothing to download',
+    api_restricted: 'platform will not supply the file',
+    expired_url: 'download link expired before we fetched it',
+    download_failed: 'download failed',
+    no_media_url: 'platform returned no file',
+    unsupported: 'format we cannot handle',
+    too_large: 'file above the size limit',
+  })[key] || String(key).replace(/_/g, ' ');
 }

@@ -22,6 +22,8 @@ import { api } from './api.js';
 import {
   card, compact, dateTime, empty, esc, note, num, secs, spinner, toast,
 } from './components.js';
+import { featureName, explain, notAMeasureOf,
+  relationshipSentence, strength, sense } from './lexicon.js';
 
 const METHOD_CHIP = {
   deterministic: '<span class="chip ok" title="Signal processing on the '
@@ -72,7 +74,8 @@ export const hooks = {
         claim here. Processing more videos cannot raise it.`, 'accent')}
       <div class="grid cols-4" style="margin-bottom:14px">
         ${stat('Preserved', num(cov.analysable), 'files on disk')}
-        ${stat('Extracted', num(cov.deterministic_done), cov.method_version)}
+        ${stat('Analysed', num(cov.deterministic_done),
+    'videos we have measured')}
         ${stat('With retention', num(cov.with_retention),
     'the analysable set')}
         ${stat('Corrections', num(cov.corrections), 'human')}
@@ -250,8 +253,8 @@ export const hookDetail = {
       ${d.caveats.map((c) => note(esc(c), 'warn')).join('')}
       ${mediaBlock(d)}
       ${Object.entries(byMethod).map(([version, rows]) =>
-    card(`${esc(version)} <span class="muted">${rows.length} features
-      </span>`, featureTable(rows))).join('')}
+    card(`${esc(methodLabel(version))} <span class="muted">${
+    rows.length} measurements</span>`, featureTable(rows))).join('')}
       ${d.runs.length ? card('Extraction runs', runsTable(d.runs)) : ''}`;
 
     wireCorrections(root, id);
@@ -284,7 +287,8 @@ function featureTable(rows) {
       <th class="num">Uncertainty</th><th>Window</th><th></th>
     </tr></thead><tbody>
     ${sorted.map((f) => `<tr>
-      <td><b>${esc(f.feature)}</b>
+      <td><b>${esc(featureName(f.feature))}</b>
+        <div class="sub technical"><code>${esc(f.feature)}</code></div>
         ${f.note ? `<div class="muted" style="max-width:46ch">${
   esc(f.note)}</div>` : ''}
         ${f.unavailable_reason ? `<div class="muted"
@@ -319,7 +323,7 @@ function runsTable(runs) {
     <th>Status</th><th class="num">Compute</th><th>When</th></tr></thead>
     <tbody>${runs.map((r) => `<tr>
       <td>#${r.id}</td><td>${esc(r.kind)}</td>
-      <td><code>${esc(r.method_version)}</code></td>
+      <td class="technical"><code>${esc(r.method_version)}</code></td>
       <td>${esc(r.status)}</td>
       <td class="num">${r.compute_seconds ? `${r.compute_seconds}s` : '—'}</td>
       <td>${r.started_at ? dateTime(r.started_at) : '—'}</td>
@@ -395,8 +399,9 @@ export const hookRetention = {
       </div>
       ${card('Associations with skip rate', `
         <table><thead><tr>
-          <th>Opening feature</th><th class="num">n</th>
-          <th class="num" title="Spearman rank correlation">rho</th>
+          <th>What we looked at</th><th class="num technical">n</th>
+          <th class="num technical"
+            title="Spearman rank correlation">rho</th>
           <th class="num" title="Controlling for duration">+dur</th>
           <th class="num" title="Controlling for duration and age">+dur+age</th>
           <th class="num">95% CI</th>
@@ -405,7 +410,12 @@ export const hookRetention = {
         </tr></thead><tbody>
         ${r.associations.map((a) => `<tr${sig(a)
     ? ' style="background:var(--warn-soft)"' : ''}>
-          <td><b>${esc(a.feature)}</b>
+          <td><b>${esc(featureName(a.feature))}</b>
+            <div class="sub">${esc(explain(a.feature))}</div>
+            ${notAMeasureOf(a.feature)
+    ? `<div class="sub"><em>Not a measure of ${
+      esc(notAMeasureOf(a.feature))}</em></div>` : ''}
+            <div class="technical"><code>${esc(a.feature)}</code></div>
             ${a.direction ? `<div class="muted">${esc(a.direction)}</div>`
     : ''}</td>
           <td class="num">${a.n}</td>
@@ -435,3 +445,25 @@ export const hookRetention = {
       r.limitations.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`)}`;
   },
 };
+
+
+/**
+ * A method version is a provenance string, not a heading.
+ *
+ * `hook-deterministic-v1` tells a reader nothing and looks like an
+ * error. The exact string stays available under Technical Details,
+ * where it is the thing somebody auditing a number actually wants.
+ */
+function methodLabel(version) {
+  if (!version) return 'Measurements';
+  if (version.startsWith('hook-deterministic')) {
+    return 'Measured from the picture and sound';
+  }
+  if (version.startsWith('hook-background')) {
+    return 'Background and subject, separated';
+  }
+  if (version.startsWith('hook-ocr')) return 'Text read off the screen';
+  if (version.startsWith('hook-speech')) return 'Speech';
+  if (version.startsWith('hook-vision')) return 'Read by a vision model';
+  return 'Measurements';
+}

@@ -55,7 +55,12 @@ def test_every_named_import_resolves_to_an_export():
     for path in MODULES:
         src = path.read_text(encoding="utf-8")
         names = set(re.findall(
-            r"^export (?:const|function|class|let)\s+(\w+)", src, re.M))
+            # `async` sits between `export` and `function`, and a
+            # module that only exported async functions read as
+            # exporting nothing - so the importer was reported broken
+            # while the browser loaded it happily.
+            r"^export (?:async\s+)?(?:const|function|class|let)\s+(\w+)",
+            src, re.M))
         for block in re.findall(r"^export \{([^}]*)\}", src, re.M):
             names |= {x.strip().split()[-1]
                       for x in block.split(",") if x.strip()}

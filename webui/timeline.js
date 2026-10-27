@@ -22,7 +22,7 @@
 
 import { api } from './api.js';
 import {
-  card, compact, dateTime, esc, note, num, spinner, toast,
+  card, compact, dateTime, esc, note, num, spinner, toast,  postLink,
 } from './components.js';
 import { classChip, fixtureChip } from './research.js';
 
@@ -328,7 +328,7 @@ function plainSummary(r) {
       : '';
     const links = (q.video_ids || []).length
       ? `<div class="sub">Supporting videos: ${q.video_ids.map(
-        (v) => `<a href="#/video/${v}">#${v}</a>`).join(' ')}</div>`
+        (v) => videoRef(v, r)).join(' ')}</div>`
       : '';
     const weak = q.confident === false
       ? '<span class="chip warn">not enough evidence</span>' : '';
@@ -381,7 +381,7 @@ function section(s) {
     ? `<div class="sub" style="margin-top:8px">Computed from ${
       s.evidence_video_ids.length} publication(s): ${
       s.evidence_video_ids.slice(0, 25).map(
-        (v) => `<a href="#/video/${v}">#${v}</a>`).join(' ')}${
+        (v) => videoRef(v, s)).join(' ')}${
       s.evidence_video_ids.length > 25 ? ' …' : ''}</div>`
     : '';
   // Counterexamples are shown, never dropped. A block that lists only
@@ -510,4 +510,20 @@ function collectionsBody(items) {
     <a href="#/collections/${c.id}">${esc(c.name)}</a>
     <span class="muted">${esc(c.purpose)}${
     c.reason ? ` — ${esc(c.reason)}` : ''}</span></li>`).join('')}</ul>`;
+}
+
+
+/**
+ * One reference to a publication: the internal page, and the post.
+ *
+ * Both, because they answer different questions. "#123" opens what we
+ * measured and stored; the arrow opens what the audience actually saw.
+ * A report that only offers the first asks the reader to trust it.
+ */
+function videoRef(id, carrier) {
+  const url = (carrier?.permalinks || {})[String(id)];
+  const internal = `<a href="#/video/${id}">#${id}</a>`;
+  if (!url) return internal;
+  return `${internal}<a class="postlink" href="${esc(url)}" target="_blank"
+    rel="noopener noreferrer" title="Open the post">\u2197</a>`;
 }
