@@ -16,8 +16,8 @@ import { research, researchCreator } from './research.js';
 import { settings } from './settings.js';
 import { creatorReport, creatorTimeline } from './timeline.js';
 import {
-  competitors, dashboard, featureCatalogue, glossary, library, notFound,
-  reviewMasters, reviewPairs, videoDetail,
+  cohortCompare, competitors, dashboard, featureCatalogue, glossary,
+  library, notFound, reviewMasters, reviewPairs, videoDetail,
 } from './views.js';
 
 const ROUTES = [
@@ -40,6 +40,8 @@ const ROUTES = [
   { pattern: /^\/hooks$/, view: hooks, nav: 'hooks' },
   { pattern: /^\/hooks\/retention$/, view: hookRetention, nav: 'hooks' },
   { pattern: /^\/hooks\/(\d+)$/, view: hookDetail, nav: 'hooks' },
+  { pattern: /^\/cohort\/(\d+)$/, view: cohortCompare,
+    nav: 'cohort' },
   { pattern: /^\/glossary$/, view: glossary, nav: 'glossary' },
   { pattern: /^\/features$/, view: featureCatalogue,
     nav: 'features' },
@@ -66,6 +68,8 @@ const NAV = [
     label: 'What everything means' },
   { id: 'features', href: '#/features',
     label: 'Everything we can measure' },
+  { id: 'cohort', href: '#/cohort/2',
+    label: 'You against other creators' },
   { group: 'Other creators' },
   { id: 'discover', href: '#/discover', label: 'Find creators' },
   { id: 'research', href: '#/research', label: 'Creators we study' },

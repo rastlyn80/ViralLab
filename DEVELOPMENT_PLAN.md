@@ -1988,6 +1988,27 @@ Other items:
   masters (§2.1). Any gap in your archive is a permanent gap in Tier 2/3
   coverage of your own history.
 
+**Competitor corpus and provenance — M6 (2026-10-27)**
+- **Forty `transient_media` rows carry the wrong deletion reason.**
+  The M3 held-out media, acquired 02:00 and reconciled by the sweep
+  at 02:20 as `crash_recovery` ("file absent at sweep"). Nothing
+  crashed. What removed those files between acquisition and the sweep
+  has not been identified — the strip generator and the frame
+  exporter both only read. The six-hour guarantee held and no file
+  outlived its deadline, so this is a provenance defect, not a safety
+  one: the ledger records a reason that is not the true reason, and
+  an audit reading those rows would draw a wrong conclusion about
+  what happened. **[OPEN]**
+- **The cohort is TikTok-only.** Every competitor with a deep
+  catalogue is on TikTok, because that is the platform the provider
+  serves. Cross-creator comparison on Instagram has no cohort at all,
+  and the owner's Instagram account — the only one with retention
+  data — therefore cannot be compared against anybody. **[OPEN]**
+- **218 of 354 competitor publications are measured**, sampled at up
+  to 20 per creator rather than exhaustively. A per-creator median
+  over 20 of 31 publications is a sample, and the comparison says so.
+  **[OPEN]**
+
 **Vision — opened and partly closed by M3 (2026-10-27)**
 - **The 80 held-out labels are now SPENT.** They promoted
   `vision_face_visible`, confirmed `vision_text_overlay_present` and

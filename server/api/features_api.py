@@ -172,3 +172,45 @@ def feature_lexicon(session: Session = Depends(get_session)) -> dict:
                  "display name is derived from the key. It is a gap, "
                  "not a description."),
     }
+
+
+@router.get("/cohort/{collection_id}", dependencies=[Depends(require_ui)])
+def cohort_comparison(
+    collection_id: int,
+    platform: str = Query("tiktok"),
+    session: Session = Depends(get_session),
+) -> dict:
+    """The owner against one saved cohort.
+
+    Composition travels with the comparison rather than beside it:
+    M6's requirement is that audience size, data age, completeness and
+    platform are visible *on the same screen*, and the surest way to
+    achieve that is to make them impossible to fetch separately.
+    """
+    from server.research import cohort as co
+
+    try:
+        rep = co.compare(session, collection_id, owner_platform=platform)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+    return {
+        "collection_id": rep.collection_id,
+        "collection_name": rep.collection_name,
+        "owner_handle": rep.owner_handle,
+        "platform": rep.owner_platform,
+        "meets_minimum": rep.meets_minimum,
+        "composition": rep.composition,
+        "members": [{
+            "creator_id": m.creator_id, "handle": m.handle,
+            "followers": m.followers, "publications": m.publications,
+            "measured": m.measured,
+            "oldest_post": m.oldest_post, "newest_post": m.newest_post,
+        } for m in rep.members],
+        "differences": [d.as_dict() for d in rep.differences],
+        "limitations": rep.limitations,
+        "what_this_cannot_say": (
+            "No retention, watch-time or skip data exists for any "
+            "creator but you. Every difference here is a difference in "
+            "what the videos ARE, never in what they achieve."),
+    }

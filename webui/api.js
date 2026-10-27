@@ -146,6 +146,8 @@ export const api = {
   featureInsights: (params) => request(`/api/features/insights${qs(params)}`),
   featureLexicon: () => request('/api/features/lexicon'),
   home: () => request('/api/home'),
+  cohortComparison: (id, params) =>
+    request(`/api/features/cohort/${id}${qs(params)}`),
 
   // -- AI providers, routing, visual analysis (Phase 6B) ------------------
   // `aiPlan` is a GET and must stay free: it shows what a request would

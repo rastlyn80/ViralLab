@@ -1106,3 +1106,107 @@ function reasonLabel(key) {
     too_large: 'file above the size limit',
   })[key] || String(key).replace(/_/g, ' ');
 }
+
+
+// ------------------------------------------------- cohort comparison (M6)
+
+/**
+ * You against a saved group of creators.
+ *
+ * The composition is rendered first and never collapsed, because the
+ * brief is explicit that audience size, data age, completeness and
+ * platform must be on the same screen as the comparison. A reader who
+ * cannot see that the cohort runs from 64 followers to 2.7 million
+ * cannot read the comparison correctly, and a reader who has to click
+ * to find out will not.
+ *
+ * The limitation is rendered before the findings, not after. "No
+ * retention data exists for anyone but you" changes what every row
+ * below means, so it goes where it will be read.
+ */
+export const cohortCompare = {
+  title: 'You against other creators',
+  async render(root, params, id) {
+    root.innerHTML = `<h1>You against other creators</h1>${spinner()}`;
+    const c = await api.cohortComparison(id, {
+      platform: params?.get?.('platform') || 'tiktok',
+    });
+
+    const comp = c.composition || {};
+    const range = comp.follower_range;
+
+    const memberRows = (c.members || []).map((m) => `<tr>
+      <td><a href="#/research/${m.creator_id}">${esc(m.handle)}</a></td>
+      <td class="right">${m.followers === null || m.followers === undefined
+    ? '<span class="unknown"></span>' : num(m.followers)}</td>
+      <td class="right">${num(m.publications)}</td>
+      <td class="right">${m.measured
+    ? num(m.measured)
+    : '<span class="faint">none yet</span>'}</td>
+      <td class="nowrap muted">${m.oldest_post
+    ? `${dateOnly(m.oldest_post)} – ${dateOnly(m.newest_post)}` : '—'}</td>
+    </tr>`);
+
+    const diffs = (c.differences || []).map((d) => {
+      const pct = d.owner_percentile === null ? null
+        : Math.round(d.owner_percentile * 100);
+      return `<div class="gl-entry">
+        <h3>${esc(d.plain)}</h3>
+        <div class="hilo">
+          <div><span class="tag">You</span> ${fmt(d.owner_median)}
+            across ${num(d.owner_n)} videos</div>
+          <div><span class="tag">Them</span> ${fmt(d.cohort_median)}
+            typically${d.cohort_range
+  ? `, ranging ${fmt(d.cohort_range[0])} to ${fmt(d.cohort_range[1])}
+     across ${d.cohort_members} creators` : ''}</div>
+          ${pct === null ? '' : `<div><span class="tag">Rank</span>
+            higher than ${pct}% of them</div>`}
+        </div>
+        <p class="sub">${esc(d.note)}</p>
+        <div class="technical">${evidence(d, 'Exact figures')}</div>
+      </div>`;
+    }).join('');
+
+    root.innerHTML = `
+      <h1>You against other creators</h1>
+      ${note(`<strong>${esc(c.what_this_cannot_say)}</strong>`, 'warn')}
+
+      <section class="card">
+        <h2>Who you are being compared with</h2>
+        <p class="sub">${esc(c.collection_name)} &middot;
+          ${comp.members} creators on
+          ${comp.platform === 'tiktok' ? 'TikTok' : 'Instagram'} &middot;
+          ${num(comp.publications_in_cohort)} videos held,
+          ${num(comp.publications_measured)} measured${range
+  ? ` &middot; ${num(range[0])} to ${num(range[1])} followers` : ''}.
+          ${c.meets_minimum
+    ? '' : `<span class="chip warn">fewer than
+            ${comp.minimum_required} creators have enough measured
+            videos, so read this as provisional</span>`}</p>
+        ${table(['Creator', { label: 'Followers', cls: 'right' },
+    { label: 'Videos held', cls: 'right' },
+    { label: 'Measured', cls: 'right' }, 'Posted between'],
+  memberRows, { empty: 'This cohort has no members.' })}
+      </section>
+
+      ${diffs ? `<section class="card">
+        <h2>How your openings differ</h2>
+        ${diffs}</section>`
+    : card('How your openings differ', note(`Not enough of the cohort
+        has been measured yet to compare anything. Collecting a
+        creator's videos and measuring them are separate steps.`, ''))}
+
+      ${card('What this does and does not show',
+    `<ul style="margin:0 0 0 18px">${(c.limitations || []).map(
+      (l) => `<li>${esc(l)}</li>`).join('')}</ul>`)}`;
+  },
+};
+
+/** A measurement value, rounded to something a person can read. */
+function fmt(v) {
+  if (v === null || v === undefined) return '—';
+  const a = Math.abs(v);
+  if (a >= 100) return num(Math.round(v));
+  if (a >= 1) return v.toFixed(2);
+  return v.toFixed(3);
+}

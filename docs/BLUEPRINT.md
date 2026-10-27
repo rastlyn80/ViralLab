@@ -762,6 +762,77 @@ before any pattern is graded above Hypothesised across creators
 *Acceptance:* the owner compared against a saved cohort of ≥ 10 creators;
 every cross-creator association reported with n and cohort composition.
 
+#### Status, 2026-10-27 — COMPLETE as specified
+
+| criterion | state |
+|---|---|
+| saved cohort of ≥ 10 creators | **met** — "Classical Piano", 12 TikTok creators, saved as a collection rather than assembled ad hoc |
+| the owner compared against it | **met** — `GET /api/features/cohort/{id}`, `#/cohort/2` |
+| every association with n and cohort composition | **met** — composition is returned *inside* the comparison, not beside it, so it cannot be rendered without it |
+| audience size never silently averaged | **met** — every member's follower count, publications held, publications measured and date range on the same screen |
+
+**The milestone was unreachable when it started, and the first half of
+the work was fixing that.** The corpus held 78 competitor publications
+across 68 creators — **61 of them with exactly one publication** — 23
+publications with any features, 2 creators ever researched, and one
+saved collection with zero members. A comparison between the owner's
+385 measured publications and somebody's single video is not a
+comparison, and no amount of statistics would have made it one.
+
+So M6 collected what M6 needed:
+
+| | before | after |
+|---|---|---|
+| competitor publications held | 78 | 354 |
+| competitor publications measured | 23 | 218 |
+| competitor creators measured | 20 | 28 |
+| creators with ≥ 5 publications | 1 | 12 |
+| saved cohort members | 0 | 12 |
+
+**Cost: $1.60** — $0.843 to collect twelve back catalogues, $0.753 to
+acquire and measure 205 videos at the measured $0.00404 a file.
+Total spend is now **$2.09 of the $5.00 authorised**. Every file was
+deleted after measurement; the audit reports `guarantee_holds: true`
+and zero partial extractions across all eleven batches.
+
+**The cohort spans 64 to 2,700,000 followers** — tonyannn at 2.7M down
+to cirruspiano at 64 — which is precisely the case the brief names
+when it says a 61-follower account and an 853k one must never be
+silently averaged. They are not: each member's own median is computed
+first and the comparison runs across twelve creators, not across 200
+pooled publications. A test builds a cohort where the two give
+*opposite* answers and asserts the per-creator one is reported.
+
+**The result, measured.** One difference survives correction:
+
+> On contrast, your openings score higher than this cohort typically
+> does. You 63.8 across 225 videos; them 52.8, ranging 28.3 to 71.6
+> across 12 creators. Higher than 83% of them. (q = 0.029)
+
+Eight other measurements point the same way and none survives
+correction at twelve creators. That is the honest yield of a cohort
+this size, and the page says so rather than listing nine findings.
+
+**What this milestone cannot do, stated on the page itself.** No
+retention, watch-time or skip data exists for any creator but the
+owner, on either platform. Every difference here is a difference in
+what the videos *are* and never in what they *achieve*; nothing on
+the page can say a difference is why anyone performs better. Every
+finding is therefore graded **Observed** and the ladder in
+`features/catalogue.py` has no route for it to go higher — a
+cross-creator difference has no outcome to be tested against. A test
+asserts that nothing can reach Associated here however small its q.
+
+**An unexplained gap in the audit trail, recorded rather than
+smoothed over.** 40 `transient_media` rows from the M3 run are
+recorded as `crash_recovery` — the reaper found the files already
+absent and reconciled the rows. Nothing crashed, and what deleted
+those files between acquisition and the next sweep has not been
+identified. The retention guarantee held throughout and no file
+outlived its deadline, so this is a provenance defect rather than a
+safety one, but the reason recorded against those forty rows is not
+the true reason. Tracked in `DEVELOPMENT_PLAN.md` §11.
+
 ### M7 — Creative Opportunities *(old brief Stage 7)*
 
 Each opportunity is a structured object: proposed approach, motivating
