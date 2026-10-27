@@ -63,6 +63,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from server.db.models import FeatureEvidence, VideoFeature
+from server.features import lexicon as lex
 from server.features import visual_structure as vs
 from shared import hookbg, hookfeat, hookocr, hookspeech
 
@@ -142,6 +143,11 @@ class CatalogueEntry:
             "name": s.name,
             "modality": s.modality,
             "describes": s.describes,
+            # The plain-English record. Read from `lexicon`, never
+            # written here, so a description cannot differ between
+            # the catalogue and anything else that shows it.
+            "plain": lex.as_dict(s.name),
+            "display_name": lex.display_name(s.name),
             "kind": s.kind,
             "method_version": s.method_version or None,
             "grade": self.grade,
@@ -518,15 +524,20 @@ def grade_for(spec: FeatureSpec, *, coverage: int,
         return "Unavailable", (
             stored_unavailable_reason
             or "stored as unavailable by its own extractor")
-    if coverage == 0:
-        return "Unavailable", (
-            f"an extractor exists ({spec.method_version}) but no "
-            f"publication has a stored value")
+    # Withheld before coverage. A field the benchmark refused is
+    # withheld whether or not rows happen to exist for it, and
+    # reporting "no stored value" for one would bury the governing
+    # fact under an incidental one - a reader would go looking for the
+    # missing extraction rather than reading why the field is barred.
     if spec.withheld:
         why = vs.WITHHELD_VISION.get(spec.name, "")
         return "Unavailable", (
             "withheld from analysis until a held-out benchmark promotes "
             "it" + (f" - {why}" if why else ""))
+    if coverage == 0:
+        return "Unavailable", (
+            f"an extractor exists ({spec.method_version}) but no "
+            f"publication has a stored value")
     return _evidence_grade(evidence)
 
 

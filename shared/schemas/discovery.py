@@ -273,6 +273,24 @@ class ReportSectionView(BaseModel):
     body: dict = Field(default_factory=dict)
     caveats: list[str] = Field(default_factory=list)
     unavailable_reason: str | None = None
+    #: M5. Which of the four report sections this block belongs to.
+    group: str = ""
+    #: BLUEPRINT section 2's grade, derived from `basis`, plus why.
+    grade: str = ""
+    grade_reason: str = ""
+    #: The publications this block's numbers came from, so a reader can
+    #: open them rather than take the figure on trust.
+    evidence_video_ids: list[int] = Field(default_factory=list)
+    #: Examples that cut against this block's own reading.
+    contradictions: list[dict] = Field(default_factory=list)
+
+
+class ReportGroupView(BaseModel):
+    """One of M5's four sections, and the blocks inside it."""
+
+    key: str
+    title: str
+    section_keys: list[str] = Field(default_factory=list)
 
 
 class CreatorReportView(BaseModel):
@@ -289,6 +307,15 @@ class CreatorReportView(BaseModel):
     cost_usd: float | None = None
     job_id: int | None = None
     data_limitations: list[str] = Field(default_factory=list)
+    #: M5's four sections, in reading order, each naming the blocks it
+    #: contains. Sent rather than hard-coded in the interface so the
+    #: report's shape has one definition.
+    groups: list[ReportGroupView] = Field(default_factory=list)
+    #: True when no publication carries a known age, so every
+    #: comparison in the report is between lifetime totals.
+    lifetime_approximation: bool = False
+    #: Spread between the oldest and youngest observation age.
+    age_span_days: int | None = None
 
 
 # ---------------------------------------------------------------------------

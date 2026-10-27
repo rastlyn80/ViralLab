@@ -6,8 +6,10 @@ this document disagree about *what we are building*, this one is correct and
 the plan gets corrected. When they disagree about *how or when*, the plan is
 correct.
 
-**Revision 1** — 2026-10-24. Supersedes the scattered statements of intent in
-`DEVELOPMENT_PLAN.md` §1 and §7 Phase 11.
+**Revision 2** — 2026-10-27. Adds §6.1, the surface principle: the science
+stays rigorous and the surface stays readable by someone who has never heard
+of a correlation. Revision 1 (2026-10-24) superseded the scattered statements
+of intent in `DEVELOPMENT_PLAN.md` §1 and §7 Phase 11.
 
 ---
 
@@ -517,6 +519,64 @@ Interface principles:
   render as 0.
 - **Cost before commitment.** Any paid action shows its estimated cost and
   the remaining budget before it runs.
+
+## 6.1 Sophisticated science underneath, effortless intelligence on top
+
+**ViralLab is not an analytics dashboard.** It is a creative research
+assistant that happens to be rigorous. The analysis underneath must satisfy
+§3's evidence rules without compromise; the surface must be usable by
+someone who has never heard of a rank correlation, a confidence interval or
+a false-discovery rate, and who should never need to learn.
+
+The user must never have to know a feature name, a coefficient, a schema or
+a statistical term to understand what the system found.
+
+Not this, as the thing a reader meets first:
+
+> `background_edge_density: rho = −0.401; partial rho = −0.318`
+
+But this:
+
+> **Videos with more visual detail tended to have fewer viewers skipping
+> them.**
+>
+> Across the 229 Instagram videos we could measure, this was a moderate
+> tendency, and it held after accounting for how long each video is, how
+> long it has been online, and how much paid promotion it received. This is
+> an association, not proof: nothing here shows that changing one would
+> change the other.
+
+The coefficients are not deleted. They move into an **Evidence and
+methodology** disclosure, one click away, where the number, the interval,
+the correction and the controls are all available to anyone who wants them.
+
+Four rules this surface obeys, each enforced by a test:
+
+1. **A correlation is never written as a cause.** "Videos with X tended to
+   have Y", never "X improves Y" and never "adding X will". The verb is what
+   a reader remembers; the caveat underneath is not.
+2. **A correlation is never rendered as a percentage.** A rho of −0.40 is
+   not "40% fewer skips". Strength is reported on a coarse verbal scale,
+   because a finer one would imply a precision these samples do not have.
+3. **A measurement is described as what it is.** `text_region_score`
+   measures visual busyness where captions usually sit. It is *not* a
+   measure of text, it does not read words, and the field that does is
+   named separately. Every measurement carries a `not_a_measure_of`.
+4. **A finding belongs to the platform it was measured on.** Instagram's
+   skip rate has no TikTok counterpart in this data, and the two are never
+   presented as the same question answered twice.
+
+And one that matters as much: **a withheld or unavailable measurement can
+never be phrased as a finding.** It appears as a gap, with the reason, in
+the same place a finding would have appeared.
+
+**The eventual conversational assistant is an interpreter, not an oracle.**
+It may use an external frontier model — running it locally is not a
+requirement — but it retrieves verified observations and evidence records
+through controlled, read-only tools, cites them, and is never permitted to
+generate statistics, sample sizes, citations, platform capabilities or
+performance predictions of its own, nor to issue arbitrary SQL against
+production. Factual findings and creative hypotheses stay visibly separate.
 
 ---
 

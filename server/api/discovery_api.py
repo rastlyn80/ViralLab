@@ -46,7 +46,8 @@ from shared.schemas.discovery import (AnalysisRequestBody,
                                       ExpansionPlanView, ExpansionRequest,
                                       FeatureContractView,
                                       FrequencyBucketView, NicheView,
-                                      ReportSectionView, SearchHistoryRow,
+                                      ReportGroupView, ReportSectionView,
+                                      SearchHistoryRow,
                                       SustainedRunView, TimelinePointView)
 
 logger = logging.getLogger("virallab.api.discovery")
@@ -328,8 +329,20 @@ def creator_report(creator_id: int,
         is_fixture=r.is_fixture, generated_at=r.generated_at,
         sections=[ReportSectionView(
             key=s.key, title=s.title, basis=s.basis, body=_jsonable(s.body),
-            caveats=s.caveats, unavailable_reason=s.unavailable_reason)
+            caveats=s.caveats, unavailable_reason=s.unavailable_reason,
+            group=s.group, grade=s.grade, grade_reason=s.grade_reason,
+            evidence_video_ids=s.evidence_video_ids,
+            contradictions=_jsonable(s.contradictions))
             for s in r.sections],
+        # The four M5 sections, in reading order, each naming the
+        # blocks it holds. Sent rather than hard-coded in the client so
+        # the report's shape has exactly one definition.
+        groups=[ReportGroupView(
+            key=key, title=title,
+            section_keys=[s.key for s in r.sections if s.group == key])
+            for key, title in rep.GROUPS],
+        lifetime_approximation=r.lifetime_approximation,
+        age_span_days=r.age_span_days,
         research_date=r.research_date, provider=r.provider,
         cost_usd=r.cost_usd, job_id=r.job_id,
         data_limitations=r.data_limitations)

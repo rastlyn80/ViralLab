@@ -297,23 +297,104 @@ export const creatorReport = {
       ${r.cost_usd === null ? 'unknown'
     : `$${r.cost_usd.toFixed(4)}`}${r.job_id ? ` (job ${r.job_id})` : ''}.`,
   'accent')}
-      ${r.sections.map(section).join('')}
+      ${plainSummary(r)}
+      ${(r.groups || [])
+    .filter((g) => g.key !== 'summary')
+    .map((g) => groupBlock(g, r)).join('')}
       ${card('Data limitations', `<ul style="margin:0 0 0 18px">${
       r.data_limitations.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`)}`;
   },
 };
 
-function section(s) {
+/**
+ * The first screen: six questions, answered in English.
+ *
+ * Deliberately before everything else and deliberately without a single
+ * variable name. A reader who stops here should still have understood
+ * what we found and how far to trust it; a reader who continues gets
+ * the measurements underneath, which is the right way round.
+ */
+function plainSummary(r) {
+  const s = (r.sections || []).find((x) => x.key === 'plain_summary');
+  if (!s) return '';
   if (s.basis === 'unavailable') {
-    return card(`${esc(s.title)} ${BASIS_CHIP.unavailable}`,
-      note(esc(s.unavailable_reason || 'Not available.'), ''));
+    return card('What we found',
+      note(esc(s.unavailable_reason || 'Nothing to summarise yet.'), ''));
+  }
+  const qs = (s.body?.questions || []).map((q) => {
+    const items = (q.items || []).length
+      ? `<ul class="plain-list">${q.items.map(
+        (i) => `<li>${esc(i)}</li>`).join('')}</ul>`
+      : '';
+    const links = (q.video_ids || []).length
+      ? `<div class="sub">Supporting videos: ${q.video_ids.map(
+        (v) => `<a href="#/video/${v}">#${v}</a>`).join(' ')}</div>`
+      : '';
+    const weak = q.confident === false
+      ? '<span class="chip warn">not enough evidence</span>' : '';
+    return `<div class="qa">
+      <h3>${esc(q.question)} ${weak}</h3>
+      <p>${esc(q.text || '')}</p>${items}${links}</div>`;
+  }).join('');
+  return `<section class="card plain-summary">
+    <h2>What we found</h2>${qs}
+    ${(s.caveats || []).map((c) => note(esc(c), '')).join('')}
+  </section>`;
+}
+
+/** One of M5's four sections, with its blocks inside. */
+function groupBlock(g, r) {
+  const inside = (r.sections || [])
+    .filter((s) => g.section_keys.includes(s.key));
+  if (!inside.length) return '';
+  const body = inside.map(section).join('');
+  // Everything below the summary is detail, so it opens closed. The
+  // science stays one click away rather than in the reader's face.
+  return `<details class="group" ${g.key === 'overview' ? 'open' : ''}>
+    <summary><h2>${esc(g.title)}</h2>
+      <span class="sub">${inside.length} section(s)</span></summary>
+    ${body}</details>`;
+}
+
+const GRADE_CHIP = {
+  Unavailable: '<span class="chip danger">Unavailable</span>',
+  Observed: '<span class="chip">Observed</span>',
+  Hypothesised: '<span class="chip warn">Hypothesised</span>',
+  Associated: '<span class="chip ok">Associated</span>',
+  Validated: '<span class="chip ok">Validated</span>',
+};
+
+function section(s) {
+  const grade = GRADE_CHIP[s.grade] || '';
+  if (s.basis === 'unavailable') {
+    return card(`${esc(s.title)} ${grade}`,
+      `${note(esc(s.unavailable_reason || 'Not available.'), '')}
+       ${s.grade_reason ? `<div class="sub">${esc(s.grade_reason)}</div>`
+    : ''}`);
   }
   const caveats = s.caveats?.length
     ? `<div style="margin-top:10px">${s.caveats.map(
       (c) => note(esc(c), 'warn')).join('')}</div>`
     : '';
-  return card(`${esc(s.title)} ${BASIS_CHIP[s.basis] || ''}`,
-    `${sectionBody(s)}${caveats}`);
+  // Every number in a block links to the publications it came from.
+  const links = (s.evidence_video_ids || []).length
+    ? `<div class="sub" style="margin-top:8px">Computed from ${
+      s.evidence_video_ids.length} publication(s): ${
+      s.evidence_video_ids.slice(0, 25).map(
+        (v) => `<a href="#/video/${v}">#${v}</a>`).join(' ')}${
+      s.evidence_video_ids.length > 25 ? ' …' : ''}</div>`
+    : '';
+  // Counterexamples are shown, never dropped. A block that lists only
+  // its supporting cases is an argument, not a measurement.
+  const against = (s.contradictions || []).length
+    ? `<details style="margin-top:10px"><summary>Examples that cut the
+        other way (${s.contradictions.length})</summary>
+       ${itemsTable(s.contradictions)}</details>`
+    : '';
+  return card(`${esc(s.title)} ${grade}`,
+    `${sectionBody(s)}${links}${against}${caveats}
+     ${s.grade_reason ? `<div class="sub">Grade: ${esc(s.grade_reason)}
+      </div>` : ''}`);
 }
 
 function sectionBody(s) {

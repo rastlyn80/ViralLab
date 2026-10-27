@@ -86,3 +86,79 @@ def catalogue(
                           "experiment. May drive a recommendation."),
         },
     }
+
+
+@router.get("/insights", dependencies=[Depends(require_ui)])
+def insights(
+    population: str = Query("", description="one named population"),
+    min_status: str = Query(
+        "associated",
+        description="weakest grade to include: observed | hypothesised "
+                    "| associated | validated"),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Findings in English, assembled from stored evidence.
+
+    The default floor is `associated` because that is the weakest
+    grade BLUEPRINT §2 lets drive anything. Lowering it surfaces
+    hypotheses, which belongs on a research page and must never be the
+    default anywhere that reads like advice.
+
+    `gaps` is returned alongside and is not optional furniture: a list
+    of findings with no list of things that could not be found reads
+    as though everything was checked.
+    """
+    from server.research import insights as ins
+
+    allowed = ("observed", "hypothesised", "associated", "validated")
+    if min_status not in allowed:
+        raise HTTPException(
+            422, f"unknown min_status {min_status!r}; expected one of "
+                 f"{list(allowed)}")
+
+    found = ins.build(session, population=population or None,
+                      min_status=min_status)
+    return {
+        "min_status": min_status,
+        "population": population or None,
+        "count": len(found),
+        "insights": [i.as_dict() for i in found],
+        "gaps": ins.gaps(session, population=population or None),
+        "how_to_read": {
+            "association_is_not_cause": (
+                "Every finding here is a tendency measured across "
+                "videos. None of them shows that changing one thing "
+                "would change another; only a planned experiment can "
+                "do that, and none has run."),
+            "no_percentages": (
+                "A correlation is not a percentage improvement, so "
+                "none is shown. Strength is given on a coarse verbal "
+                "scale instead."),
+            "platform_specific": (
+                "A finding belongs to the platform it was measured "
+                "on. Instagram's skip rate has no TikTok equivalent "
+                "in this data."),
+        },
+    }
+
+
+@router.get("/lexicon", dependencies=[Depends(require_ui)])
+def feature_lexicon(session: Session = Depends(get_session)) -> dict:
+    """Plain English for every measurement, and for every outcome.
+
+    Served so the interface has no reason to hold its own copy of a
+    description. Two descriptions of one measurement will disagree;
+    one will not.
+    """
+    from server.features import lexicon as lex
+
+    return {
+        "features": {name: lex.as_dict(name)
+                     for name in sorted({s.name for s in cat.SPEC})},
+        "outcomes": {name: lex.outcome_as_dict(name)
+                     for name in sorted(lex.OUTCOMES)},
+        "note": ("`written: false` means no plain-English record has "
+                 "been authored for that measurement yet and the "
+                 "display name is derived from the key. It is a gap, "
+                 "not a description."),
+    }

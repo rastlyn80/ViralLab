@@ -378,3 +378,19 @@ details.ev pre {
 td .sub { font-size: 12.5px; color: var(--fg-muted); margin-top: 2px; }
 tr.is-unavailable td:first-child code { color: var(--fg-muted); }
 tr.is-unavailable { background: var(--danger-soft); }
+
+
+/* M5. The plain-English summary leads; the measurements sit under a
+   disclosure. Sophisticated science underneath, readable surface on
+   top - which in CSS terms means the first screen must not look like
+   a table of variables. */
+.plain-summary h2 { margin: 0 0 4px; }
+.plain-summary .qa { padding: 14px 0; border-top: 1px solid var(--line); }
+.plain-summary .qa:first-of-type { border-top: 0; }
+.plain-summary h3 { font-size: 15px; margin: 0 0 6px; }
+.plain-summary p { margin: 0; max-width: 68ch; line-height: 1.55; }
+.plain-list { margin: 8px 0 0 18px; max-width: 68ch; line-height: 1.5; }
+.plain-list li { margin-bottom: 6px; }
+details.group > summary { cursor: pointer; padding: 10px 0; }
+details.group > summary h2 { display: inline-block; margin: 0 8px 0 0; }
+details.group > summary::-webkit-details-marker { color: var(--fg-muted); }

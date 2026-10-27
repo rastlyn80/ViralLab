@@ -377,6 +377,9 @@
  * @property {number|null=} cost_usd
  * @property {number|null=} job_id
  * @property {Array<string>=} data_limitations
+ * @property {Array<ReportGroupView>=} groups
+ * @property {boolean=} lifetime_approximation
+ * @property {number|null=} age_span_days
  */
 
 /**
@@ -856,6 +859,14 @@
  */
 
 /**
+ * @typedef {Object} ReportGroupView
+ * One of M5's four sections, and the blocks inside it.
+ * @property {string} key
+ * @property {string} title
+ * @property {Array<string>=} section_keys
+ */
+
+/**
  * @typedef {Object} ReportSectionView
  * @property {string} key
  * @property {string} title
@@ -863,6 +874,11 @@
  * @property {Object=} body
  * @property {Array<string>=} caveats
  * @property {string|null=} unavailable_reason
+ * @property {string=} group
+ * @property {string=} grade
+ * @property {string=} grade_reason
+ * @property {Array<number>=} evidence_video_ids
+ * @property {Array<Object>=} contradictions
  */
 
 /**

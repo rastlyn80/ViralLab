@@ -639,6 +639,116 @@ brief specified, with these rules built in:
 and for three competitors of different sizes, with no fabricated metric and
 every number traceable by click.
 
+**Addendum, 2026-10-27 — evidence-to-language and an AI-native surface.**
+The owner added a mandatory requirement during implementation: ViralLab is
+not a technical analytics dashboard, it is an AI creative research
+assistant. The science stays rigorous; the surface must be readable by
+someone who has never heard of a correlation. The addendum's own acceptance
+criteria are folded into the list below, and the principle is now permanent
+in `docs/PRODUCT_VISION.md` §6.1.
+
+#### Status, 2026-10-27 — COMPLETE as specified, including the addendum
+
+| criterion | state |
+|---|---|
+| report renders for the owner on both platforms | **met** — `gabriele_baldocci` (Instagram, 385 publications) and the owner's TikTok (235) |
+| and for three competitors of different sizes | **met** — pianza88 (382k followers), tranquilstreamsmusic (32.5k), music.with.hazem (5.4k) |
+| no fabricated metric | **met** — every unavailable measure renders as Unavailable with its reason |
+| every number traceable by click | **met** — each block carries the publication ids its figures came from, harvested from the block's own body rather than declared beside it |
+| four named sections | **met** — Overview, Publication intelligence, Content intelligence, Evidence and uncertainty, plus a plain-English summary ahead of them |
+| each conclusion carries its §2 grade | **met** — derived from the block's basis, never written per section |
+| contradictory examples listed, not hidden | **met** — the weakest performers beside the strongest, the recent underperformers beside a "recent is better" split |
+| paid and organic separated for the owner | **met** — `paid_vs_organic`, Instagram only, stating that Meta's ordinary metrics are already organic-only (ADR 0008) |
+| owner's repertoire | **met**, and mostly Unavailable — see below |
+| *(addendum)* a non-technical user understands the findings | **met** — six plain questions answered first, no feature name on the first screen |
+| *(addendum)* technical detail available but secondary | **met** — every measurement block sits under a closed disclosure |
+| *(addendum)* TikTok and Instagram clearly distinguished | **met** — every insight names its platform and refuses to generalise across them |
+| *(addendum)* weak evidence and gaps disclosed | **met** — `gaps()` lists all 31 unavailable measurements with reasons |
+| *(addendum)* no unproven causal claims | **met**, and tested — a list of causal verbs is asserted absent from every generated sentence |
+
+**What a reader now meets first.** Six questions, answered in English:
+how is this creator performing, what appears to work, what appears to work
+less well, what is distinctive, what to try next, and how far to trust any
+of it. For the owner's Instagram account the second question is answered
+from the nine measured associations; for a competitor it answers *"we hold
+public counts and no retention data at all, so what works cannot be
+answered — only what was posted"*, which is the honest answer and a more
+useful one than a confident paragraph built on five numbers.
+
+**Three new layers, each with one job.**
+
+* `server/features/lexicon.py` — plain English for every measurement and
+  every outcome, in one place. Display name, what it measures, what high
+  and low mean, **what it does not measure**, method, reliability,
+  limitations. Centralised because two descriptions of one measurement will
+  eventually disagree and one will not.
+* `server/research/insights.py` — findings assembled from `feature_evidence`
+  rows and the lexicon, and from nothing else. There is no path by which a
+  sentence can describe a relationship the database does not hold.
+* `server/research/report.py` — the existing report, now grouped, graded,
+  linked to its publications and fronted by the summary.
+
+**Four refusals, each enforced by a test rather than a convention.**
+
+1. *No causation.* Sixteen causal phrasings are asserted absent from every
+   generated sentence. "Videos with X tended to have Y", never "X improves
+   Y".
+2. *No correlation as a percentage.* A rho of −0.40 is not "40% fewer
+   skips". Strength is a coarse verbal band.
+3. *No direction read from a sign.* Skip rate is good when it falls, so
+   direction comes from the outcome's own definition. A layer reading
+   "negative means bad" would have inverted every finding in the product;
+   `saturation_mean` at +0.247 is correctly reported as discouraging and
+   `edge_density` at −0.389 as encouraging.
+4. *No cross-platform equivalence.* Every insight names its platform, and a
+   population with no known platform is withheld rather than shown without
+   one.
+
+Plus the one that matters most: **a withheld measurement can never become a
+sentence.** A test gives `vision_piano_or_keyboard_visible` a fabricated
+rho of −0.7 at q=0 and asserts no insight is produced. It appears as a gap
+with its reason instead.
+
+**`text_region_score` is named honestly throughout.** It is "visual
+complexity where captions usually sit", it carries an explicit
+`not_a_measure_of` saying it does not read, count or detect words, and the
+field that actually reads text is shown separately as "Words on screen".
+A test asserts the phrase "amount of text" and four variants never appear
+in its description.
+
+**Two defects the work surfaced.** Insights initially inherited the
+*feature's* grade rather than the grade of the evidence row being described,
+so an uncorrected finding was labelled `associated` because a different
+finding about the same feature had been corrected — fixed with row-level
+grading and a regression test. And the first run rendered Arm A of the
+visual-structure analysis as creator-facing findings, producing sentences
+like *"videos with more background detail tended to have more visual
+complexity in text areas"* — true, internal, and worthless to a creator.
+Only audience outcomes become insights now; Arm A stays in the methodology.
+
+**The owner's repertoire is Unavailable, and says so.** 25 publications
+trace through the archive to a performance, but `performances.work` is empty
+on all 146 rows, so these group publications that share a *performance* and
+cannot group them by *piece*. Grouping by repertoire needs that field
+populated; the section states that rather than approximating it from titles
+or borrowing the caption keyword matches sitting next to it.
+
+**One blueprint assumption corrected by measurement.** M5 says performance
+is compared at a fixed age "where ages are known, and labelled *lifetime
+approximation* where they are not (every competitor)". Measured: the
+discovery provider returns a publication date for **every** competitor
+publication held, so competitor ages are known and the lifetime label would
+be false. What is genuinely missing is different and is now named
+separately — each competitor publication is observed exactly once, at
+whatever age it happened to be, so two of them cannot be read at a common
+anchor however well their dates are known. The report computes which of the
+three statements applies rather than assuming.
+
+**Prepared, not built.** The conversational assistant has its retrieval
+surface — `GET /api/features/catalogue`, `/api/features/insights`,
+`/api/features/lexicon` — all read-only, all returning evidence with ids to
+cite. No chat agent is part of M5, deliberately.
+
 ### M6 — Cross-creator intelligence *(old brief Stage 6)*
 
 Comparisons on formats, hooks, repertoire categories, captions, visual
