@@ -184,7 +184,7 @@ def parse(text: str) -> dict:
 
 
 def run_cloud_arm(arm: str, frames: dict[int, list], labels: dict,
-                  provider, budget) -> dict:
+                  provider, budget, max_output_tokens: int = 600) -> dict:
     """The same two prompts, sent to a paid model.
 
     Every call is reserved against the ledger before it is made and
@@ -205,9 +205,16 @@ def run_cloud_arm(arm: str, frames: dict[int, list], labels: dict,
             b64 = f.get("jpeg_b64") if isinstance(f, dict) else f
             blobs.append((float(f.get("at_s", 0.0)) if isinstance(f, dict)
                           else 0.0, base64.b64decode(b64)))
+        # 600, not the local arm's 900. The cost estimate - and so the
+        # size of every reservation - is computed from this number, and
+        # on a paid model output is five times the price of input. 600
+        # holds four frame descriptions plus the booleans; 900 would
+        # reserve $0.90 for a 40-publication run and trip the ceiling
+        # two thirds of the way through, which is a worse outcome than
+        # a slightly terser description.
         req = AnalysisRequest(task="describe_then_answer", schema={},
                               prompt=prompt, frames=blobs, video_id=vid,
-                              max_output_tokens=900)
+                              max_output_tokens=max_output_tokens)
         est = provider.estimate_usd(req)
         res = budget(est, f"describe_then_answer:{provider.name}:"
                           f"{arm}:{vid}")
@@ -223,7 +230,7 @@ def run_cloud_arm(arm: str, frames: dict[int, list], labels: dict,
         actual = (out.usage.actual_usd if out.usage else None) or est
         res("ok", actual)
         spent += actual
-        got = parse(out.text or "")
+        got = parse(out.raw_text or "")
         if not got:
             failures.append({"video_id": vid, "why": "no JSON in reply"})
             continue
@@ -376,7 +383,8 @@ def run_cloud(args) -> int:
 
     results = {}
     for arm in args.arms.split(","):
-        r = run_cloud_arm(arm, frames, labels, provider, budget)
+        r = run_cloud_arm(arm, frames, labels, provider, budget,
+                          args.max_output_tokens)
         r["scores"] = score(r["predictions"], labels)
         results[arm] = r
         print(f"\n=== {arm}  {r['seconds']}s  answered "
@@ -411,6 +419,9 @@ def main() -> int:
     ap.add_argument("--arms", default="bare,describe_first")
     ap.add_argument("--model", default="gemma",
                     choices=sorted(MODELS) + ["claude-sonnet", "claude-haiku"])
+    ap.add_argument("--max-output-tokens", type=int, default=600,
+                    help="cloud arms only. Drives the reservation size, "
+                         "because output costs 5x input on these models.")
     ap.add_argument("--max-usd", type=float, default=0.80,
                     help="hard ceiling for a cloud run. The ledger cap "
                          "still applies on top of this; whichever is "

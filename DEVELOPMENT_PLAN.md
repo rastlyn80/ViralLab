@@ -2009,6 +2009,41 @@ Other items:
   over 20 of 31 publications is a sample, and the comparison says so.
   **[OPEN]**
 
+**Visual intelligence — a paid model solves it, and the labels now
+block it (2026-10-27)**
+- **Claude Sonnet answered all 40 own publications with zero errors**
+  on `piano_or_keyboard_visible`, `hands_visible` and
+  `text_overlay_present`, at $0.0183 a publication and $0.66 for the
+  run. Every local approach sits at or below 0.50 specificity on the
+  piano question. Written up in
+  `docs/benchmarks/7d-claude-sonnet.md`. **[MEASURED]**
+- **The labels were written by Claude, so this result is not
+  independent.** A model may write the answer key or sit the exam,
+  not both. A perfect score against a Claude-written key is the exact
+  shape a correlated-error artefact takes. This is now **the binding
+  constraint on the whole vision programme**: every cheaper problem
+  has been solved and what remains is that nobody independent has
+  checked the answers. The owner confirming the ~20
+  flagged-ambiguous labels is the single highest-value action
+  available. **[OPEN]**
+- **The denominators are still tiny** — 6 negatives for piano, 3 for
+  hands, 1 for text overlay. A perfect 3-of-3 carries a 95% interval
+  of roughly [0.29, 1.00]. The fields with real denominators (sheet
+  music 28, face 24) score 0.857 and 0.833: strong, visibly not
+  perfect, and the contrast is the evidence that the perfect scores
+  are about sample size. **[OPEN]**
+- **A biased dropout was found and fixed.** The first pass answered
+  33 of 40; seven truncated at the 600-token output cap. Long
+  descriptions come from complex scenes and complex scenes are the
+  hard cases — video 91, a known-ambiguous piano negative, was among
+  them. Re-run at 1400 tokens, all seven answered, and the re-run
+  cost nothing because the idempotency keys matched calls already
+  settled. **[CLOSED]**
+- **Running Sonnet across the library would cost about $17.85
+  `[SECONDARY]` against a $5.00 monthly cap.** Not authorised; the
+  `cloud_vision` cap of $1.00 would refuse it. Haiku 4.5 at roughly a
+  third of the cost is untested and is a $0.21 question. **[OPEN]**
+
 **Visual intelligence — Phase 1 detector comparison (2026-10-27)**
 - **The corpus cannot answer the piano or hands question at all.** The
   pre-registered bar is specificity >= 0.80, and the 80 labelled
