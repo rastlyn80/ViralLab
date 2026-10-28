@@ -286,9 +286,29 @@ extras:
   than published edits, so own-account *published* video may be
   fetched with `yt-dlp` via `server/collectors/tiktok_archive.py`.
   Ownership is proven by presence in the authenticated owner's
-  TikTok `video/list` response, never by configuration. This does
-  **not** extend to third-party media, and the code cannot be
-  configured to extend to it.
+  TikTok `video/list` response, never by configuration.
+- **Widened by ADR 0010 (2026-10-28), on the owner's decision:**
+  `yt-dlp` may also fetch **public** third-party video, through
+  `server/collectors/competitor_archive.py` only. The conditions are
+  not negotiable by configuration:
+  - **Never any credential.** `--no-cookies` always, no cookie jar
+    parameter, no `--username`, no `--netrc`, no browser cookie
+    import. The private path in `tiktok_archive.py` must never be
+    reachable from third-party code.
+  - **Public, logged-out content only.** A video that will not
+    resolve without a session is skipped, never worked around. That
+    is the line between collecting public data and circumventing an
+    access control, and it is the whole basis of §2.3.
+  - **Transient.** Third-party media is registered with
+    `transient_media` and deleted on the ADR 0009 six-hour deadline.
+    No third-party file is retained after its features are derived,
+    and none is ever served to the browser.
+  - **Rate limited** at least as hard as the own-account path, and
+    bounded per run.
+  The provider route (`competitor_media.py`) stays and is still the
+  right choice if this is ever commercialised, because it carries a
+  receipt. **This widening is for private research use and must be
+  revisited before any commercial use** (§2.3 legal review).
 
 ---
 
