@@ -1138,3 +1138,328 @@ possible. M10 is a menu, not a sequence.
 The MVP still ends where CLAUDE.md §8 says it ends: with the experiment.
 A suite that recommends without having tested one recommendation is the
 failure mode the project was designed to avoid.
+
+## 8. The parameter catalogue — what could distinguish a video that
+worked from a similar one that did not
+
+Written 2026-10-28, at the owner's request, after he observed that
+the build had drifted from what he needed. This is the target list.
+It is deliberately larger than what exists, and it marks honestly
+which rows are real.
+
+**Key:** ✅ built · ◐ partial · ○ buildable free from data already
+held · £ needs media or a provider · ✗ not obtainable
+
+---
+
+### 8.0 The framing, which the owner's phrasing got right
+
+The request was for what distinguishes a video that worked "with
+respect to another which is similar and draws no traffic". That
+phrasing contains the better instrument, and it is not a longer
+parameter list.
+
+A correlation across a corpus asks *do busier openings go with more
+views, on average, across everything*. It is answerable and it is
+weak, because everything differs from everything at once. **A matched
+pair asks a sharper question**: here are two videos by the same
+creator, same repertoire, similar length, posted three weeks apart,
+one at the top of their distribution and one at the bottom — what
+differs?
+
+Within a pair, the creator is constant, the audience is constant, the
+follower count is nearly constant, the era is constant, and often the
+repertoire is too. Every confound that makes cross-creator comparison
+nearly worthless is differenced out by construction rather than by
+statistics.
+
+**So the parameters below exist to populate pairs, not to be
+correlated one at a time.** The design is in §8.9 and the list should
+be read with it in mind: a parameter earns its place by being capable
+of *differing within a matched pair*, not by sounding important.
+
+---
+
+### 8.1 The opening — the first three seconds
+
+The part with the most leverage per byte, because it is where a
+viewer decides. Most of the existing feature set is already here.
+
+**Visual composition**
+
+| parameter | status |
+|---|---|
+| What is on screen at t=0 — face, hands, keys, text card, instrument, empty | ◐ `vision_*` booleans, not time-resolved to t=0 |
+| Share of the frame the face occupies | ○ |
+| Share of the frame the subject occupies | ◐ `background_subject_edge_ratio` |
+| Shot distance, camera angle, framing | ✅ `vision_shot_distance`, `vision_camera_angle`, `vision_framing` |
+| Depth of field, background blur | ✅ `vision_depth_of_field` |
+| Brightness, contrast, saturation | ✅ `brightness_mean`, `contrast_rms`, `saturation_mean` |
+| Colour temperature and dominant hue | ○ |
+| Visual busyness, overall and background | ✅ `edge_density`, `background_edge_density` |
+| Background tonal variety | ✅ `background_grey_entropy` |
+| Negative space, symmetry, thirds adherence | ○ |
+| Motion energy in the first second | ✅ `mean_abs_frame_diff` |
+| Camera movement and its magnitude | ✅ `camera_motion_class`, `camera_motion_px_per_frame` |
+| Time of the first cut | ◐ `cut_times_s` holds it; not surfaced |
+| Gaze direction — at camera, at keys, away | ○ via the wide pass |
+| Letterboxing or pillarboxing | ○ |
+| Motion blur | ○ |
+
+**Audio opening**
+
+| parameter | status |
+|---|---|
+| Silence before the first sound | ✅ `first_sound_at_s` |
+| Whether sound starts immediately | ✅ `audio_starts_immediately` |
+| Loudness of the first seconds | ✅ `audio_rms_mean`, `audio_rms_peak` |
+| Attack sharpness of the first note | ✅ `audio_attack_time_s` |
+| Brightness of the sound | ✅ `spectral_centroid_hz` |
+| Speech first or music first | ◐ `voice_band_ratio`, `spoken_words` |
+| Tempo at the start | ○ |
+| Key and mode — major or minor | ○ |
+| Dynamic range of the opening | ○ |
+| Note density — how many events per second | ◐ `audio_onset_count` |
+| Solo or ensemble | ○ via the wide pass |
+| Whether the melody is recognisable within 3 seconds | ✗ needs a melody index this project does not have |
+
+**On-screen text at the opening**
+
+| parameter | status |
+|---|---|
+| Whether text is present, and when it first appears | ✅ `vision_text_overlay_present`, `ocr_first_text_at_s` |
+| Word and element count | ✅ `ocr_word_count`, `ocr_element_count` |
+| Where on screen it sits | ✅ `text_region_score`, `vision_text_position` |
+| Text height as a share of the frame | ○ |
+| Contrast of text against what is behind it | ○ |
+| Whether it is a question, a claim, a number or a promise | ○ from `on_screen_text_content` |
+| Reading time against display time | ○ |
+| Language | ○ |
+| Burned in by the creator or added by the platform | ✅ `vision_text_overlay_present` makes this distinction |
+
+---
+
+### 8.2 Structure and pacing
+
+| parameter | status |
+|---|---|
+| Duration | ✅ `duration_s` |
+| Number of cuts and cut rate | ✅ `cut_count` |
+| Regularity of the cutting rhythm | ○ from `cut_times_s` |
+| Longest single shot | ○ from `cut_times_s` |
+| Scene changes | ✅ `scene_change_count` |
+| Whether it loops seamlessly — last frame against first | ○ |
+| Whether it ends abruptly or resolves | ○ |
+| Where the loudest moment sits | ○ |
+| Whether it builds to a peak or is flat | ○ |
+| Speed ramps and slow motion | ○ via the wide pass |
+| Transition types | ✅ `vision_transitions` |
+| Whether the opening represents the rest | ✅ `vision_opening_is_representative` |
+
+---
+
+### 8.3 Repertoire and content
+
+The dimension the owner named first and the one with the least built.
+A concert pianist's catalogue is not interchangeable content.
+
+| parameter | status |
+|---|---|
+| Composer | ✅ `composer` from captions, 450 publications |
+| Work and movement | ◐ `work_form_named` only — the form, not which piece |
+| Period — baroque, classical, romantic, impressionist, modern | ○ derivable from composer |
+| Recognisability — is this a piece a lay listener knows | ○ needs a curated tier list |
+| Whether it is a "meme" piece — Für Elise, Nocturne op.9 no.2, Interstellar | ○ curated list |
+| Perceived virtuosity — speed, volume, note density | ◐ from audio |
+| Tempo | ○ |
+| Mode — major or minor | ○ |
+| Original composition against repertoire | ○ |
+| Arrangement against straight performance | ○ |
+| Crossover — classical meeting pop | ○ |
+| Participation in a trend or challenge | £ needs trend data |
+| Content type — performance, tutorial, talking head, reaction, behind the scenes, comparison, storytime | ○ via the wide pass |
+| Whether it teaches something | ○ |
+| Whether it is funny | ○ interpretive, never verifiable |
+
+---
+
+### 8.4 Performer and setting
+
+| parameter | status |
+|---|---|
+| Performer visible, and how many | ✅ `vision_performer_visible` (withheld), `vision_second_person_visible` |
+| Face visible, facing the camera | ✅ `vision_face_visible`, `vision_facing_camera` |
+| Expression | ◐ `vision_emotional_presentation`, interpretive |
+| Amount of body movement | ○ |
+| Dress formality | ✅ `vision_formality` |
+| Setting | ✅ `vision_setting` |
+| Audience visible, and how large | ✅ `vision_audience_visible` |
+| Instrument type — grand, upright, digital, public piano | ○ via the wide pass |
+| Production values — lighting, stability, resolution | ◐ |
+| Handheld or mounted | ✅ `camera_motion_class` |
+| Props — candles, flowers, chandelier, a screen | ✅ four `vision_*` booleans |
+| A pet or a child in shot | ✅ `vision_pet_or_child_visible` |
+
+---
+
+### 8.5 Caption and metadata
+
+| parameter | status |
+|---|---|
+| Length in characters and words | ✅ `caption_chars`, `caption_words` |
+| Length of the first line — what shows before "more" | ✅ `caption_first_line_words` |
+| Hashtag count | ✅ `hashtag_count` |
+| Hashtag popularity, and broad against niche | £ needs per-hashtag volume |
+| Mentions and collaborations | ✅ `mention_count` |
+| Emoji count | ✅ `caption_emoji_count` |
+| Asks a question | ✅ `caption_has_question` |
+| Asks the viewer to act | ✅ `caption_has_cta` |
+| Names the piece | ✅ `composer_named`, `work_form_named` |
+| Tells a story against labelling the content | ○ |
+| Sentiment | ○ |
+| Language | ○ |
+| Hashtags and nothing else | ✅ `caption_is_hashtags_only` |
+
+---
+
+### 8.6 Sound identity
+
+Platform-level, and entirely missing. On TikTok especially, which
+sound a video carries is a distribution mechanism in its own right.
+
+| parameter | status |
+|---|---|
+| Original audio against a trending sound | £ |
+| Sound identifier | £ |
+| How many other videos use that sound | £ |
+| Whether the sound was rising at the time of posting | £ |
+
+---
+
+### 8.7 Timing and context
+
+| parameter | status |
+|---|---|
+| Hour of day, UTC | ✅ `posted_hour_utc` |
+| Hour of day in the creator's local time | ○ needs a timezone per creator |
+| Day of week, and weekend | ✅ `posted_weekday`, `posted_is_weekend` |
+| Days since the previous post | ○ |
+| Regularity of posting cadence | ○ |
+| Follower count at the time of posting | ◐ only the current count is held |
+| Account age at the time of posting | ○ |
+| Part of a series | ○ |
+| Season, and proximity to a holiday | ○ |
+| How many similar videos were posted that week | £ |
+
+---
+
+### 8.8 Novelty against the creator's own catalogue
+
+A dimension nothing in the project touches, and plausibly one of the
+strongest: audiences reward difference from what an account usually
+does, and the same video from a different account is a different
+event.
+
+| parameter | status |
+|---|---|
+| Visual similarity to the creator's recent posts | ○ |
+| Audio similarity to recent posts | ○ |
+| Whether this repertoire has been posted before | ○ |
+| Whether this format has been posted before | ○ |
+| A combined novelty score | ○ |
+
+---
+
+### 8.9 Outcomes — never predictors
+
+CLAUDE.md §3.9 forbids a post-publication signal from being both a
+feature and a target. These are targets.
+
+| outcome | owner | other creators |
+|---|---|---|
+| Views | ✅ | ✅ 1,061 snapshots |
+| Likes, comments, shares, saves | ✅ | ✅ |
+| Skip rate | ✅ 287 publications | ✗ private to the account holder |
+| Average watch time | ✅ | ✗ |
+| Completion and rewatch rate | ◐ | ✗ |
+| Follows gained from a video | ◐ | ✗ |
+| Share-to-view ratio — the strongest "this struck someone" signal | ○ | ○ |
+| Comment sentiment and volume | ○ | ○ |
+
+---
+
+### 8.10 What cannot be measured, and matters
+
+Listing these is not pessimism. A model that silently omits them
+attributes their effect to whatever it did measure.
+
+- **The algorithm's state.** Which audience a video was shown to, how
+  large the first test cohort was, and what it did there. This is
+  invisible and it is probably the largest single term.
+- **Early-velocity cascades.** Short-form distribution is
+  path-dependent: two near-identical videos can diverge because one
+  caught a better first hour. A meaningful share of outcome variance
+  is therefore **not attributable to content at all**, and a system
+  that explains every difference by content is overfitting to noise.
+- **Off-platform promotion.** A share in a group chat or a feature by
+  a larger account.
+- **Comment-section dynamics.** A good argument in the replies keeps
+  a video alive for days.
+- **The creator's standing relationship with their audience.**
+- **Paid promotion on other creators' accounts.** Nobody can see it,
+  which is precisely why no finding about other creators can rise
+  above `Observed` — there is no ad covariate to control for.
+
+---
+
+### 8.11 The matched-pair design
+
+The instrument the owner's question actually implies.
+
+**Pairing rule, to be fixed before any pair is drawn.** Two
+publications form a pair when they share a creator, are within a
+stated window of each other in posting date, are within a stated
+ratio on duration, and ideally share a composer or content type —
+and when one sits in the top third of that creator's view
+distribution and the other in the bottom third.
+
+**Then test which parameters differ systematically across pairs**, by
+sign test or Wilcoxon on the within-pair differences. A parameter
+that differs in the same direction in 18 of 22 pairs is saying
+something a pooled correlation of 0.15 cannot.
+
+**What it buys.** Creator, audience, follower count, era and often
+repertoire are all held constant by construction. It is the closest
+thing to an experiment that observation allows.
+
+**What it does not buy.** It is still observational. Pairs differ on
+many parameters at once, and the one that differs most is not
+thereby the cause. And it inherits §8.10 entirely: a pair may differ
+only in which hour the algorithm happened to test it.
+
+**Why it is not built yet.** It needs depth per creator. 16
+competitor creators with eight or more measured videos is not enough
+to draw pairs from; roughly 100 creators with 30 or more each would
+be. That is the binding constraint on this whole section, and it is a
+collection problem rather than an analysis one.
+
+---
+
+### 8.12 What to build first
+
+Ordered by evidence gained per pound, not by interest.
+
+1. **Everything marked ○ that needs no media** — tempo, mode,
+   recognisability tiers, period from composer, novelty against the
+   creator's own catalogue, days since last post, text classification
+   from OCR already stored. Free, and it roughly doubles the
+   parameter count on both sides of the comparison.
+2. **Share-to-view ratio as an outcome.** Already collectable, and a
+   better signal of "this struck someone" than raw views.
+3. **Depth over breadth in collection.** 100 creators × 30
+   publications beats 400 creators × 2, and only the first supports
+   matched pairs.
+4. **Sound identity**, if the provider exposes it. On TikTok it may
+   be a larger term than anything visual.
+5. **The visual pass on competitors.** The most expensive, and worth
+   less than the above until there are pairs to use it in.
