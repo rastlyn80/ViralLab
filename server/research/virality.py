@@ -416,6 +416,32 @@ def why_not_testable(a: list[float], b: list[float],
     return ""
 
 
+#: Measurements that describe the DISTANCE to the baseline a
+#: publication is scored against, rather than the publication.
+#:
+#: Breaking out means beating a trailing window of the creator's
+#: previous posts. A publication put out 60 days after the last one
+#: is compared against a window whose newest member is 60 days old,
+#: during which the account kept growing and the platform kept
+#: recommending the back catalogue. The longer the gap, the staler
+#: the thing it has to beat.
+#:
+#: That is structural, not a hypothesis: `days_since_previous_post`
+#: IS the age gap to the newest member of the window. So when the
+#: competitor corpus got deep enough to test cadence, both gap
+#: measurements came out as the strongest differences on the
+#: breakthrough side - 20.9 days against 11.1 - and "post less
+#: often" is exactly the advice this project must not give on the
+#: strength of an artefact of its own outlier definition.
+#:
+#: They are still reported, separately and with the reason, because
+#: cadence is a real decision and hiding the measurement would make
+#: the next person re-derive it. They are not called findings.
+BASELINE_DISTANCE = frozenset({
+    "days_since_previous_post",
+    "gap_vs_usual",
+})
+
 MIN_OUTLIERS = 12
 
 #: A yes/no measurement needs this many of each answer across the
@@ -547,7 +573,7 @@ def breakthroughs(session: Session, *, own: bool = False,
         cands.append((feature, len(a), len(b), ma, mb, p))
 
     qs = benjamini_hochberg([c[5] for c in cands])
-    out, weak = [], []
+    out, weak, cadence = [], [], []
     for (feature, na, nb, ma, mb, p), q in zip(cands, qs):
         if q is None or q > Q_THRESHOLD:
             # Did not survive correction. Kept separately and never
@@ -568,7 +594,7 @@ def breakthroughs(session: Session, *, own: bool = False,
                     "p_value": round(p, 5), "q_value": round(q, 5),
                 })
             continue
-        out.append({
+        record = {
             "feature": feature,
             "display_name": lex.display_name(feature),
             "describes": _describes(feature),
@@ -583,8 +609,19 @@ def breakthroughs(session: Session, *, own: bool = False,
                 f"{'more' if ma > mb else 'less'} "
                 f"{lex.display_name(feature).lower()} than the ones "
                 f"that did not - {ma:.3g} against {mb:.3g}."),
-        })
+        }
+        if feature in BASELINE_DISTANCE:
+            record["grade"] = "Unavailable"
+            record["plain"] = (
+                f"{record['plain']} This one cannot be read as a "
+                f"property of the video: a publication put out after "
+                f"a long gap is compared against an older window, "
+                f"which the account has had longer to outgrow.")
+            cadence.append(record)
+            continue
+        out.append(record)
     out.sort(key=lambda d: d["q_value"])
+    cadence.sort(key=lambda d: d["q_value"])
     return {
         "outliers": n_out, "compared": len(is_outlier),
         "origin": origin,
@@ -592,6 +629,19 @@ def breakthroughs(session: Session, *, own: bool = False,
                          if len(o) >= MIN_PER_CREATOR]),
         "outlier_threshold_z": OUTLIER_Z,
         "differences": out,
+        # Reported, never called a finding. See `BASELINE_DISTANCE`.
+        "cadence_against_the_baseline": cadence,
+        "cadence_warning": (
+            "Breaking out means beating a trailing window of earlier "
+            "posts, so a publication put out after a long gap is "
+            "measured against an older and smaller audience. These "
+            "two measurements are the size of that gap. They came "
+            "out as the largest differences on this corpus, and the "
+            "advice they appear to give - post less often - is "
+            "exactly what an artefact of the method would look "
+            "like. Settling it needs a baseline anchored to a fixed "
+            "age rather than to the previous publications."
+            if cadence else ""),
         "weak_signals": sorted(weak, key=lambda d: d["p_value"])[:8],
         "weak_signals_warning": (
             "None of these survived correction for testing many "

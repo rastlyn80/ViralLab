@@ -127,7 +127,8 @@ function breakout(title, b) {
   if (!b) return '';
   if (!b.differences || !b.differences.length) {
     return card(title, `<p class="muted">${esc(b.why_empty
-      || 'Nothing survived correction.')}</p>`);
+      || 'Nothing survived correction.')}</p>`
+      + confounded(b));
   }
   const h = b.how_to_read || {};
   return `<section class="card">
@@ -142,7 +143,37 @@ function breakout(title, b) {
         ${x.n_outliers} against ${x.n_others}</span>
     </li>`).join('')}</ul>
     <p class="muted">${esc(h.still_not_causal || '')}</p>
+    ${confounded(b)}
   </section>`;
+}
+
+/**
+ * Differences that are about the method rather than the video.
+ *
+ * Shown, and shown as not-findings. On the deep competitor corpus
+ * the two largest differences by far were the gap since the
+ * previous post — and breaking out is defined as beating a trailing
+ * window of earlier posts, so a long gap means an older and smaller
+ * audience to beat. The advice that appears to fall out of it, post
+ * less often, is exactly what an artefact of the outlier definition
+ * would look like.
+ *
+ * Hidden entirely, the next person measures it again and believes
+ * it. Mixed in with the findings, this one would have been the
+ * headline.
+ */
+function confounded(b) {
+  const rows = b.cadence_against_the_baseline || [];
+  if (!rows.length) return '';
+  return `<div class="not-a-measure">
+    <h3>Measured, and not a finding</h3>
+    <ul class="plain">${rows.map((x) => `<li>
+      <b>${esc(x.display_name)}</b> &mdash; ${esc(x.direction)}
+      (${x.outliers_mean} against ${x.others_mean})
+      <span class="technical muted"> q = ${x.q_value}</span>
+    </li>`).join('')}</ul>
+    <p class="muted">${esc(b.cadence_warning || '')}</p>
+  </div>`;
 }
 
 /**

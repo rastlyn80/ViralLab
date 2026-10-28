@@ -1758,6 +1758,39 @@ posting window, comparables, uncertainty, alternatives for testing.
 > percentage. The typical value reported is the **median**, because
 > a skewed mean contradicted the count printed beside it.
 
+> **Deep competitor collection, 2026-10-28.** The Apify subscription
+> lifted the actor's 10-item cap (asked 30, got 30), which had been the
+> binding constraint on every competitor question. 100 creators x 30
+> publications, spread across the follower range, **$5.14 measured**
+> against an $11.25 estimate. Competitor corpus 958 -> 3,388
+> publications; creators deep enough to analyse (>= 8) **15 -> 105**.
+> The free deterministic extractors then ran over all 4,009
+> publications.
+>
+> Competitor findings, for the first time in the project:
+>
+> * breakthroughs use **larger on-screen text** (0.065 vs 0.048) and
+>   are **less likely to carry on-screen text at all** (73% vs 94%);
+> * more hashtags, shorter videos, a **less varied recent
+>   repertoire**, and **naming the form** go with doing better;
+> * three measurements now hold on **both** sides - hashtag count,
+>   repeating the kind of piece, and naming the form. Agreement is
+>   the strongest thing this evidence can produce and the page that
+>   reports it had never had anything to put in it.
+>
+> **A difference deliberately not reported as a finding.** The two
+> largest differences on the competitor side were the gap since the
+> previous post: 20.9 days against 11.1. Breaking out is defined as
+> beating a *trailing* window of earlier posts, so a publication put
+> out after a long gap is measured against an older and smaller
+> audience - `days_since_previous_post` **is** the age gap to the
+> newest member of that window. "Post less often" is exactly what an
+> artefact of the outlier definition would look like, so both are in
+> `BASELINE_DISTANCE`, graded `Unavailable`, shown under "measured,
+> and not a finding", and excluded from the adherence check.
+> Settling it needs a baseline anchored to a fixed age rather than
+> to the previous publications.
+
 **Milestone 8.3 — Conversational refinement** against stored artistic
 identity, equipment and repertoire.
 **Milestone 8.4 — Evidence lineage:** `recommendation_evidence` rows are

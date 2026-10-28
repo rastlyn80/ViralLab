@@ -80,3 +80,36 @@ def test_the_guards_are_documented_where_they_bite():
     src = inspect.getsource(vir)
     assert "3 publications EACH out of 442" in src
     assert "two videos" in src
+
+
+def test_the_gap_to_the_previous_post_is_not_a_content_finding():
+    """A long gap means an older window to beat, not a better video.
+
+    Breaking out means beating a trailing window of earlier posts.
+    `days_since_previous_post` IS the age gap to the newest member
+    of that window, so the longer it is, the staler the thing being
+    beaten and the more the account has grown since. On the deep
+    competitor corpus both gap measurements came out as the LARGEST
+    differences - 20.9 days against 11.1 - and the advice they look
+    like they give, post less often, is exactly what an artefact of
+    the outlier definition would look like.
+    """
+    assert "days_since_previous_post" in vir.BASELINE_DISTANCE
+    assert "gap_vs_usual" in vir.BASELINE_DISTANCE
+
+
+def test_a_creators_habitual_cadence_is_not_excluded():
+    """Only the distance to the window is confounded, not cadence.
+
+    How often a creator posts in general is a property of the
+    creator, not of the gap in front of one publication, and
+    excluding it would throw away a real and actionable measurement.
+    """
+    assert "usual_gap_days" not in vir.BASELINE_DISTANCE
+
+
+def test_the_confounded_measurements_are_still_reported():
+    """Hiding a measurement makes the next person re-derive it."""
+    src = inspect.getsource(vir.breakthroughs)
+    assert "cadence_against_the_baseline" in src
+    assert "cadence_warning" in src

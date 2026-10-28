@@ -825,8 +825,10 @@ PLAIN: dict[str, Plain] = {
     "piece_recognisability": Plain(
         display_name="How recognisable the piece is",
         measures=("Whether a non-specialist would know the work "
-                  "within a few seconds: tier 1 is instantly "
-                  "familiar, tier 2 broadly known, tier 0 neither."),
+                  "within a few seconds: 1 is instantly familiar, "
+                  "2 is broadly known, 3 is not at all. Lower is "
+                  "more recognisable, which is the opposite of what "
+                  "the number looks like."),
         not_a_measure_of=("quality or difficulty. The hardest piece "
                           "in the repertoire can be unrecognisable "
                           "and a simple one instantly known."),
