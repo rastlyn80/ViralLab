@@ -66,50 +66,70 @@ FIXTURES = (Path(__file__).resolve().parents[2]
 SOURCES = (("own", "holdout_labels_own.json"),
            ("competitor", "holdout_labels_competitor.json"))
 
-#: Plain-English form of each question, and the rule that decides it.
-#: The rule matters more than the question: "can you see the piano
-#: keys" was answered differently by two models and by the labeller
-#: precisely because "a piano is present" is not the same claim.
-QUESTIONS: dict[str, dict[str, str]] = {
-    "piano_or_keyboard_visible": {
-        "ask": "Can you see the piano keys?",
-        "rule": ("Yes only if the KEYS are visible. A piano seen from "
-                 "the side, from behind, or with the lid open and no "
-                 "keys in shot is No. The instrument being there is not "
-                 "the question."),
-    },
-    "hands_visible": {
-        "ask": "Are the performer's hands visible?",
-        "rule": ("Yes if a hand is identifiable as a hand. Too distant "
-                 "to make out means No."),
-    },
-    "face_visible": {
-        "ask": "Is a face visible?",
-        "rule": ("Yes if a face is identifiable as a face. A few pixels "
-                 "in a wide stage shot is No. Whose face it is does not "
-                 "matter and is not asked."),
-    },
-    "sheet_music_visible": {
-        "ask": "Is sheet music visible?",
-        "rule": ("Yes for notation that is physically in the scene. "
-                 "Notation composited in as a graphic is a judgement "
-                 "call and is exactly why this one is here."),
-    },
-    "text_overlay_present": {
-        "ask": "Is there text added on top of the video?",
-        "rule": ("Yes for text the creator added. Printed text already "
-                 "in the scene, such as sheet music or a poster, is No."),
-    },
-    "setting": {
-        "ask": "Where does this appear to be?",
-        "rule": ("One of: concert hall, studio, home room, outdoor, "
-                 "stage, plain backdrop."),
-    },
-    "shot_distance": {
-        "ask": "How close is the camera?",
-        "rule": "One of: extreme close, close, medium, wide, very wide.",
-    },
+#: Plain-English form of each question. The RULE is not written
+#: here - it is read from the fixture, because the fixture is what
+#: the labels were actually made under and a second copy would drift.
+QUESTIONS: dict[str, str] = {
+    "piano_or_keyboard_visible": "Can you see the piano keys?",
+    "hands_visible": "Are the performer's hands visible?",
+    "face_visible": "Is a face visible?",
+    "sheet_music_visible": "Is sheet music visible?",
+    "text_overlay_present": "Is there text added on top of the video?",
+    "performer_visible": "Is the performer in shot at all?",
+    "setting": "Where does this appear to be?",
+    "shot_distance": "How close is the camera?",
 }
+
+
+#: Definitions the fixture does not carry. `setting` and
+#: `shot_distance` were labelled from the task enum alone with no
+#: written rule, which is how publication 403 - a public piano in a
+#: railway concourse - ended up with no value and the owner's
+#: complaint that "the enum range is so restricted". Supplied here and
+#: marked as supplied, rather than left blank for the reviewer to
+#: invent.
+SUPPLIED_DEFINITIONS: dict[str, str] = {
+    "setting": ("Where the video appears to have been shot. "
+                "`public_space` covers a station concourse, a street "
+                "or a shopping centre - it was added after this very "
+                "publication had to be left blank for want of it. "
+                "Choose the closest; if none fits, say you cannot "
+                "tell rather than forcing one."),
+    "shot_distance": ("How much of the subject fills the frame, over "
+                      "the frames you are shown. Extreme close is "
+                      "hands or a face filling it; very wide is a "
+                      "whole stage."),
+}
+
+
+def _rulebook() -> tuple[str, dict[str, str]]:
+    """The scope rule and the per-field definitions, from the fixture.
+
+    **This is the fix for the first review pass.** The page showed a
+    paraphrase of each question and never showed the rule the labels
+    were actually made under - "a field is true if the thing is
+    visible in ANY of the four frames". The owner's note on
+    publication 91 is the proof of what that cost: "we can see the
+    keys only in the last frame, no keys at all on the previous
+    ones", filed as agreeing that no keys were visible. Under the
+    stated rule that publication is TRUE, and the label is wrong by
+    its own definition.
+
+    Read rather than restated, so the rule a reviewer is held to is
+    the rule the data was built with.
+    """
+    rule, defs = "", {}
+    for _cohort, name in SOURCES:
+        p = FIXTURES / name
+        if not p.exists():
+            continue
+        d = json.loads(p.read_text(encoding="utf-8"))
+        rule = rule or d.get("_rule", "")
+        for k, v in (d.get("_definitions") or {}).items():
+            defs.setdefault(k, v)
+    for k, v in SUPPLIED_DEFINITIONS.items():
+        defs.setdefault(k, v)
+    return rule, defs
 
 
 def _uncertain() -> list[dict]:
@@ -143,10 +163,71 @@ def _uncertain() -> list[dict]:
     return out
 
 
-class Verdict(BaseModel):
-    verdict: str = Field(pattern="^(confirmed|overturned|cannot_tell)$")
-    owner_label: str | None = Field(default=None, max_length=32)
+#: Boolean questions take one of these; enum questions take a value
+#: from their own vocabulary.
+YES, NO, UNSURE = "yes", "no", "cannot_tell"
+
+#: Fields whose answer is a value rather than a yes or no.
+ENUM_FIELDS = ("setting", "shot_distance")
+
+#: The vocabularies, served to the client so they live in one place.
+#: `setting` is deliberately wider than the one the model was given:
+#: the owner's note on publication 403 - "public piano in a railway
+#: concourse, I don't like that the enum range is so restricted" - is
+#: a finding about the vocabulary, and the review screen should not
+#: force the same bad choice that caused it.
+_SETTING_VALUES = ("concert_hall", "studio", "home_room", "outdoor",
+                   "stage", "plain_backdrop", "church", "rehearsal_room",
+                   "backstage", "public_space")
+_SHOT_VALUES = ("extreme_close", "close", "medium", "wide", "very_wide")
+
+
+class Answer(BaseModel):
+    """What the reviewer says the answer IS.
+
+    The first version of this asked for a *verdict* - confirm or
+    overturn - while deliberately hiding the model's label so it could
+    not anchor the judgement. Those two decisions contradict each
+    other: you cannot agree or disagree with something you have not
+    been shown, and the owner's first pass proved it. Four of eight
+    "overturned" answers gave exactly what the model had said, and
+    three "confirmed" ones carried notes describing the opposite of
+    what was confirmed.
+
+    So the question is now the only one a reviewer can actually
+    answer - what do you see? - and agreement is computed.
+    """
+
+    answer: str = Field(max_length=32)
     note: str | None = Field(default=None, max_length=2000)
+
+
+def _normalise(answer: str) -> str:
+    a = (answer or "").strip().lower()
+    if a in ("yes", "y", "true", "1"):
+        return YES
+    if a in ("no", "n", "false", "0"):
+        return NO
+    if a in ("cannot_tell", "cant_tell", "unsure", "?"):
+        return UNSURE
+    return a
+
+
+def derive_verdict(model_label: str | None, answer: str) -> str:
+    """Agreement, computed rather than asserted.
+
+    `model_label` of None means the label was deliberately omitted -
+    publication 403's railway concourse, which the `setting`
+    vocabulary has no value for. Agreeing with an omission means
+    answering `cannot_tell`; supplying a value overturns it.
+    """
+    a = _normalise(answer)
+    if a == UNSURE:
+        return "cannot_tell" if model_label is not None else "confirmed"
+    if model_label is None:
+        return "overturned"
+    m = _normalise(str(model_label))
+    return "confirmed" if a == m else "overturned"
 
 
 @router.get("/review", dependencies=[Depends(require_ui)])
@@ -163,12 +244,13 @@ def review_queue(session: Session = Depends(get_session)) -> dict:
         select(LabelReview).where(LabelReview.video_id.in_(ids))).all()
     } if ids else {}
 
+    scope_rule, definitions = _rulebook()
     out = []
     for it in items:
         v = videos.get(it["video_id"])
         c = creators.get(v.creator_id) if v else None
         prior = done.get((it["video_id"], it["field"]))
-        q = QUESTIONS.get(it["field"], {})
+        ask = QUESTIONS.get(it["field"], it["field"])
         # Own media is preserved, so those can be judged on exactly the
         # frames the model saw. The competitor half cannot - ADR 0009
         # deleted it - and the live post is the honest substitute.
@@ -176,10 +258,14 @@ def review_queue(session: Session = Depends(get_session)) -> dict:
                           and v.media_path)
         out.append({
             **it,
-            "ask": (q.get("ask", it["field"]) if not it["model_omitted"]
+            "ask": (ask if not it["model_omitted"]
                     else f"The model left this blank. Was that right? "
-                         f"({q.get('ask', it['field'])})"),
-            "rule": q.get("rule", ""),
+                         f"({ask})"),
+            "rule": definitions.get(it["field"], ""),
+            # The sentence whose absence caused the first pass to go
+            # wrong. Shown on every question, not buried in a help
+            # page.
+            "scope_rule": scope_rule,
             "caption": (v.caption or "")[:200] if v else "",
             "platform": v.platform if v else None,
             "permalink": permalink.for_video(v, c) if v else None,
@@ -189,8 +275,16 @@ def review_queue(session: Session = Depends(get_session)) -> dict:
             "review_from": "frames" if has_frames else "live_post",
             "already_reviewed": bool(prior and prior.verdict),
             "your_verdict": prior.verdict if prior else None,
-            "your_label": prior.owner_label if prior else None,
+            "your_answer": prior.owner_label if prior else None,
             "your_note": prior.note if prior else None,
+            # The answers this question accepts. A yes/no question and
+            # a "where is this" question cannot share a set of
+            # buttons, and guessing in the client would put the
+            # vocabulary in two places.
+            "choices": (list(_SETTING_VALUES) if it["field"] == "setting"
+                        else list(_SHOT_VALUES)
+                        if it["field"] == "shot_distance"
+                        else [YES, NO]) + [UNSURE],
         })
 
     answered = sum(1 for o in out if o["already_reviewed"])
@@ -217,8 +311,16 @@ def review_queue(session: Session = Depends(get_session)) -> dict:
 
 @router.put("/review/{video_id}/{field}",
             dependencies=[Depends(require_ui_write)])
-def record_verdict(video_id: int, field: str, body: Verdict,
-                   session: Session = Depends(get_session)) -> dict:
+def record_answer(video_id: int, field: str, body: Answer,
+                  session: Session = Depends(get_session)) -> dict:
+    """Record what the reviewer saw, and compute whether it agrees.
+
+    The reviewer is never asked to agree or disagree. They are asked
+    what the answer is; `derive_verdict` does the comparison. That is
+    the whole correction from the first version, and it is why the
+    model's label can stay hidden until afterwards without making the
+    question unanswerable.
+    """
     known = {(i["video_id"], i["field"]): i for i in _uncertain()}
     item = known.get((video_id, field))
     if item is None:
@@ -228,11 +330,13 @@ def record_verdict(video_id: int, field: str, body: Verdict,
         raise HTTPException(
             404, f"{field} on publication {video_id} is not one of the "
                  f"flagged-ambiguous labels")
-    if body.verdict == "overturned" and not body.owner_label:
+
+    answer = _normalise(body.answer)
+    if field not in ENUM_FIELDS and answer not in (YES, NO, UNSURE):
         raise HTTPException(
-            400, "overturning a label needs the value you would put "
-                 "instead; otherwise the record says the model was "
-                 "wrong without saying what is right")
+            400, f"{field} is a yes/no question; got {body.answer!r}")
+    if not answer:
+        raise HTTPException(400, "an answer is required")
 
     v = session.get(Video, video_id)
     if v is None:
@@ -246,12 +350,11 @@ def record_verdict(video_id: int, field: str, body: Verdict,
                           cohort=item["cohort"])
         session.add(row)
     row.why_uncertain = item["why_uncertain"]
-    # Never overwritten by a verdict: how often the labelling process
+    # Never overwritten by an answer: how often the labelling process
     # needed correcting is the measurement this whole exercise is for.
     row.model_label = item["model_label"]
-    row.verdict = body.verdict
-    row.owner_label = (body.owner_label if body.verdict == "overturned"
-                       else None)
+    row.owner_label = answer
+    row.verdict = derive_verdict(item["model_label"], answer)
     row.note = body.note
     row.reviewed_from = "frames" if has_frames else "live_post"
     row.reviewed_at = datetime.now(timezone.utc)
@@ -262,7 +365,9 @@ def record_verdict(video_id: int, field: str, body: Verdict,
         select(func.count(LabelReview.id))
         .where(LabelReview.verdict.is_not(None))) or 0
     return {"saved": True, "video_id": video_id, "field": field,
-            "verdict": row.verdict, "answered": answered, "total": total,
+            "you_said": answer, "model_said": item["model_label"],
+            "agreement": row.verdict,
+            "answered": answered, "total": total,
             "remaining": max(0, total - answered)}
 
 

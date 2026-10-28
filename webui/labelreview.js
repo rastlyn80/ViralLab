@@ -1,28 +1,39 @@
 /**
  * Confirming the labels Claude was unsure about.
  *
- * This is the shortest path from "the vision results are not
- * independent" to "they are". Twenty-one questions across eighteen
- * publications, each one flagged ambiguous by the labeller itself.
+ * ## The mistake this version fixes
  *
- * Design decisions that matter:
+ * The first version hid the model's label so it could not anchor the
+ * judgement - right - and then asked the reviewer to *confirm or
+ * overturn* it. Those two decisions contradict each other: you cannot
+ * agree with something you have not been shown.
  *
- *  - **The model's answer is hidden until you have answered.** Showing
- *    "Claude said No" above the buttons would turn a judgement into an
- *    agreement test, and agreement is exactly the thing already in
- *    doubt. It is revealed immediately afterwards, because knowing
- *    whether you disagreed is the point of the exercise.
- *  - **"I cannot tell either" is a first-class answer**, not a skip.
- *    It says the question is ambiguous rather than that the model was
- *    wrong, which is a different and useful fact.
- *  - **The rule is on screen every time.** "Can you see the piano
- *    keys" was answered differently by two models and by the labeller
- *    because "a piano is present" is not the same claim, and nobody
- *    should have to remember which they are being asked.
+ * The owner's first pass proved it. Four of eight "overturned"
+ * answers gave exactly the value the model had already given, and
+ * three "confirmed" ones carried notes describing the opposite of
+ * what was being confirmed - "the face IS visible" filed as
+ * confirming that no face was visible.
+ *
+ * So the page now asks the only question a reviewer can actually
+ * answer: **what do you see?** Agreement is computed on the server by
+ * comparing that answer to the stored label, and the model's answer
+ * appears immediately afterwards. Nothing is anchored and nothing is
+ * ambiguous.
+ *
+ * Your note from the previous pass is shown beside each question, so
+ * a second run is three minutes of clicking rather than retyping.
  */
 
 import { api } from './api.js';
 import { card, esc, note, postLink, spinner } from './components.js';
+
+const PRETTY = {
+  yes: 'Yes', no: 'No', cannot_tell: 'I cannot tell',
+};
+
+function label(choice) {
+  return PRETTY[choice] || choice.replace(/_/g, ' ');
+}
 
 export const labelReview = {
   title: 'Check the uncertain labels',
@@ -35,11 +46,15 @@ export const labelReview = {
       ${note(`<strong>${d.answered} of ${d.total} done</strong>
         &middot; ${d.publications} videos.
         ${esc(d.why_this_matters || '')}`, 'warn')}
-      ${card('Two kinds of evidence', esc(d.two_kinds_of_evidence || ''))}
+      ${card('What you are being asked', `
+        <p>Say <b>what you see</b>. Whether that agrees with what the
+          model said is worked out for you and shown afterwards &mdash;
+          you are not being asked to agree or disagree with anything.</p>
+        <p class="muted">${esc(d.two_kinds_of_evidence || '')}</p>`)}
       <div id="queue">${items.map(row).join('')}</div>`;
 
-    root.querySelectorAll('[data-verdict]').forEach((b) => {
-      b.addEventListener('click', () => answer(b, root));
+    root.querySelectorAll('[data-answer]').forEach((b) => {
+      b.addEventListener('click', () => send(b, root));
     });
     root.querySelectorAll('[data-frames]').forEach((b) => {
       b.addEventListener('click', () => showFrames(b));
@@ -54,54 +69,47 @@ function row(it) {
     <div class="opp-head">
       <span class="chip">${esc(it.cohort === 'own' ? 'Your video'
     : 'Another creator')}</span>
-      ${done ? `<span class="chip ok">answered: ${esc(it.your_verdict)}
-        </span>` : ''}
+      ${done ? `<span class="chip ok">you said
+        ${esc(label(it.your_answer || ''))}</span>` : ''}
     </div>
 
     <h2>${esc(it.ask)}</h2>
     <p class="sub">${esc(it.rule)}</p>
+    ${it.scope_rule ? `<p class="muted"><b>Which frames count.</b>
+      ${esc(it.scope_rule)}</p>` : ''}
     <p class="muted"><b>Why this one is hard.</b>
       ${esc(it.why_uncertain)}</p>
+    ${it.your_note ? `<p class="muted"><b>Your note last time.</b>
+      ${esc(it.your_note)}</p>` : ''}
     ${it.caption ? `<p class="muted">Caption: ${esc(it.caption)}</p>` : ''}
 
     <p>
       ${it.frames_available
     ? `<button class="btn" data-frames="${it.video_id}">Show the
-         four frames the model saw</button>`
-    : (it.permalink
-      ? postLink(it.permalink, it.platform, { label: 'Watch the post' })
-      : `<span class="faint">No link available
+         frames the model saw</button> ` : ''}
+      ${it.permalink
+    ? postLink(it.permalink, it.platform, { label: 'Watch the post' })
+    : (it.frames_available ? ''
+      : `<span class="faint">No link
          ${esc(it.permalink_missing_because || '')}</span>`)}
-      ${it.frames_available && it.permalink
-    ? ' ' + postLink(it.permalink, it.platform,
-      { label: 'or watch the post' }) : ''}
     </p>
-    <div class="frames" id="f-${esc(id)}"></div>
+    <div class="frames"></div>
 
     <div class="verdicts" data-id="${esc(id)}"
          data-video="${it.video_id}" data-field="${esc(it.field)}">
-      <button class="btn" data-verdict="confirmed">${it.model_omitted
-    ? 'Yes &mdash; right to leave it blank'
-    : 'Yes &mdash; as labelled'}</button>
-      <button class="btn" data-verdict="overturned">${it.model_omitted
-    ? 'No &mdash; it should have a value'
-    : 'No &mdash; the label is wrong'}</button>
-      <button class="btn" data-verdict="cannot_tell">I cannot tell
-        either</button>
+      ${(it.choices || ['yes', 'no', 'cannot_tell']).map((c) => `
+        <button class="btn" data-answer="${esc(c)}">${esc(label(c))}
+        </button>`).join('')}
     </div>
-    <div class="result muted" id="r-${esc(id)}">${done
-    ? `You said <b>${esc(it.your_verdict)}</b>. The model
-       ${it.model_omitted ? 'left this blank'
-    : `said <b>${esc(String(it.model_label))}</b>`}.` : ''}</div>
+    <div class="result muted" id="r-${esc(id)}"></div>
   </section>`;
 }
 
 async function showFrames(btn) {
-  const vid = btn.dataset.frames;
   const host = btn.closest('section').querySelector('.frames');
   host.innerHTML = spinner('Decoding');
   try {
-    const d = await api.labelFrames(vid);
+    const d = await api.labelFrames(btn.dataset.frames);
     host.innerHTML = `<p class="muted">${esc(d.note)}</p>
       <div class="framestrip">${(d.frames || []).map((f) => `
         <figure><img alt="frame at ${f.at_s}s"
@@ -113,30 +121,23 @@ async function showFrames(btn) {
   }
 }
 
-async function answer(btn, root) {
+async function send(btn, root) {
   const box = btn.closest('.verdicts');
-  const verdict = btn.dataset.verdict;
-  const video = box.dataset.video;
-  const field = box.dataset.field;
   const out = root.querySelector(`#r-${CSS.escape(box.dataset.id)}`);
-
-  let ownerLabel = null;
-  if (verdict === 'overturned') {
-    // Overturning without saying what is right records that the model
-    // was wrong without recording the truth, which helps nobody.
-    ownerLabel = window.prompt(
-      'What should the answer be? (yes / no, or the correct value)');
-    if (!ownerLabel) return;
-  }
   const noteText = window.prompt('Anything worth noting? (optional)') || null;
 
   box.querySelectorAll('button').forEach((b) => { b.disabled = true; });
   out.textContent = 'Saving…';
   try {
-    const r = await api.labelVerdict(video, field, {
-      verdict, owner_label: ownerLabel, note: noteText,
+    const r = await api.labelVerdict(box.dataset.video, box.dataset.field, {
+      answer: btn.dataset.answer, note: noteText,
     });
-    out.innerHTML = `Saved. <b>${esc(r.remaining)}</b> left.`;
+    const agreed = r.agreement === 'confirmed';
+    out.innerHTML = `You said <b>${esc(label(r.you_said))}</b>.
+      The model said <b>${esc(r.model_said === null ? 'nothing'
+    : label(String(r.model_said)))}</b> &mdash;
+      <b>${agreed ? 'you agree' : 'you disagree'}</b>.
+      ${esc(String(r.remaining))} left.`;
   } catch (err) {
     out.innerHTML = note(`Could not save: ${esc(String(err))}`, 'bad');
     box.querySelectorAll('button').forEach((b) => { b.disabled = false; });

@@ -16,8 +16,9 @@ what it must refuse:
 2. **The model's label survives the verdict.** How often the labelling
    needed correcting is the measurement this whole exercise is for;
    overwriting it would destroy the only record of it.
-3. **Overturning says what is right.** "The model was wrong" without a
-   replacement records a problem and no answer.
+3. **The reviewer is asked what they see, never whether they agree.**
+   The first version hid the model's label and then asked for a
+   verdict on it, which is unanswerable; agreement is now computed.
 4. **Competitor media stays deleted.** ADR 0009 deleted it after
    measurement and a review screen must not become the path that
    quietly re-acquires it.
@@ -87,51 +88,122 @@ def test_both_cohorts_are_represented():
     assert cohorts == {"own", "competitor"}
 
 
-def test_every_question_has_a_rule_a_person_can_apply():
-    """The reason two models and the labeller disagreed about the piano
-    is that "a piano is present" is not "the keys are visible". A
-    reviewer who is not shown the rule will re-create the ambiguity."""
+def test_every_question_has_a_definition_a_person_can_apply():
+    """A reviewer not shown the definition will re-create the
+    ambiguity the definition exists to settle."""
+    _rule, defs = lab._rulebook()
     for it in lab._uncertain():
-        q = lab.QUESTIONS.get(it["field"])
-        assert q is not None, f"no question text for {it['field']}"
-        assert q["ask"].endswith("?")
-        assert len(q["rule"]) > 30
+        assert it["field"] in lab.QUESTIONS, it["field"]
+        assert lab.QUESTIONS[it["field"]].endswith("?")
+        assert len(defs.get(it["field"], "")) > 30, it["field"]
 
 
-def test_the_piano_rule_states_the_distinction_that_caused_the_trouble():
-    rule = lab.QUESTIONS["piano_or_keyboard_visible"]["rule"].lower()
-    assert "keys" in rule
-    assert "not the question" in rule or "being there" in rule
+def test_the_definitions_are_read_from_the_fixture_not_restated():
+    """A second copy of the rule drifts from the one the labels were
+    made under, and then the reviewer is held to a standard the data
+    was never built with."""
+    _rule, defs = lab._rulebook()
+    raw = json.loads(
+        (FIXTURES / "holdout_labels_own.json").read_text(encoding="utf-8"))
+    for k, v in raw["_definitions"].items():
+        assert defs[k] == v, (
+            f"{k} differs from the fixture - the reviewer would be held "
+            f"to a rule the data was not built with")
+    # The fixture defines neither `setting` nor `shot_distance`, which
+    # is how 403 came to be blank. Those are supplied, and the
+    # fixture's own wording still wins wherever it exists.
+    assert defs["setting"] == lab.SUPPLIED_DEFINITIONS["setting"]
+    assert "_definitions" in raw and "setting" not in raw["_definitions"]
+
+
+def test_the_scope_rule_is_served_because_its_absence_caused_the_rework():
+    """"A field is true if the thing is visible in ANY of the four
+    frames." The first review page never showed it, and publication
+    91 - "we can see the keys only in the last frame" - was filed as
+    agreeing that no keys were visible. Under the stated rule that
+    publication is TRUE."""
+    rule, _defs = lab._rulebook()
+    assert "ANY" in rule
+    assert "frames" in rule
+
+
+def test_the_piano_definition_states_the_distinction_that_caused_trouble():
+    _rule, defs = lab._rulebook()
+    d = defs["piano_or_keyboard_visible"].lower()
+    assert "keys" in d
+    assert "does not count" in d
 
 
 # ---------------------------------------------------------------------------
 # what a verdict may be
 # ---------------------------------------------------------------------------
 
-def test_cannot_tell_is_a_real_answer():
-    """"A human could not tell either" says the question is ambiguous
-    rather than that the model was wrong. Forcing a binary would
-    manufacture certainty that does not exist."""
-    v = lab.Verdict(verdict="cannot_tell")
-    assert v.verdict == "cannot_tell"
+def test_the_reviewer_is_asked_what_they_see_not_whether_they_agree():
+    """The correction that defines this version.
+
+    The first attempt hid the model's label so it could not anchor
+    the judgement, and then asked the reviewer to confirm or overturn
+    it - a question nobody can answer about something they have not
+    been shown. The owner's first pass proved it: four of eight
+    "overturned" answers gave exactly the value the model had given,
+    and three "confirmed" ones carried notes describing the opposite
+    of what was confirmed.
+    """
+    a = lab.Answer(answer="no")
+    assert a.answer == "no"
+    assert not hasattr(a, "verdict")
 
 
-def test_an_invented_verdict_is_refused():
-    import pydantic
-    with pytest.raises(pydantic.ValidationError):
-        lab.Verdict(verdict="probably")
+@pytest.mark.parametrize("model,answer,expected", [
+    ("false", "no", "confirmed"),
+    ("false", "yes", "overturned"),
+    ("true", "no", "overturned"),
+    ("true", "yes", "confirmed"),
+    ("true", "cannot_tell", "cannot_tell"),
+    # A deliberately omitted label - publication 403's railway
+    # concourse - is agreed with by saying you cannot tell either,
+    # and overturned by supplying a value.
+    (None, "cannot_tell", "confirmed"),
+    (None, "public_space", "overturned"),
+])
+def test_agreement_is_computed_not_asserted(model, answer, expected):
+    assert lab.derive_verdict(model, answer) == expected
+
+
+@pytest.mark.parametrize("raw,norm", [
+    ("Yes", "yes"), ("NO", "no"), ("true", "yes"), ("False", "no"),
+    (" y ", "yes"), ("concert_hall", "concert_hall"),
+])
+def test_answers_are_normalised_before_comparison(raw, norm):
+    """The owner typed "No sheet music at all" into a free-text box in
+    the first pass. Case and padding must never decide an agreement."""
+    assert lab._normalise(raw) == norm
 
 
 @pytest.mark.parametrize("verdict", ["confirmed", "overturned",
                                      "cannot_tell"])
-def test_the_three_verdicts_match_the_database_constraint(verdict):
-    """The check constraint and the request model have to agree, or a
-    valid request fails at commit with a 500."""
+def test_every_derived_verdict_satisfies_the_database_constraint(verdict):
+    """A derived value that the column refuses would fail at commit
+    with a 500 after the reviewer had already clicked."""
     from server.db.models import LabelReview
-    lab.Verdict(verdict=verdict, owner_label="no")
     ck = next(c for c in LabelReview.__table__.constraints
               if getattr(c, "name", "") == "ck_label_reviews_verdict")
     assert verdict in str(ck.sqltext)
+
+
+def test_a_yes_no_question_refuses_an_enum_value():
+    import inspect
+    src = inspect.getsource(lab.record_answer)
+    assert "yes/no question" in src
+
+
+def test_the_setting_vocabulary_was_widened_by_the_owners_complaint():
+    """Publication 403 is a public piano in a railway concourse and
+    the owner wrote "I don't like that the enum range is so
+    restricted". The review screen must not force the same bad choice
+    that produced the omission."""
+    assert "public_space" in lab._SETTING_VALUES
+    assert len(lab._SETTING_VALUES) > 6
 
 
 def test_the_review_source_is_recorded_and_constrained():
@@ -168,16 +240,20 @@ def test_the_model_label_column_exists_beside_the_owners():
 def test_only_flagged_labels_are_writable():
     """The guard that stops this becoming an editor for the holdout."""
     import inspect
-    src = inspect.getsource(lab.record_verdict)
+    src = inspect.getsource(lab.record_answer)
     assert "not one of the" in src and "404" in src
     known = {(i["video_id"], i["field"]) for i in lab._uncertain()}
     assert (999999, "face_visible") not in known
 
 
-def test_overturning_without_a_replacement_is_refused():
+def test_an_empty_or_nonsense_answer_is_refused():
+    """The old failure mode - "the model was wrong" with no
+    replacement - cannot occur now, because the only thing asked for
+    IS the replacement. What remains is rejecting an answer the
+    question does not accept."""
     import inspect
-    src = inspect.getsource(lab.record_verdict)
-    assert "owner_label" in src
+    src = inspect.getsource(lab.record_answer)
+    assert "an answer is required" in src
     assert "400" in src
 
 
@@ -204,7 +280,7 @@ def test_writing_needs_the_csrf_guarded_dependency():
     import inspect
     src = inspect.getsource(lab)
     assert "require_ui_write" in src
-    put = inspect.getsource(lab.record_verdict)
+    put = inspect.getsource(lab.record_answer)
     assert "video_id" in put
 
 

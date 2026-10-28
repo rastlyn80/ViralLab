@@ -117,6 +117,13 @@
  */
 
 /**
+ * @typedef {Object} Answer
+ * What the reviewer says the answer IS.
+ * @property {string} answer
+ * @property {string|null=} note
+ */
+
+/**
  * @typedef {Object} AssociationView
  * @property {string} feature
  * @property {number} n
@@ -1167,13 +1174,6 @@
  * @property {string} type
  * @property {Object=} input
  * @property {Object=} ctx
- */
-
-/**
- * @typedef {Object} Verdict
- * @property {string} verdict
- * @property {string|null=} owner_label
- * @property {string|null=} note
  */
 
 /**
