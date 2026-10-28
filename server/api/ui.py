@@ -40,7 +40,7 @@ from server.collectors.media_preservation import coverage as media_coverage
 from server.db.models import (BreakthroughCandidate, CollectionRun, Creator,
                               LocalMaster, MetricsSnapshot, OAuthToken,
                               Performance, PublicationLink, Video,
-                              VideoMasterLink)
+                              VideoFeature, VideoMasterLink)
 from shared.schemas.ui import (CapabilityList, CapabilityState,
                                CollectionRunSummary, DecisionRequest,
                                DecisionResult, MasterLinkView,
@@ -730,6 +730,36 @@ def build_capabilities(session: Session) -> CapabilityList:
                == "inferred_breakthrough")) or 0
     budget_ok = config.settings().spending.any_authorised
 
+    # Competitor publications deep enough to analyse. A creator with
+    # one video contributes nothing to a within-creator comparison,
+    # and 282 of them still have exactly one.
+    deep = session.scalar(select(func.count()).select_from(
+        select(Video.creator_id)
+        .join(Creator, Creator.id == Video.creator_id)
+        .where(Creator.is_own_account.is_(False))
+        .group_by(Video.creator_id)
+        .having(func.count(Video.id) >= 8).subquery())) or 0
+    their_pubs = session.scalar(
+        select(func.count(Video.id))
+        .join(Creator, Creator.id == Video.creator_id)
+        .where(Creator.is_own_account.is_(False))) or 0
+    # How many of them anything visual has ever been measured on.
+    # This is the live gap and the number this page exists to show.
+    their_visual = session.scalar(
+        select(func.count(func.distinct(VideoFeature.video_id)))
+        .join(Video, Video.id == VideoFeature.video_id)
+        .join(Creator, Creator.id == Video.creator_id)
+        .where(Creator.is_own_account.is_(False),
+               VideoFeature.status == "ok",
+               VideoFeature.feature.like(r"ocr\_%"))) or 0
+    their_asked = session.scalar(
+        select(func.count(func.distinct(VideoFeature.video_id)))
+        .join(Video, Video.id == VideoFeature.video_id)
+        .join(Creator, Creator.id == Video.creator_id)
+        .where(Creator.is_own_account.is_(False),
+               VideoFeature.status == "ok",
+               VideoFeature.feature.like(r"vision\_%"))) or 0
+
     return CapabilityList(capabilities=[
         CapabilityState(
             key="own_accounts", title="Own-account intelligence",
@@ -780,30 +810,56 @@ def build_capabilities(session: Session) -> CapabilityList:
             key="discovery", title="Keyword and hashtag discovery",
             summary="Find creators nobody told us about, by keyword, "
                     "hashtag, niche, genre or composer.",
-            implemented=False, phase="4",
-            blocked_by=[
-                "the adapter supports hashtag and keyword queries, but no "
-                "discovery UI or scheduled sweep is built yet",
-                "official APIs expose no competitor data, so this needs the "
-                "validated third-party provider",
-            ] + ([] if budget_ok else [
+            implemented=True, phase="4",
+            blocked_by=([] if budget_ok else [
                 "spending is not authorised: monthly_cap_usd is 0.00 and "
                 "providers_authorised is empty",
             ]),
-            counts={"discovered_creators": discovered_by_search}),
+            counts={"discovered_creators": discovered_by_search,
+                    "deep_enough_to_analyse": deep}),
         CapabilityState(
             key="multimodal", title="Multimodal video intelligence",
             summary="Structured musical, visual, editing and language "
                     "features with model provenance and confidence.",
+            implemented=True, phase="6",
+            counts={"their_publications": their_pubs,
+                    "captions_and_timing_measured": their_pubs,
+                    "anything_visual_measured": their_visual}),
+        # The live gap, and the reason this page should be read
+        # before any competitor finding about how a video LOOKS.
+        CapabilityState(
+            key="competitor_vision",
+            title="What other creators' videos look like",
+            summary="Camera framing, who is in shot, the room, sheet "
+                    "music, how formal it looks - asked of other "
+                    "creators' video rather than only of yours.",
             implemented=False, phase="6",
-            blocked_by=["feature extraction pipeline not built",
-                        "GPU worker runs but has no feature jobs defined"]),
+            blocked_by=[
+                f"measured on {their_asked} of {their_pubs} of their "
+                f"publications. Every competitor finding about how a "
+                f"video looks rests on the {their_visual} with any "
+                f"visual measurement at all",
+                "it needs their video downloaded first, and the "
+                "budget set aside for that is $3.00 a month - which "
+                "is what actually stops this, not the overall "
+                "monthly limit",
+                "frames are deleted after six hours by ADR 0009, so "
+                "this is a recurring cost rather than a one-off",
+            ],
+            counts={"asked_of_their_videos": their_asked,
+                    "any_visual_measurement": their_visual,
+                    "their_publications": their_pubs}),
         CapabilityState(
             key="recommendations", title="AI creative strategist",
-            summary="Evidence-backed, personalised content concepts.",
-            implemented=False, phase="8",
-            blocked_by=["needs validated predictive models",
-                        "needs evidence retrieval over a real corpus"]),
+            summary="Evidence-backed ideas, opening text and captions, "
+                    "written against measured evidence and checked "
+                    "against what you are actually doing.",
+            implemented=True, phase="8",
+            blocked_by=[
+                "grounded in Observed associations only. Nothing here "
+                "has survived an experiment, so a suggestion is "
+                "something to try rather than something that works",
+            ]),
     ])
 
 

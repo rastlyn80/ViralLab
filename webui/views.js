@@ -726,7 +726,7 @@ export const reviewPairs = {
 // --------------------------------------------------- competitor intelligence
 
 export const competitors = {
-  title: 'Competitor intelligence',
+  title: 'What we cannot do yet',
   async render(root) {
     root.innerHTML = `<h1>Competitor intelligence</h1>${spinner()}`;
     const { capabilities } = await api.capabilities();
@@ -748,45 +748,34 @@ export const competitors = {
         ${c.blocked_by.map((b) => `<li>${esc(b)}</li>`).join('')}
       </ul>`)).join('');
 
+    const done = capabilities.filter((c) => c.implemented);
     root.innerHTML = `
-      <h1>Competitor intelligence</h1>
-      <p class="lede">Discovering successful creators, understanding their
-        breakthroughs, and turning that into recommendations is the central
-        value of ViralLab. None of it is built yet, and this page shows the
-        real state rather than a demo.</p>
+      <h1>What we cannot do yet</h1>
+      <p class="lede">Every capability, whether it works and what
+        stops it. The page is built from the database rather than
+        written down, because a page about limits that is itself out
+        of date is worse than no page.</p>
 
-      ${note(`<strong>Nothing here is fabricated.</strong> There are no
-        competitor creators in the database and no discovery has run, so this
-        section reports what each capability needs rather than showing
-        example results. Controls appear when the thing behind them works.`,
-        'accent')}
+      ${note(`<strong>Nothing here is fabricated.</strong> Each count
+        is read from the database when you load the page. A
+        capability says it works only when something measured says
+        so.`, 'accent')}
 
-      <div class="grid cols-2">${cards}</div>
+      ${planned.length ? `<h2>Not there yet (${planned.length})</h2>
+        <div class="grid cols-2">${cards}</div>`
+    : `<p class="muted">Everything listed is working.</p>`}
 
-      <h2>What has to happen first</h2>
-      ${card('', `
-        <ol class="muted" style="margin:0;padding-left:20px">
-          <li><strong>Authorise a budget.</strong> The platforms' own APIs
-            expose nothing about other creators, so studying them needs the
-            paid provider. No monthly spending limit has been set and no
-            provider has been approved, and the collector refuses to spend
-            a penny against either.
-            <span class="technical">(<code>spending.monthly_cap_usd</code>
-            is <code>0.00</code>; <code>providers_authorised</code> is
-            empty.)</span></li>
-          <li><strong>Discovery adapter.</strong> Keyword, hashtag, niche,
-            genre and composer searches against that provider, writing into
-            the same tables as own-account collection.</li>
-          <li><strong>Creator reconciliation.</strong> Tie a TikTok handle to
-            an Instagram handle only on evidence, never on a coincidental
-            name match.</li>
-          <li><strong>Rolling baselines.</strong> Breakthrough detection
-            compares a publication against that creator's own baseline at a
-            comparable age — which needs the baselines to exist.</li>
-        </ol>`)}
+      <h2>Working (${done.length})</h2>
+      ${card('', `<ul class="plain">${done.map((c) => `<li>
+        <b>${esc(c.title)}</b>
+        ${Object.entries(c.counts || {}).map(([k, v]) =>
+    `<span class="chip">${esc(reasonLabel(k))}: ${v}</span>`).join(' ')}
+        ${(c.blocked_by || []).length ? `<br><span class="muted">
+          ${c.blocked_by.map((b) => esc(b)).join('; ')}</span>` : ''}
+      </li>`).join('')}</ul>`)}
 
       <p class="faint" style="font-size:13px">Plan:
-        <code>DEVELOPMENT_PLAN.md</code> Phase 4 ·
+        <code>DEVELOPMENT_PLAN.md</code> ·
         Vision: <code>docs/PRODUCT_VISION.md</code> §3.A–C</p>`;
   },
 };
