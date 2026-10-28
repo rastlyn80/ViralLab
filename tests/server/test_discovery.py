@@ -523,3 +523,31 @@ def test_a_retry_log_line_cannot_carry_the_token(monkeypatch, caplog):
             client._request("GET", "actor-runs/r")
     assert caplog.records, "expected retry warnings"
     assert "SECRET-TOKEN" not in caplog.text
+
+
+def test_the_clockworks_parser_keeps_the_cover_url():
+    """The provider hands over one frame free; we were dropping it.
+
+    Both parsers in `apify.py` read the same fixture shape, and only
+    one of them took `videoMeta.coverUrl`. The clockworks parser -
+    the one that collected every competitor publication in the
+    database - read `videoMeta` for duration and walked past the
+    cover, so 3,388 publications have no visual signal of any kind
+    when the provider was supplying one on every item.
+    """
+    import json
+    import pathlib
+
+    from server.discovery import apify
+
+    raw = json.loads((pathlib.Path(__file__).parents[1] / "fixtures"
+                      / "discovery" / "tiktok_hashtag_pianotok.json")
+                     .read_text(encoding="utf-8"))
+    items = raw if isinstance(raw, list) else raw.get("items", [])
+    parsed = [apify.publication_from_clockworks(i) for i in items]
+    parsed = [p for p in parsed if p is not None]
+    assert parsed, "fixture produced no publications"
+    with_cover = [p for p in parsed if p.thumbnail_url]
+    assert len(with_cover) == len(parsed), (
+        "every fixture item carries videoMeta.coverUrl")
+    assert all(p.thumbnail_url.startswith("http") for p in with_cover)

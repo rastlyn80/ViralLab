@@ -445,6 +445,15 @@ def publication_from_clockworks(item: dict) -> DiscoveredPublication | None:
         duration_s=(float(vm["duration"])
                     if isinstance(vm.get("duration"), (int, float)) else None),
         url=item.get("webVideoUrl"),
+        # `videoMeta.coverUrl`, verified in the recorded fixture for
+        # this actor. The other parser in this module has always
+        # taken the cover; this one read `videoMeta` for duration and
+        # walked past it, so every one of the 3,388 publications
+        # collected through this actor threw away the one visual
+        # signal the provider hands over for free. It is the
+        # difference between knowing nothing about how a
+        # competitor's video looks and knowing one frame of it.
+        thumbnail_url=vm.get("coverUrl") or vm.get("originalCoverUrl"),
         views=_num(item.get("playCount")),
         likes=_num(item.get("diggCount")),
         comments=_num(item.get("commentCount")),
