@@ -2009,6 +2009,35 @@ Other items:
   over 20 of 31 publications is a sample, and the comparison says so.
   **[OPEN]**
 
+**Observational scale-up — blocked by the provider's own limit
+(2026-10-28)**
+- **The Apify account is on the FREE plan: a $5.00 monthly hard
+  limit, and $5.6363 of it is used.** 98 of 100 back-catalogue
+  collections failed with `platform-feature-disabled: Monthly usage
+  hard limit exceeded`. No further competitor collection of any kind
+  - metadata, media, discovery - is possible until the monthly reset
+  or a paid plan. This is not our spending cap, which has $20.84 of
+  $30.00 free. **[OPEN — needs the owner's decision]**
+- **Our cost model and Apify's meter measure different things.** The
+  ledger prices a *result*; Apify bills *platform usage* (compute
+  time, memory, storage). We recorded roughly $4.40 of apify spend
+  while their meter reached $5.64, so the guard that protects the
+  owner's money does not and cannot predict when the provider will
+  cut us off. Both numbers are correct and they are not the same
+  quantity. **[OPEN]**
+- **What the $4.40 did buy, before the wall:** competitor creators
+  **68 to 441** (409 with a follower count) and publications **354
+  to 958**, from three hashtag searches at $0.60 each. Creators with
+  10 or more publications went from 1 to 14. **[DONE]**
+- **The keyword searches return nothing in this niche.** `classical
+  piano`, `virtuoso pianist` and `piano performance` each came back
+  `empty` for $0.003. Hashtags are the only discovery route that
+  works here, which is worth knowing before anyone spends on keyword
+  searches again. **[CLOSED — measured]**
+- **5,000 publications is out of reach on the free plan whatever we
+  spend.** The owner approved ~$63 for an observational scale-up;
+  the binding constraint turned out not to be money. **[OPEN]**
+
 **Label review — the owner checked the answer key (2026-10-28)**
 - **Ten of twenty-one flagged labels were wrong.** The owner answered
   all of them at `#/review/labels`. Denominator matters: these are
