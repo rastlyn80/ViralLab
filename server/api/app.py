@@ -26,7 +26,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from server.api import (ai_api, credentials_api, deps, discovery_api,
+from server.api import (ai_api, creative_api, credentials_api,
+                        deps, discovery_api,
                         experiments_api,
                         features_api, frames_api, home_api, hooks_api,
                         labels_api,
@@ -231,6 +232,7 @@ app.include_router(strategist_api.router)
 app.include_router(experiments_api.router)
 app.include_router(profile_api.router)
 app.include_router(virality_api.router)
+app.include_router(creative_api.router)
 
 
 @app.get("/health")

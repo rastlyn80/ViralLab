@@ -553,7 +553,7 @@ destroys collected data.
 > | 5 | Breakthrough analysis + baselines | planned |
 > | 6 | Multimodal feature extraction | planned |
 > | 7 | Comparative analytics + temporal intelligence | planned |
-> | 8 | Evidence-based AI creative strategist | planned |
+> | 8 | Evidence-based AI creative strategist | 8.2 partly delivered 2026-10-28 (generation); 8.1, 8.3, 8.4 planned |
 > | 9 | Live experiment + closed-loop learning | planned (MVP ends here) |
 > | 10 | Automated retraining cadence | post-MVP |
 > | 11 | Cross-niche trend intelligence | post-MVP |
@@ -1693,6 +1693,40 @@ feedback learning.
 repertoire, concept, hook, spoken words, camera, lighting, duration,
 pacing, on-screen text, caption, hashtags, cover, platform variants,
 posting window, comparables, uncertainty, alternatives for testing.
+> **8.2, partly delivered 2026-10-28** — `server/ai/creative.py`,
+> `server/api/creative_api.py`, `webui/creative.js`, reachable at
+> `#/make`. Produces **video ideas, opening text and captions**, not
+> yet the full structured brief: camera, lighting, duration, pacing,
+> cover and platform variants are still missing, and the posting
+> window is measured but not yet fed in.
+>
+> `build_brief()` assembles the account's own evidence — 9 measured
+> differences, the 8 highest-performing on-screen texts verbatim, 14
+> composers, the last 12 captions — and the model writes against that
+> and nothing else. The brief is shown on the page *before* anything
+> is generated and costs nothing to look at, so a weak suggestion can
+> be read against the evidence behind it. A brief too thin to ground
+> anything refuses rather than generating. Measured cost per call:
+> **$0.0046 (hooks) to $0.0082 (ideas)** on Haiku 4.5.
+>
+> Two things were got wrong live and are worth keeping written down,
+> because both produced a **paid-for empty page**:
+>
+> * the reply was parsed by matching first-brace to last-brace, and
+>   the model keyed the array by the kind (`{"hooks": [...]}`) rather
+>   than `items`. Every suggestion was discarded. `parse()` now reads
+>   any wrapper key, a code fence, a bare list, and a reply cut off
+>   mid-object — keeping the complete suggestions in front of the cut.
+> * the rule layer reviewed the **whole reply** and withheld all of
+>   it, so one stray percentage in suggestion four threw away three
+>   good ones. `sift()` now reviews **per suggestion**: the offender
+>   goes, the rest arrive, and the page says what was removed and
+>   which rule it broke.
+>
+> Widening `CAUSAL_PATTERNS` was needed for the same reason: `makes?`
+> was bounded to people/viewers/them, and "X makes videos perform
+> better" is the first phrasing a *generator* reaches for.
+
 **Milestone 8.3 — Conversational refinement** against stored artistic
 identity, equipment and repertoire.
 **Milestone 8.4 — Evidence lineage:** `recommendation_evidence` rows are

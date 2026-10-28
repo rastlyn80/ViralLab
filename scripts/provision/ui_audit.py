@@ -55,6 +55,7 @@ STATIC_ROUTES: tuple[tuple[str, str], ...] = (
     ("#/next", "What to try next"),
     ("#/look", "Visual profile"),
     ("#/views", "What goes with more views"),
+    ("#/make", "Make something"),
     ("#/ask", "Ask ViralLab"),
     ("#/glossary", "What everything means"),
     ("#/features", "Feature catalogue"),

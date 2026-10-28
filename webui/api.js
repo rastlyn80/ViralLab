@@ -187,6 +187,12 @@ export const api = {
     `/api/visual-profile/publication/${encodeURIComponent(id)}`),
   // Both sides of the view question, measured the same way.
   virality: () => request('/api/virality'),
+  // The brief costs nothing and is fetched before the box is
+  // enabled, so the owner can see the evidence before paying for a
+  // suggestion that rests on it.
+  creativeBrief: () => request('/api/creative/brief'),
+  creativeGenerate: (body) => request('/api/creative/generate',
+    { method: 'POST', body }),
   credentials: () => request('/api/credentials'),
   setCredential: (key, value) => request(
     `/api/credentials/${encodeURIComponent(key)}`,

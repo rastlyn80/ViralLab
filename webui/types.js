@@ -129,6 +129,14 @@
  */
 
 /**
+ * @typedef {Object} Ask
+ * @property {string} kind
+ * @property {number=} count
+ * @property {string|null=} note
+ * @property {string=} model
+ */
+
+/**
  * @typedef {Object} AssociationView
  * @property {string} feature
  * @property {number} n

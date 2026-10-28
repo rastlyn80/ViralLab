@@ -17,6 +17,7 @@ import { settings } from './settings.js';
 import { creatorReport, creatorTimeline } from './timeline.js';
 import { labelReview } from './labelreview.js';
 import { opportunities } from './opportunities.js';
+import { creative } from './creative.js';
 import { visualProfile } from './profile.js';
 import { virality } from './virality.js';
 import { strategist } from './strategist.js';
@@ -49,6 +50,7 @@ const ROUTES = [
     nav: 'cohort' },
   { pattern: /^\/look$/, view: visualProfile, nav: 'look' },
   { pattern: /^\/views$/, view: virality, nav: 'views' },
+  { pattern: /^\/make$/, view: creative, nav: 'make' },
   { pattern: /^\/next$/, view: opportunities, nav: 'next' },
   { pattern: /^\/ask$/, view: strategist, nav: 'strategist' },
   { pattern: /^\/review\/labels$/, view: labelReview, nav: 'labelreview' },
@@ -73,6 +75,8 @@ const NAV = [
     label: 'Same video, both platforms',
     count: (o) => o?.review.publication_links_proposed },
   { group: 'What we have learned' },
+  { id: 'make', href: '#/make',
+    label: 'Make something' },
   { id: 'views', href: '#/views',
     label: 'What goes with more views' },
   { id: 'look', href: '#/look',

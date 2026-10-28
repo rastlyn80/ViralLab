@@ -87,6 +87,17 @@ CAUSAL_PATTERNS = (
     r"\bresponsible for\b", r"\bthe reason (?:why|that|is)\b",
     r"\bwill (?:increase|improve|boost|reduce|lower)\b",
     r"\bif you .{0,40}\byou(?:'ll| will)\b",
+    # Added when the generator was built. "X makes videos perform
+    # better" is the phrasing a creative tool reaches for first, and
+    # nothing above caught it: `makes?` was bounded to people,
+    # viewers and them. Kept narrow on purpose - "makes you feel" is
+    # a legitimate hook about music, not a claim about reach, and
+    # has to keep passing.
+    r"\bmakes? .{0,40}?\b(?:perform|do) (?:better|worse)\b",
+    r"\bhelps? (?:your |the )?(?:videos?|reels?|posts?|content)\b",
+    r"\b(?:boosts?|boosting|increases?|increasing) (?:your |the )?"
+    r"(?:views?|reach|engagement|performance|watch[- ]time)\b",
+    r"\bthe key to (?:getting|more|better|a)\b",
 )
 
 #: Promises about reach. Also deliberately broad.
