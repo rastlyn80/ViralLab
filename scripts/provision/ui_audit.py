@@ -52,6 +52,7 @@ STATIC_ROUTES: tuple[tuple[str, str], ...] = (
     ("#/hooks", "Hook intelligence"),
     ("#/hooks/retention", "Hooks vs retention"),
     ("#/cohort/2", "You against other creators"),
+    ("#/next", "What to try next"),
     ("#/glossary", "What everything means"),
     ("#/features", "Feature catalogue"),
     ("#/ai", "AI models"),

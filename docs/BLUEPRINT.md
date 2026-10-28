@@ -847,6 +847,64 @@ pre-registered experiment (M9) with one click.
 traceable to specific publications; none graded above the evidence behind
 it.
 
+#### Status, 2026-10-28 — COMPLETE as specified
+
+| criterion | state |
+|---|---|
+| ≥ 5 opportunities from real data | **met** — 10, from 9 corrected associations and 1 surviving cohort difference. No model was asked anything; they are assembled from `feature_evidence` and `cohort.compare`. |
+| each traceable to specific publications | **met** — 10 of 10 carry real publication ids with working permalinks: 72 clickable links on the page, verified in headless Chromium |
+| none graded above its evidence | **met** — 9 Associated, 1 Observed. The cohort-derived one is capped at Observed by construction and a test asserts it cannot rise |
+| read-only, pre-registerable later | **met** — `GET /api/opportunities` only; the experiment object already carries change, comparison, stopping rule, metrics and sample size |
+
+**The milestone found something that changes what the product should
+say.** The "suggested experiment" M5 printed beside each finding was
+unrunnable. The owner posts **4.84 times a month** on Instagram (386
+publications over 2391 days, measured). Detecting a correlation of the
+size actually observed needs **69 to 1432 publications** depending on
+the finding — between 14 months and **296 months**. "Post a run of
+videos with more background detail and compare" was a twenty-five-year
+commitment described as an afternoon's work.
+
+So every opportunity now carries the number of publications its
+experiment needs, how long that is at the rate the owner actually
+posts, and a verdict: `practical`, `slow` or `impractical`. They are
+**ordered by how quickly they could be answered**, not by evidence
+strength — ranking by q-value would put a two-year commitment above a
+four-month one, which is the wrong answer to "what should I do next".
+
+**A second design is offered where it helps, and it helps a lot.**
+Re-detecting a correlation means waiting for the natural spread of
+what gets posted anyway. Deliberately alternating clearly-high and
+clearly-low openings samples the ends of the distribution instead, and
+needs far fewer publications:
+
+| opportunity | wait for the correlation | deliberately contrast |
+|---|---|---|
+| overall visual detail | 69 publications, 15 months | **22, 5 months** |
+| background visual detail | 76, 16 months | **24, 5 months** |
+| background tonal variety | 108, 23 months | **34, 7 months** |
+| colour saturation | 117, 25 months | **38, 8 months** |
+| on-screen text area | 126, 26 months | **40, 9 months** |
+
+That turns **0 of 10 practical into 5 of 10**. The trade is stated on
+every card: it answers a question about the extremes rather than about
+the range normally posted, and it is only cheaper if the contrast is
+actually struck.
+
+**Counterexamples are mandatory and shown beside the supporting ones.**
+A correlation of 0.3 means most publications do not follow the line,
+and a page listing only the publications that fit would be literally
+true and systematically misleading. Each opportunity shows four of
+each, with links to the real posts.
+
+**Two bugs worth recording.** The first draft guessed
+`hook-deterministic-v1` as the method version and produced *zero*
+examples for every `background_*` feature, which lives under
+`hook-background-v1` — a silent, total failure that looked like
+missing data; the catalogue is now asked. The second rendered a 77.6%
+skip rate as **"7760%"**, because `skip_rate` is stored 0–100 and was
+formatted with `%`. Both are now tests.
+
 ### M8 — The Strategist
 
 The chat the owner asked for. The owner has said a powerful external model

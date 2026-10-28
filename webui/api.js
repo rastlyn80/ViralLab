@@ -160,6 +160,10 @@ export const api = {
 
   // Platform connections. `credentials` never returns values - see
   // server/api/credentials_api.py - so nothing secret reaches this client.
+  // M7. `collection_id` adds cohort-derived opportunities, which are
+  // capped at Observed because no outcome exists for other creators.
+  opportunities: ({ collection_id } = {}) => request(
+    `/api/opportunities${collection_id ? `?collection_id=${collection_id}` : ''}`),
   credentials: () => request('/api/credentials'),
   setCredential: (key, value) => request(
     `/api/credentials/${encodeURIComponent(key)}`,

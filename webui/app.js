@@ -15,6 +15,7 @@ import { hookDetail, hookRetention, hooks } from './hooks.js';
 import { research, researchCreator } from './research.js';
 import { settings } from './settings.js';
 import { creatorReport, creatorTimeline } from './timeline.js';
+import { opportunities } from './opportunities.js';
 import {
   cohortCompare, competitors, dashboard, featureCatalogue, glossary,
   library, notFound, reviewMasters, reviewPairs, videoDetail,
@@ -42,6 +43,7 @@ const ROUTES = [
   { pattern: /^\/hooks\/(\d+)$/, view: hookDetail, nav: 'hooks' },
   { pattern: /^\/cohort\/(\d+)$/, view: cohortCompare,
     nav: 'cohort' },
+  { pattern: /^\/next$/, view: opportunities, nav: 'next' },
   { pattern: /^\/glossary$/, view: glossary, nav: 'glossary' },
   { pattern: /^\/features$/, view: featureCatalogue,
     nav: 'features' },
@@ -61,6 +63,7 @@ const NAV = [
     label: 'Same video, both platforms',
     count: (o) => o?.review.publication_links_proposed },
   { group: 'What we have learned' },
+  { id: 'next', href: '#/next', label: 'What to try next' },
   { id: 'hooks', href: '#/hooks', label: 'How my openings look' },
   { id: 'hook-retention', href: '#/hooks/retention',
     label: 'What keeps people watching' },
