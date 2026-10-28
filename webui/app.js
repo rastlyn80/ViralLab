@@ -17,6 +17,7 @@ import { settings } from './settings.js';
 import { creatorReport, creatorTimeline } from './timeline.js';
 import { labelReview } from './labelreview.js';
 import { opportunities } from './opportunities.js';
+import { strategist } from './strategist.js';
 import {
   cohortCompare, competitors, dashboard, featureCatalogue, glossary,
   library, notFound, reviewMasters, reviewPairs, videoDetail,
@@ -45,6 +46,7 @@ const ROUTES = [
   { pattern: /^\/cohort\/(\d+)$/, view: cohortCompare,
     nav: 'cohort' },
   { pattern: /^\/next$/, view: opportunities, nav: 'next' },
+  { pattern: /^\/ask$/, view: strategist, nav: 'strategist' },
   { pattern: /^\/review\/labels$/, view: labelReview, nav: 'labelreview' },
   { pattern: /^\/glossary$/, view: glossary, nav: 'glossary' },
   { pattern: /^\/features$/, view: featureCatalogue,
@@ -87,7 +89,7 @@ const NAV = [
   // Planned surfaces are listed but not linked: the navigation shape is
   // part of the architecture, and showing where things will live is honest
   // as long as nothing pretends to work.
-  { id: 'strategist', label: 'Ask ViralLab', planned: 'not built yet' },
+  { id: 'strategist', href: '#/ask', label: 'Ask ViralLab' },
   { group: 'Setup' },
   { id: 'settings', href: '#/settings', label: 'Connections' },
 ];

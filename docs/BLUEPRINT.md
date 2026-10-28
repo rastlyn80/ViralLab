@@ -933,6 +933,52 @@ is acceptable. The design makes that safe:
 trap questions ("will this go viral?", "is the piano visible in video X?"
 where X is withheld, "why did video Y succeed?") refused correctly.
 
+#### Status, 2026-10-28 — COMPLETE as specified
+
+| criterion | state |
+|---|---|
+| ten questions, correct citations | **met** — 10 of 10 called a tool, cited it, and stated no figure the tools had not returned. Total cost 6.2 cents |
+| three traps refused | **met** — all three, and all three refused *before any model was called*, so they cost nothing |
+| model never sees the database | **met** — five read-only tools and an ids-only context block. No SQL path, no schema, no table names |
+| refusal rules enforced in code | **met** — `review()` reads the finished text; the prompt states the rules because that makes compliance likely, not because it enforces them |
+| every conversation logged with its evidence | **met** — `strategist_turns` stores the tool results beside the answer, so a wrong figure is attributable to the tool or the model |
+| `strategy` cap ships at $0.00 | **met** — opened to $3.00 only on the owner's explicit authorisation, separately from building it |
+
+**The guarantee that does not depend on the model cooperating** is the
+number check. Every figure in a finished answer is matched against
+what the tools actually returned; anything unmatched is flagged in the
+log and marked in the text where the reader meets it. A rounded
+restatement of a returned value passes, a year or a small count is not
+treated as a claim, and an invented figure does not get through.
+
+**The first live run scored 6 of 10, and the four failures were all
+mine.** Running it is what found them:
+
+| failure | cause | fix |
+|---|---|---|
+| "no measurement called edge density" | the model types `edge density`, the column holds `edge_density` | names resolved, with suggestions on a miss |
+| "no evidence for saturation_mean" — a relationship that exists | the model passed outcome `skip rate`, not `reels_skip_rate` | outcome names resolved too |
+| two questions called no tool and asked for a collection id | nothing had told it collections have ids | an ids-and-names-only context block |
+| **"is sheet music visible in 287?" was refused** | the withheld gate fired on an `indicative` field | narrowed to `unverified` only |
+
+That fourth one is the one worth remembering. Refusing it was the
+enforcement being *wrong*, not strict: a description question about
+one video, answerable from data that exists. An assistant that
+refuses answerable questions teaches the owner to stop asking, and
+over-blocking is a failure mode as real as over-claiming.
+
+Two further bugs died in the same run: `cohort_median` does not exist
+(the attribute is `cohort_median_of_medians`, because M6 refuses to
+pool), and tool output containing dates crashed the JSONB write
+*after* the model had been called and billed.
+
+**Known limitation, recorded rather than smoothed over.** The causal
+matcher exempts a causal verb near a negation, because the correct
+answer here says "this is not evidence of cause" constantly and
+blocking those would leave the assistant unable to state its own
+limits. A sentence that negates one thing and asserts cause about
+another inside the same window slips through. A test documents it.
+
 ### M9 — The experiment loop *(existing Phase 9, now with the ad in it)*
 
 Discover → Analyse → Compare → Recommend → **Create → Publish → Measure →

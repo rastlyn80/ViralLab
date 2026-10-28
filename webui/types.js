@@ -867,6 +867,13 @@
  */
 
 /**
+ * @typedef {Object} Question
+ * @property {string} question
+ * @property {string|null=} conversation_id
+ * @property {string=} model
+ */
+
+/**
  * @typedef {Object} ReportGroupView
  * One of M5's four sections, and the blocks inside it.
  * @property {string} key

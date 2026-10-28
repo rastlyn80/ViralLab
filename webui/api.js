@@ -174,6 +174,12 @@ export const api = {
   labelVerdict: (videoId, field, body) => request(
     `/api/labels/review/${encodeURIComponent(videoId)}/${encodeURIComponent(field)}`,
     { method: 'PUT', body }),
+  // M8. `status` is asked before the box is enabled, so "the cap is
+  // zero" is learned up front rather than by being refused.
+  strategistStatus: () => request('/api/strategist/status'),
+  strategistAsk: (body) => request('/api/strategist/ask',
+    { method: 'POST', body }),
+  strategistHistory: () => request('/api/strategist/history'),
   credentials: () => request('/api/credentials'),
   setCredential: (key, value) => request(
     `/api/credentials/${encodeURIComponent(key)}`,

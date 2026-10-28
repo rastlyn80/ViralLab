@@ -1701,3 +1701,54 @@ class LabelReview(Base):
         Index("uq_label_reviews_question", "video_id", "field",
               unique=True),
     )
+
+
+class StrategistTurn(Base):
+    """One question, the evidence it was answered from, and the answer.
+
+    BLUEPRINT M8: "every conversation is logged with the evidence
+    context it was given, so a wrong answer can be traced to either
+    the evidence or the model." That distinction is the whole reason
+    this table exists. Without the tool results stored beside the
+    answer, a wrong figure is unattributable - it could be a model
+    inventing, or a tool returning something wrong, and those need
+    opposite fixes.
+
+    `violations` and `unverified_numbers` are stored even when the
+    answer was shown, because the useful number is how often the
+    enforcement fires, and an enforcement layer nobody measures is
+    one nobody knows has stopped working.
+    """
+
+    __tablename__ = "strategist_turns"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    conversation_id: Mapped[str] = mapped_column(String(64), index=True)
+    question: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str | None] = mapped_column(Text)
+
+    #: Exactly what each tool returned, in order. The evidence context.
+    tool_calls: Mapped[list] = mapped_column(JSONB, default=list)
+    #: What `strategist.review` caught in the finished text.
+    violations: Mapped[list] = mapped_column(JSONB, default=list)
+    #: Figures in the answer that no tool returned.
+    unverified_numbers: Mapped[list] = mapped_column(JSONB, default=list)
+
+    #: True where the answer was withheld from the owner entirely.
+    blocked: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: Set when the refusal was decided before any model was called.
+    refused_before_spending: Mapped[bool] = mapped_column(
+        Boolean, default=False)
+
+    provider: Mapped[str | None] = mapped_column(String(32))
+    model: Mapped[str | None] = mapped_column(String(64))
+    input_tokens: Mapped[int | None] = mapped_column(Integer)
+    output_tokens: Mapped[int | None] = mapped_column(Integer)
+    billed_usd: Mapped[float | None] = mapped_column(Float)
+    latency_s: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_strategist_turns_created", "created_at"),
+    )
