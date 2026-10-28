@@ -347,6 +347,10 @@ OUTLIER_Z = 2.0
 #: Below this many outliers there is nothing to compare them against.
 MIN_OUTLIERS = 12
 
+#: A yes/no measurement needs this many of each answer across the
+#: whole comparison before a difference in it means anything.
+MIN_BOOLEAN_CASES = 12
+
 
 def _origin_of(session: Session) -> dict[int, str]:
     """Whose music each publication is, by video id."""
@@ -464,6 +468,19 @@ def breakthroughs(session: Session, *, own: bool = False,
         floor_b = 30 if origin is None else 15
         if len(a) < 8 or len(b) < floor_b or len(set(a + b)) < 3:
             continue
+        # A boolean that is true a handful of times in the whole
+        # corpus cannot support a comparison, however small its p.
+        #
+        # Measured: `hook_is_what_if` and `hook_names_celebrity` are
+        # true on 3 publications EACH out of 442. Both came out at
+        # p = 0.011 against breaking out, which reads as a finding
+        # and is two videos. A rank test does not know that two is
+        # not a sample; this does.
+        if set(a + b) <= {0.0, 1.0}:
+            trues = sum(a) + sum(b)
+            falses = len(a) + len(b) - trues
+            if min(trues, falses) < MIN_BOOLEAN_CASES or sum(a) < 3:
+                continue
         p = _mann_whitney_p(a, b)
         if p is None:
             continue
