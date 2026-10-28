@@ -104,15 +104,27 @@ def test_verified_model_questions_are_the_ones_analysis_allows():
                 f"an analysis. The stricter grade is not the one running.")
 
 
-def test_everything_withheld_by_the_pipeline_is_unverified_here():
+def test_nothing_withheld_by_the_pipeline_is_verified_here():
+    """`WITHHELD_VISION` means "may never enter an analysis", and both
+    `unverified` and `indicative` honour that - indicative is shown to
+    a reader and never counted. The invariant is therefore NOT
+    verified, not specifically unverified.
+
+    The looser form is the correct one. After the 2026-10-28 wide run,
+    piano keys, hands and sheet music have a real Haiku measurement
+    against the owner-corrected labels - good enough to show, nowhere
+    near good enough to count - and the stricter test would have
+    forced a choice between hiding a usable description and promoting
+    an unproven claim.
+    """
     for key in vs.WITHHELD_VISION:
         name = key[len(PREFIX):] if key.startswith(PREFIX) else key
         q = vq.by_name(name)
         if q is None:
             continue                      # withheld and not re-asked
-        assert q.reliability == "unverified", (
-            f"{name} is withheld by the pipeline but marked "
-            f"{q.reliability} here")
+        assert q.reliability != "verified", (
+            f"{name} is withheld by the pipeline but marked verified")
+        assert not vq.may_enter_statistics(name), name
 
 
 # ---------------------------------------------------------------------------

@@ -161,8 +161,14 @@ def test_the_reliability_grade_travels_with_every_row():
     may support a claim."""
     assert wv.reliability_of("vision_face_visible") == "verified"
     assert wv.reliability_of("vision_camera_angle") == "indicative"
+    # Measured on Haiku against the owner-corrected labels after the
+    # 2026-10-28 wide run: good enough to show as a reading, and a
+    # separate test asserts it still cannot be counted.
     assert wv.reliability_of("vision_piano_or_keyboard_visible") == \
-        "unverified"
+        "indicative"
+    # Still unverified, and the wide run is why: 475 of 483, which is
+    # the saturation signature of the original failure.
+    assert wv.reliability_of("vision_performer_visible") == "unverified"
 
 
 def test_an_unknown_feature_is_unverified_rather_than_assumed_fine():

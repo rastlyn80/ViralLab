@@ -119,16 +119,26 @@ def test_the_fields_with_real_denominators_are_good_not_perfect():
         assert 0.70 < cell["specificity"] < 1.0, name
 
 
-def test_nothing_was_promoted_on_this_result():
+def test_nothing_countable_was_promoted_on_this_result():
     """The guard. This is the strongest vision result the project has
-    produced and it still may not switch a field on: only the
-    prospective holdout in 7b-holdout-protocol.md can do that, and it
-    needs labels the owner has anchored."""
+    produced and it still may not support a claim: only the
+    prospective holdout in 7b-holdout-protocol.md can do that.
+
+    The invariant is **cannot be counted**, not a literal grade.
+    These three moved to `indicative` on 2026-10-28, after the owner
+    corrected the labels and the Haiku wide run measured against the
+    corrected set - which earns them a place on screen as a reading
+    and earns them nothing else. Asserting the string `unverified`
+    would have forced a choice between hiding a usable description
+    and promoting an unproven claim, and the string was never the
+    thing worth protecting.
+    """
     for short in ("piano_or_keyboard_visible", "hands_visible",
                   "sheet_music_visible"):
         assert f"vision_{short}" in vs.WITHHELD_VISION, short
         q = vq.by_name(short)
         assert q is not None
-        assert q.reliability == "unverified", (
-            f"{short} was promoted on a spent corpus whose labels were "
-            f"written by the same model family that was measured")
+        assert q.reliability != "verified", short
+        assert not vq.may_enter_statistics(short), (
+            f"{short} became countable on a spent corpus whose labels "
+            f"were written by the same model family that was measured")

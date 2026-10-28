@@ -119,8 +119,12 @@ IN_SHOT: tuple[Question, ...] = (
     _det("piano_or_keyboard_visible",
          "Can you see the piano keys?",
          "a piano keyboard", "piano keys", "black and white keys",
-         reliability="unverified",
-         basis=("Measured on the M3 corpus and the result was "
+         reliability="indicative",
+         basis=("2026-10-28: Haiku 4.5 scores 0.800 specificity with 2 "
+                "errors over 40 publications on the owner-corrected "
+                "labels. Shown as a reading; NOT counted, because that "
+                "corpus has been spent three times over. "
+                "Measured on the M3 corpus and the result was "
                 "uninterpretable: only 4 and 6 of 80 publications lack a "
                 "piano, so specificity rests on a handful of videos. "
                 "Unverified means unchecked, not failed. See "
@@ -132,6 +136,11 @@ IN_SHOT: tuple[Question, ...] = (
                           "the detector currently cannot make")),
     _det("hands_visible", "Are the performer's hands in shot?",
          "a human hand", "hands", "fingers on a keyboard",
+         reliability="indicative",
+         basis=("2026-10-28: Haiku 4.5 makes no errors over 40 "
+                "publications on the owner-corrected labels - on three "
+                "negatives, which is not a measurement. Shown, not "
+                "counted."),
          needs_negatives=("openings framed on a face, an instrument alone, "
                           "a title card or an empty stage")),
     _det("face_visible", "Is a face visible?",
@@ -143,35 +152,66 @@ IN_SHOT: tuple[Question, ...] = (
                 "- recorded in DEVELOPMENT_PLAN section 11.")),
     _det("sheet_music_visible", "Is there sheet music in shot?",
          "sheet music", "a page of musical notation", "a music score",
-         basis=("Best result in the project - OWLv2-base scores 0.90 and "
+         reliability="indicative",
+         basis=("2026-10-28: Haiku 4.5 scores 0.900 specificity on 30 "
+                "negatives against the owner-corrected labels, the best "
+                "denominator in the set. Still only indicative, and for "
+                "a reason beyond the spent corpus: the owner called "
+                "publications 217 and 496 'no sheet music at all' while "
+                "accepting framed notation in 287 and overlays in 696 "
+                "and 752, so what the word MEANS is unsettled. A field "
+                "whose definition is disputed cannot be verified. "
+                "Best result in the project - OWLv2-base scores 0.90 and "
                 "0.79 specificity with +0.20 and +0.10 lift on 29 and 28 "
                 "negatives - and still unverified, because the corpus "
                 "behind that number was spent choosing the prompt in M3 "
                 "and the model in Phase 1. A holdout has to say it "
                 "independently.")),
     _det("music_stand_visible", "Is there a music stand?",
-         "a music stand", "a sheet music stand"),
+         "a music stand", "a sheet music stand",
+         reliability="indicative",
+         basis=("2026-10-28: run across all 483 own publications by Haiku 4.5 under hook-vision-wide-haiku45-v1, and the answers discriminate rather than saturate. Promoted to indicative - worth a person's attention, never counted - not to verified, which needs a holdout.")),
     _det("second_person_visible", "Is anyone else in shot?",
-         "two people", "a group of people", "an audience"),
+         "two people", "a group of people", "an audience",
+         reliability="indicative",
+         basis=("2026-10-28: run across all 483 own publications by Haiku 4.5 under hook-vision-wide-haiku45-v1, and the answers discriminate rather than saturate. Promoted to indicative - worth a person's attention, never counted - not to verified, which needs a holdout.")),
     _det("audience_visible", "Can you see an audience?",
-         "an audience watching", "rows of seated people"),
+         "an audience watching", "rows of seated people",
+         reliability="indicative",
+         basis=("2026-10-28: run across all 483 own publications by Haiku 4.5 under hook-vision-wide-haiku45-v1, and the answers discriminate rather than saturate. Promoted to indicative - worth a person's attention, never counted - not to verified, which needs a holdout.")),
     _det("other_instrument_visible", "Is another instrument in shot?",
          "a violin", "a cello", "a guitar", "an orchestra",
-         "a brass instrument"),
+         "a brass instrument",
+         reliability="indicative",
+         basis=("2026-10-28: run across all 483 own publications by Haiku 4.5 under hook-vision-wide-haiku45-v1, and the answers discriminate rather than saturate. Promoted to indicative - worth a person's attention, never counted - not to verified, which needs a holdout.")),
     _det("microphone_visible", "Is a microphone in shot?",
-         "a microphone", "a studio microphone on a stand"),
+         "a microphone", "a studio microphone on a stand",
+         reliability="indicative",
+         basis=("2026-10-28: run across all 483 own publications by Haiku 4.5 under hook-vision-wide-haiku45-v1, and the answers discriminate rather than saturate. Promoted to indicative - worth a person's attention, never counted - not to verified, which needs a holdout.")),
     _det("recording_gear_visible", "Is recording equipment in shot?",
-         "a video camera", "a smartphone on a tripod", "studio lights"),
+         "a video camera", "a smartphone on a tripod", "studio lights",
+         reliability="indicative",
+         basis=("2026-10-28: run across all 483 own publications by Haiku 4.5 under hook-vision-wide-haiku45-v1, and the answers discriminate rather than saturate. Promoted to indicative - worth a person's attention, never counted - not to verified, which needs a holdout.")),
     _det("screen_visible", "Is there a screen or projection?",
-         "a television screen", "a projected image", "a computer monitor"),
+         "a television screen", "a projected image", "a computer monitor",
+         reliability="indicative",
+         basis=("2026-10-28: run across all 483 own publications by Haiku 4.5 under hook-vision-wide-haiku45-v1, and the answers discriminate rather than saturate. Promoted to indicative - worth a person's attention, never counted - not to verified, which needs a holdout.")),
     _det("window_visible", "Is there a window?",
-         "a window", "daylight through a window"),
+         "a window", "daylight through a window",
+         reliability="indicative",
+         basis=("2026-10-28: run across all 483 own publications by Haiku 4.5 under hook-vision-wide-haiku45-v1, and the answers discriminate rather than saturate. Promoted to indicative - worth a person's attention, never counted - not to verified, which needs a holdout.")),
     _det("candles_or_flowers_visible", "Are there candles or flowers?",
-         "lit candles", "a vase of flowers", "a bouquet"),
+         "lit candles", "a vase of flowers", "a bouquet",
+         reliability="indicative",
+         basis=("2026-10-28: run across all 483 own publications by Haiku 4.5 under hook-vision-wide-haiku45-v1, and the answers discriminate rather than saturate. Promoted to indicative - worth a person's attention, never counted - not to verified, which needs a holdout.")),
     _det("chandelier_visible", "Is there a chandelier?",
-         "a chandelier", "an ornate ceiling light"),
+         "a chandelier", "an ornate ceiling light",
+         reliability="indicative",
+         basis=("2026-10-28: run across all 483 own publications by Haiku 4.5 under hook-vision-wide-haiku45-v1, and the answers discriminate rather than saturate. Promoted to indicative - worth a person's attention, never counted - not to verified, which needs a holdout.")),
     _det("pet_or_child_visible", "Is there a pet or a child?",
-         "a dog", "a cat", "a young child"),
+         "a dog", "a cat", "a young child",
+         reliability="indicative",
+         basis=("2026-10-28: run across all 483 own publications by Haiku 4.5 under hook-vision-wide-haiku45-v1, and the answers discriminate rather than saturate. Promoted to indicative - worth a person's attention, never counted - not to verified, which needs a holdout.")),
 )
 
 
@@ -196,7 +236,12 @@ CRAFT: tuple[Question, ...] = (
              reliability="unverified",
              values=("extreme_close", "close", "medium", "wide",
                      "very_wide", "unknown"),
-             basis=("Measured and withheld: accuracy 0.418 against a 0.519 "
+             basis=("Still withheld after the 2026-10-28 wide run, and "
+                    "the run is why: across 483 publications it answered "
+                    "close 48.8% and medium 45.6%, putting 94% into two "
+                    "adjacent buckets. That is the same shape as the "
+                    "original failure, on a better model. "
+                    "Measured and withheld: accuracy 0.418 against a 0.519 "
                     "commonest-class baseline, lift -0.101. The model "
                     "answers 'medium' for most openings. This one is "
                     "genuinely failed rather than merely unchecked.")),
@@ -206,9 +251,11 @@ CRAFT: tuple[Question, ...] = (
                      "full_frame_instrument", "unknown"),
              basis="Extracted since M3, never checked against a label."),
     Question("camera_movement", "Does the camera move?", "enum", "vlm",
+             reliability="indicative", basis=("2026-10-28: run across all 483 own publications by Haiku 4.5. Promoted to indicative - shown as the model's reading, never counted."),
              values=("static", "slow_push", "pan", "handheld", "orbit",
                      "unknown")),
     Question("depth_of_field", "Is the background blurred?", "enum", "vlm",
+             reliability="indicative", basis=("2026-10-28: run across all 483 own publications by Haiku 4.5. Promoted to indicative - shown as the model's reading, never counted."),
              values=("shallow", "deep", "unknown")),
     Question("orientation", "Is it vertical, square or landscape?",
              "enum", "deterministic",
@@ -257,16 +304,22 @@ LIGHT: tuple[Question, ...] = (
 
 PLACE: tuple[Question, ...] = (
     Question("setting", "Where does this appear to be?", "enum", "vlm",
-             reliability="unverified",
+             reliability="indicative",
              values=("concert_hall", "studio", "home_room", "outdoor",
                      "stage", "plain_backdrop", "church", "rehearsal_room",
                      "backstage", "unknown"),
              basis=("Measured and withheld in M3. The vocabulary has since "
                     "gained church, rehearsal_room and backstage, so the "
                     "old measurement does not describe this question any "
-                    "more and it must be re-measured rather than inherited."
-                    )),
+                    "more and it must be re-measured rather than inherited. "
+                    "2026-10-28: re-run across all 483 publications by "
+                    "Haiku 4.5, which produced five settings with a "
+                    "plausible spread rather than one answer repeated. "
+                    "Indicative, not verified: the M3 failure was the old "
+                    "model's and the new one is unmeasured on this field, "
+                    "so neither the failure nor a pass may be inherited.")),
     Question("formality", "How formal does it look?", "enum", "vlm",
+             reliability="indicative", basis=("2026-10-28: run across all 483 own publications by Haiku 4.5. Promoted to indicative - shown as the model's reading, never counted."),
              values=("concert_dress", "smart", "casual", "unknown"),
              interpretive=True),
 )
@@ -353,10 +406,15 @@ PRESENTATION: tuple[Question, ...] = (
                     "Carries a flag that forbids any consumer from "
                     "treating it as a measurement.")),
     Question("facing_camera", "Is the performer facing the camera?",
-             "boolean", "vlm"),
+             "boolean", "vlm", reliability="indicative",
+             basis=("2026-10-28: run across all 483 own publications by Haiku 4.5. Promoted to indicative - shown as the model's reading, never counted.")),
     Question("performer_visible", "Is the performer in shot at all?",
              "boolean", "vlm", reliability="unverified",
-             basis=("Measured and withheld in M3: the model answers yes "
+             basis=("Still withheld after the 2026-10-28 wide run: it "
+                    "answered yes on 475 of 483 publications, 98.3%, "
+                    "which is the saturation signature of the original "
+                    "failure rather than a measurement of anything. "
+                    "Measured and withheld in M3: the model answers yes "
                     "almost regardless of the frame, for the same reason "
                     "the piano question does.")),
 )
