@@ -185,6 +185,8 @@ export const api = {
   visualProfile: () => request('/api/visual-profile'),
   publicationProfile: (id) => request(
     `/api/visual-profile/publication/${encodeURIComponent(id)}`),
+  // Both sides of the view question, measured the same way.
+  virality: () => request('/api/virality'),
   credentials: () => request('/api/credentials'),
   setCredential: (key, value) => request(
     `/api/credentials/${encodeURIComponent(key)}`,

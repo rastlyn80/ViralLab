@@ -32,7 +32,8 @@ from server.api import (ai_api, credentials_api, deps, discovery_api,
                         labels_api,
                         opportunities_api, profile_api,
                         research_api,
-                        strategist_api, ui, vision_api)
+                        strategist_api, ui, virality_api,
+                        vision_api)
 from server.api.deps import get_session
 from server.db.models import Video
 from server.queue.queue import (
@@ -229,6 +230,7 @@ app.include_router(labels_api.router)
 app.include_router(strategist_api.router)
 app.include_router(experiments_api.router)
 app.include_router(profile_api.router)
+app.include_router(virality_api.router)
 
 
 @app.get("/health")
