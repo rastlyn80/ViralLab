@@ -1627,3 +1627,77 @@ class FeatureEvidence(Base):
               "outcome", "population", "analysis", unique=True),
         Index("ix_feature_evidence_feature", "feature"),
     )
+
+
+class LabelReview(Base):
+    """The owner's verdict on a label Claude was unsure about.
+
+    Every vision benchmark in this project has been scored against
+    labels Claude wrote, and the Claude Sonnet run of 2026-10-27 made
+    that the binding problem rather than a footnote: it answered 40 of
+    40 publications correctly against an answer key written by another
+    Claude model, which is partly a measurement of agreement between
+    two models rather than of either being right.
+
+    Twenty-one labels were flagged genuinely ambiguous when they were
+    written - a grand piano side-on where the keys may be at the frame
+    edge, notation composited in as a graphic rather than paper on a
+    stand, faces a few pixels across in a wide stage shot. Those are
+    the ones where a human verdict is worth most, and this table holds
+    them.
+
+    **The model's own label is stored beside the owner's**, not
+    replaced by it. Knowing that a label was overturned is evidence
+    about the labelling process; silently correcting it would destroy
+    exactly the record that makes the next benchmark honest.
+
+    `verdict` is deliberately three-valued. "I cannot tell either" is a
+    real and useful answer - it says the question is ambiguous rather
+    than that the model was wrong - and forcing a binary would
+    manufacture certainty that does not exist.
+    """
+
+    __tablename__ = "label_reviews"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_id: Mapped[int] = mapped_column(
+        ForeignKey("videos.id", ondelete="CASCADE"), index=True)
+    #: The question, e.g. `piano_or_keyboard_visible`.
+    field: Mapped[str] = mapped_column(String(64))
+    #: Which fixture the entry came from: own | competitor.
+    cohort: Mapped[str] = mapped_column(String(16))
+    #: Why it was flagged ambiguous, carried from the fixture so the
+    #: reviewer sees the doubt rather than re-deriving it.
+    why_uncertain: Mapped[str | None] = mapped_column(Text)
+
+    #: What Claude said. Kept whatever the owner decides.
+    model_label: Mapped[str | None] = mapped_column(String(32))
+    #: confirmed | overturned | cannot_tell
+    verdict: Mapped[str | None] = mapped_column(String(16))
+    #: The owner's value where they overturned it.
+    owner_label: Mapped[str | None] = mapped_column(String(32))
+    note: Mapped[str | None] = mapped_column(Text)
+    #: What the reviewer actually looked at. The competitor media was
+    #: deleted under ADR 0009, so those are judged from the live post
+    #: rather than from the four frames the model saw - a real
+    #: difference in evidence and one the record has to carry.
+    reviewed_from: Mapped[str | None] = mapped_column(String(16))
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(
+            "verdict is null or verdict in "
+            "('confirmed','overturned','cannot_tell')",
+            name="ck_label_reviews_verdict"),
+        CheckConstraint("cohort in ('own','competitor')",
+                        name="ck_label_reviews_cohort"),
+        CheckConstraint(
+            "reviewed_from is null or reviewed_from in "
+            "('frames','live_post')",
+            name="ck_label_reviews_source"),
+        # One row per question. Re-answering updates rather than
+        # appends, so a count of reviews is a count of questions.
+        Index("uq_label_reviews_question", "video_id", "field",
+              unique=True),
+    )

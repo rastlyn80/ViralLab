@@ -15,6 +15,7 @@ import { hookDetail, hookRetention, hooks } from './hooks.js';
 import { research, researchCreator } from './research.js';
 import { settings } from './settings.js';
 import { creatorReport, creatorTimeline } from './timeline.js';
+import { labelReview } from './labelreview.js';
 import { opportunities } from './opportunities.js';
 import {
   cohortCompare, competitors, dashboard, featureCatalogue, glossary,
@@ -44,6 +45,7 @@ const ROUTES = [
   { pattern: /^\/cohort\/(\d+)$/, view: cohortCompare,
     nav: 'cohort' },
   { pattern: /^\/next$/, view: opportunities, nav: 'next' },
+  { pattern: /^\/review\/labels$/, view: labelReview, nav: 'labelreview' },
   { pattern: /^\/glossary$/, view: glossary, nav: 'glossary' },
   { pattern: /^\/features$/, view: featureCatalogue,
     nav: 'features' },
@@ -57,6 +59,8 @@ const NAV = [
   { id: 'dashboard', href: '#/', label: 'Home' },
   { id: 'library', href: '#/library', label: 'My videos' },
   { group: 'Needs you' },
+  { id: 'labelreview', href: '#/review/labels',
+    label: 'Check uncertain labels' },
   { id: 'review-masters', href: '#/review/masters', label: 'Match my files',
     count: (o) => o?.review.master_links_pending },
   { id: 'review-pairs', href: '#/review/pairs',

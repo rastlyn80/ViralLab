@@ -1170,6 +1170,13 @@
  */
 
 /**
+ * @typedef {Object} Verdict
+ * @property {string} verdict
+ * @property {string|null=} owner_label
+ * @property {string|null=} note
+ */
+
+/**
  * @typedef {Object} VideoDetail
  * @property {number} id
  * @property {string} platform

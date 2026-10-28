@@ -164,6 +164,16 @@ export const api = {
   // capped at Observed because no outcome exists for other creators.
   opportunities: ({ collection_id } = {}) => request(
     `/api/opportunities${collection_id ? `?collection_id=${collection_id}` : ''}`),
+  // The flagged-ambiguous labels, and the owner's verdict on them.
+  // The queue deliberately does not pre-filter answered items: seeing
+  // what you already decided is part of knowing where you are.
+  labelQueue: () => request('/api/labels/review'),
+  labelSummary: () => request('/api/labels/review/summary'),
+  labelFrames: (videoId) => request(
+    `/api/labels/frames/${encodeURIComponent(videoId)}`),
+  labelVerdict: (videoId, field, body) => request(
+    `/api/labels/review/${encodeURIComponent(videoId)}/${encodeURIComponent(field)}`,
+    { method: 'PUT', body }),
   credentials: () => request('/api/credentials'),
   setCredential: (key, value) => request(
     `/api/credentials/${encodeURIComponent(key)}`,
