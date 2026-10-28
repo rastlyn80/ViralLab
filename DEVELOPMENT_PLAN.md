@@ -1727,6 +1727,37 @@ posting window, comparables, uncertainty, alternatives for testing.
 > was bounded to people/viewers/them, and "X makes videos perform
 > better" is the first phrasing a *generator* reaches for.
 
+> **The middle clause, delivered 2026-10-28** —
+> `server/research/adherence.py`, `GET /api/virality/adherence`,
+> `webui/following.js` at `#/following`. The owner's requirement has
+> three parts: research what separates the breakthroughs, **check
+> that he is following the same**, then suggest. The first and third
+> had surfaces; the second did not, so a finding could sit on a
+> dashboard for a month while every publication in that month went
+> the other way and nothing said so.
+>
+> A publication follows a finding when it sits closer to the
+> breakthrough level than to the ordinary one. That midpoint is an
+> arbitrary line and is printed with every finding so it can be
+> argued with.
+>
+> **First run, and the reason the page is built the way it is:** 3 of
+> the 4 differences are cleared by *every* recent publication. Shown
+> as "9 of 9 following" that reads as excellent discipline; it is
+> not. His recent work sits beyond the breakthrough level on all
+> three, so those findings no longer separate his publications from
+> each other, and the page says exactly that instead. Only colour
+> intensity still discriminates (7 of 9). **What distinguishes his
+> recent publications from one another has not been measured yet** —
+> that is the live question, and it came out of the product rather
+> than out of a hand-run analysis.
+>
+> No total and no score: the findings overlap (overall visual detail
+> and background visual detail measure much the same thing), so
+> summing them would count one choice several times and call it a
+> percentage. The typical value reported is the **median**, because
+> a skewed mean contradicted the count printed beside it.
+
 **Milestone 8.3 — Conversational refinement** against stored artistic
 identity, equipment and repertoire.
 **Milestone 8.4 — Evidence lineage:** `recommendation_evidence` rows are

@@ -16,11 +16,12 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from server.api.deps import get_session
 from server.api.ui import require_ui
+from server.research import adherence as adh
 from server.research import virality as vir
 
 logger = logging.getLogger("virallab.api.virality")
@@ -77,6 +78,20 @@ def compare(session: Session = Depends(get_session)) -> dict:
                 "experiment loop can say that, and it needs months."),
         },
     }
+
+
+@router.get("/adherence", dependencies=[Depends(require_ui)])
+def adherence(recent: int = Query(default=adh.RECENT, ge=3, le=60),
+              session: Session = Depends(get_session)) -> dict:
+    """Whether recent publications follow what the breakthroughs did.
+
+    The middle clause of the owner's requirement, which nothing
+    served before: research the differences, **check that he is
+    following the same**, then suggest. A finding could previously
+    sit on a dashboard for a month while every video published in
+    that month went the other way, and nothing would say so.
+    """
+    return adh.check(session, recent=recent)
 
 
 def _gap(theirs: dict, mine: dict) -> str:
