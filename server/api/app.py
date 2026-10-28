@@ -27,6 +27,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from server.api import (ai_api, credentials_api, deps, discovery_api,
+                        experiments_api,
                         features_api, frames_api, home_api, hooks_api,
                         labels_api,
                         opportunities_api, research_api,
@@ -225,6 +226,7 @@ app.include_router(home_api.router)
 app.include_router(opportunities_api.router)
 app.include_router(labels_api.router)
 app.include_router(strategist_api.router)
+app.include_router(experiments_api.router)
 
 
 @app.get("/health")

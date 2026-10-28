@@ -1752,3 +1752,137 @@ class StrategistTurn(Base):
     __table_args__ = (
         Index("ix_strategist_turns_created", "created_at"),
     )
+
+
+class Experiment(Base):
+    """A prediction locked before anything is published.
+
+    BLUEPRINT M9: "this is the only place a causal claim can be
+    born." Everything else in this project measures what already
+    happened, and no amount of care turns that into cause. An
+    experiment can, and only if the prediction was fixed first - so
+    the fields that constitute the prediction are frozen at
+    `locked_at` and a test asserts they cannot move.
+
+    **`n_per_arm` is part of the prediction, not a target to revise.**
+    Deciding to continue because a result is nearly significant is
+    how a null becomes a success story, and it is the single easiest
+    way to destroy the only causal evidence this project will ever
+    produce. The readout refuses to compute anything until the
+    pre-registered n is reached.
+
+    **The ad is in the design.** ADR 0008 established that Instagram
+    metrics here are organic-only and M1 that a rotating $1/day
+    promotion contaminates them. An experiment that let the ad vary
+    across arms would measure the ad, so `ad_policy` is recorded and
+    the readout refuses to interpret a run whose arms were exposed
+    differently.
+    """
+
+    __tablename__ = "experiments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    #: Free text, in the owner's words, for the top of the page.
+    title: Mapped[str] = mapped_column(String(200))
+    #: The M7 opportunity this came from, where it came from one.
+    opportunity_key: Mapped[str | None] = mapped_column(String(200))
+
+    # ---- the prediction. Frozen once `locked_at` is set. ----
+    feature: Mapped[str] = mapped_column(String(64))
+    outcome: Mapped[str] = mapped_column(String(64))
+    platform: Mapped[str] = mapped_column(String(16))
+    #: `higher` or `lower`: what the TREATMENT arm is predicted to do
+    #: to the outcome relative to the control arm.
+    predicted_direction: Mapped[str] = mapped_column(String(16))
+    #: In the owner's words, so the readout can quote what was
+    #: promised rather than paraphrase it.
+    prediction: Mapped[str] = mapped_column(Text)
+    n_per_arm: Mapped[int] = mapped_column(Integer)
+    #: The age at which the outcome is read. Comparing publications
+    #: measured at different ages measures elapsed exposure.
+    anchor_age_days: Mapped[int] = mapped_column(Integer, default=7)
+    #: `held_constant` or `randomised`. Nothing else is analysable.
+    ad_policy: Mapped[str] = mapped_column(String(16),
+                                           default="held_constant")
+    #: The test that will be run, named in advance.
+    analysis: Mapped[str] = mapped_column(String(32),
+                                          default="mann_whitney_u")
+    alpha: Mapped[float] = mapped_column(Float, default=0.05)
+    #: What would make this a null result, written before starting.
+    stopping_rule: Mapped[str] = mapped_column(Text)
+
+    # ---- lifecycle ----
+    #: draft | running | complete | abandoned
+    status: Mapped[str] = mapped_column(String(16), default="draft")
+    locked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+
+    # ---- the result, written once and never revised ----
+    #: supported | not_supported | inconclusive
+    verdict: Mapped[str | None] = mapped_column(String(20))
+    result: Mapped[dict | None] = mapped_column(JSONB)
+    #: Why the experiment ended, if it was abandoned.
+    abandoned_reason: Mapped[str | None] = mapped_column(Text)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "status in ('draft','running','complete','abandoned')",
+            name="ck_experiments_status"),
+        CheckConstraint(
+            "verdict is null or verdict in "
+            "('supported','not_supported','inconclusive')",
+            name="ck_experiments_verdict"),
+        CheckConstraint("predicted_direction in ('higher','lower')",
+                        name="ck_experiments_direction"),
+        CheckConstraint("ad_policy in ('held_constant','randomised')",
+                        name="ck_experiments_ad_policy"),
+        CheckConstraint("n_per_arm >= 2", name="ck_experiments_n"),
+    )
+
+
+class ExperimentAssignment(Base):
+    """Which arm a publication belongs to, decided before it exists.
+
+    The arm is drawn when the experiment is locked, not when the
+    video is posted, so the owner is told what to make next rather
+    than sorting afterwards. Sorting afterwards is how an experiment
+    becomes a post-hoc comparison wearing its clothes.
+    """
+
+    __tablename__ = "experiment_assignments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    experiment_id: Mapped[int] = mapped_column(
+        ForeignKey("experiments.id", ondelete="CASCADE"), index=True)
+    #: So the whole schedule can be built and added in one go, before
+    #: the experiment has an id. The arms are drawn at lock time and
+    #: flushing halfway through that would make the draw depend on
+    #: database state.
+    experiment: Mapped["Experiment"] = relationship(
+        "Experiment", backref="assignments")
+    #: 1-based position in the run, so the owner knows the order.
+    slot: Mapped[int] = mapped_column(Integer)
+    #: `treatment` or `control`.
+    arm: Mapped[str] = mapped_column(String(16))
+    #: Filled when the owner says which publication filled the slot.
+    video_id: Mapped[int | None] = mapped_column(
+        ForeignKey("videos.id", ondelete="SET NULL"))
+    filled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    note: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        CheckConstraint("arm in ('treatment','control')",
+                        name="ck_assignment_arm"),
+        Index("uq_assignment_slot", "experiment_id", "slot", unique=True),
+        # One publication cannot fill two slots. Without this, a good
+        # video could be counted into both arms.
+        Index("uq_assignment_video", "experiment_id", "video_id",
+              unique=True,
+              postgresql_where=text("video_id is not null")),
+    )

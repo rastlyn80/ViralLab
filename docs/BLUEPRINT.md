@@ -992,6 +992,63 @@ retired. This is the only place a causal claim can be born.
 *Acceptance:* one completed pre-registered experiment with its outcome
 recorded against its prediction, whichever way it went.
 
+#### Status, 2026-10-28 — BUILT AND RUNNING; acceptance NOT YET MET
+
+The loop is complete and one experiment is **locked and running**.
+The acceptance criterion says *completed*, and it is not, because
+completing it requires posting 22 publications. At the owner's
+measured rate of 4.84 a month that is **about four and a half
+months**. No amount of engineering shortens it, and anything that
+appeared to would not be an experiment.
+
+**Experiment 1, pre-registered 2026-10-28:**
+
+> Publications whose openings carry deliberately more overall visual
+> detail will show a **lower** reels skip rate at 7 days than
+> publications in the other arm. If the difference is in the other
+> direction, or is not distinguishable from none, the prediction is
+> wrong.
+
+11 per arm, 22 slots, arms drawn at lock time in balanced pairs
+(`1T 2C 3T 4C 5T 6C 7T 8C 9C 10T 11C 12T …`), ad held constant,
+Mann-Whitney U at α = 0.05, read once. It came from the strongest
+practical M7 opportunity in one click, and its sample size is that
+opportunity's own power calculation rather than a number typed into
+a box after seeing how long it would take.
+
+| criterion | state |
+|---|---|
+| pre-registration before publishing | **met** — prediction, n, test, anchor and stopping rule frozen at lock; a test asserts a moved field voids the run |
+| the stopping rule honoured | **met** — `read_out` raises rather than returning a partial answer. It currently refuses with *"22 of 22 publications still to post"* |
+| age-anchored measurement | **met** — a 7-day anchor is read at day 9, and immature publications are refused with the reason |
+| the ad held constant or randomised | **met** — recorded in the design and checked at readout; a contaminated run raises rather than being reported with a caveat |
+| grades fed back | **met** — supported ⇒ Validated, failed ⇒ Observed and the opportunity retired, inconclusive ⇒ unchanged |
+| **one completed experiment** | **not met** — ~4.5 months of posting away |
+
+**The readout is tested even though it will not run for months.** A
+verdict that first executes in the one moment it matters is a verdict
+nobody has checked, so it is driven end to end against publications
+built to order: an arm that wins, an arm that loses, and two that
+cannot be told apart. The middle case is the one worth the fixture —
+a significant result in the *wrong* direction is `not_supported`, not
+`inconclusive`, and burying it would hide the most interesting thing
+an experiment can produce.
+
+**This is the only route to `Validated` in the system**, and a test
+scans the whole server package to prove no other code path assigns
+that grade. It is what lets `strategist.py` enforce "nothing causes
+anything" as an absolute today and have the gate open by itself when
+this loop first produces one.
+
+**Two bugs found by running it rather than reading it.** The
+opportunity's `direction` says which way to move the *feature*; the
+prediction is about the *outcome*, and conflating them would have
+registered the opposite of the finding with no test noticing, because
+both are valid strings. And the ad check counted any non-zero
+covariate as a boost, flagging every publication in a run with no ads
+at all — the module has its own `BOOSTED_SHARE_THRESHOLD` and
+inventing a second notion of "boosted" was the error.
+
 ### M10 — The creative suite *(post-MVP, each item graded)*
 
 Capabilities worth building once M1–M9 exist, with the evidence each

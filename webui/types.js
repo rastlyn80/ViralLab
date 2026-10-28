@@ -11,6 +11,11 @@
  */
 
 /**
+ * @typedef {Object} Abandon
+ * @property {string} reason
+ */
+
+/**
  * @typedef {Object} AiOperationRow
  * @property {number|null=} id
  * @property {number|null=} video_id
@@ -587,6 +592,13 @@
  */
 
 /**
+ * @typedef {Object} Fill
+ * @property {number} slot
+ * @property {number} video_id
+ * @property {string|null=} note
+ */
+
+/**
  * @typedef {Object} FrameRef
  * What the worker was actually given, by content hash.
  * @property {number} at_s
@@ -598,6 +610,13 @@
  * @typedef {Object} FrequencyBucketView
  * @property {string} month
  * @property {number} publications
+ */
+
+/**
+ * @typedef {Object} FromOpportunity
+ * @property {string} opportunity_key
+ * @property {number|null=} collection_id
+ * @property {number|null=} n_per_arm
  */
 
 /**
