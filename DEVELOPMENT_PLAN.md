@@ -1791,6 +1791,20 @@ posting window, comparables, uncertainty, alternatives for testing.
 > Settling it needs a baseline anchored to a fixed age rather than
 > to the previous publications.
 
+> **The three clauses, joined, 2026-10-28.** Research, check and
+> suggest each worked and none of them talked to the next: the page
+> could say "you have named the form on 2 of your last 12" while
+> the generator, one click away, suggested things he already does.
+> `build_brief` now reads `adherence.check` for both sides and
+> carries `where_you_go_against_it` - the four places his recent
+> publications run against his own or other creators' evidence.
+>
+> The prompt favours those and is explicit that they are not
+> orders. Live, the first idea came back as "frame a Chopin Ballade
+> with the score visible, naming both composer and form on screen
+> in larger text than your recent captions use", grounded in all
+> three of findings, agreed_by_both and where_you_go_against_it.
+
 **Milestone 8.3 — Conversational refinement** against stored artistic
 identity, equipment and repertoire.
 **Milestone 8.4 — Evidence lineage:** `recommendation_evidence` rows are

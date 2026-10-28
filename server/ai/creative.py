@@ -85,6 +85,10 @@ class Brief:
     theirs: list[dict] = field(default_factory=list)
     #: Measurements that came out the same way on both sides.
     agreed: list[str] = field(default_factory=list)
+    #: Where his recent work goes against the evidence. The one
+    #: place his measurements and his behaviour disagree, and so
+    #: the most useful thing a suggestion can aim at.
+    gaps: list[dict] = field(default_factory=list)
     best_hooks: list[dict] = field(default_factory=list)
     repertoire: list[dict] = field(default_factory=list)
     recent: list[str] = field(default_factory=list)
@@ -94,6 +98,7 @@ class Brief:
         return {"findings": self.findings,
                 "other_creators": self.theirs,
                 "agreed_by_both": self.agreed,
+                "where_you_go_against_it": self.gaps,
                 "best_hooks": self.best_hooks,
                 "repertoire": self.repertoire, "recent": self.recent,
                 "counts": self.counts}
@@ -205,6 +210,39 @@ def build_brief(session: Session) -> Brief:
                 d["display_name"] in brief.agreed,
         })
 
+    # What the adherence check already knows and the generator did
+    # not. The three clauses of the requirement - research, check,
+    # suggest - each worked and none of them talked to the next, so
+    # the page could say "you have named the form on 2 of your last
+    # 12" while the generator, one click away, suggested things he
+    # is already doing.
+    #
+    # A gap is not an instruction. It is the most useful thing in
+    # the brief precisely because it is the one place where his
+    # evidence and his recent behaviour disagree, and the model is
+    # told to favour those rather than to obey them.
+    from server.research import adherence as adh
+    for source in ("mine", "theirs"):
+        try:
+            check = adh.check(session, against=source)
+        except Exception:                 # noqa: BLE001 - optional
+            logger.exception("adherence unavailable for the brief")
+            continue
+        for f in check.get("findings", []):
+            if f["verdict"] not in ("not following", "mixed"):
+                continue
+            if not f.get("separates"):
+                continue        # already past it; nothing to close
+            brief.gaps.append({
+                "what": f["display_name"],
+                "direction": f["direction"],
+                "whose": ("your own breakthroughs" if source == "mine"
+                          else "other creators' breakthroughs"),
+                "you_do_it": f"{f['followed']} of your last "
+                             f"{f['measured']} measured publications",
+                "verdict": f["verdict"],
+            })
+
     own = (select(Video.id).join(Creator, Creator.id == Video.creator_id)
            .where(Creator.is_own_account.is_(True)))
     own_ids = set(session.scalars(own).all())
@@ -257,6 +295,7 @@ def build_brief(session: Session) -> Brief:
         "findings": len(brief.findings),
         "other_creators": len(brief.theirs),
         "agreed_by_both": len(brief.agreed),
+        "gaps": len(brief.gaps),
         "examples": len(brief.best_hooks),
         "composers": len(brief.repertoire),
     }
@@ -307,6 +346,11 @@ The brief has three kinds of evidence and they are not equal.
 * `agreed_by_both` held on both sides. That is the strongest thing
   this evidence can say, and a suggestion resting on one of these
   is better grounded than one resting on either side alone.
+* `where_you_go_against_it` is where his recent publications run
+  against the evidence above. Favour these: a suggestion about
+  something he already does every time is true and useless. Do not
+  treat them as orders - he may have good reasons - and never
+  scold him for one.
 
 Say which kind a suggestion draws on. "Your breakthroughs tended
 to name the composer" and "other pianists' breakthroughs tended

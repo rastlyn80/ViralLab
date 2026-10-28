@@ -59,6 +59,18 @@ export const creative = {
             </li>`).join('') || '<li class="muted">None yet.</li>'}</ul>
           </div>
         </div>
+        ${(b.where_you_go_against_it || []).length ? `
+          <h3>Where your recent work goes against this
+            (${b.where_you_go_against_it.length})</h3>
+          <ul class="plain">${b.where_you_go_against_it.map((g) => `<li>
+            <b>${esc(g.what)}</b> &mdash; ${esc(g.direction)} in
+            ${esc(g.whose)}, and you do it in
+            ${esc(g.you_do_it)}.
+          </li>`).join('')}</ul>
+          <p class="muted">Suggestions lean towards these, because a
+            suggestion about something you already do every time is
+            true and useless. They are not instructions &mdash; you
+            may have good reasons.</p>` : ''}
         ${(b.agreed_by_both || []).length ? `<p><b>Held on both your
           account and other creators':</b>
           ${esc(b.agreed_by_both.join(', '))}. This is the strongest
