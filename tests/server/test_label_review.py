@@ -292,3 +292,73 @@ def test_the_summary_says_what_it_does_not_establish():
     src = inspect.getsource(lab.summary)
     assert "does not generalise" in src or "not generalise" in src
     assert "not a correction" in src
+
+
+# ---------------------------------------------------------------------------
+# the owner's verdicts, and what may be done with them
+# ---------------------------------------------------------------------------
+
+def test_the_published_answer_key_was_not_rewritten():
+    """Every benchmark already reported has to stay reproducible from
+    `labels`. A fixture that silently corrected itself would make its
+    own history unreadable, and `test_vision_promotion.py` recomputes
+    the published confusion matrices from exactly this block."""
+    for _cohort, name in lab.SOURCES:
+        d = json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+        review = d.get("_owner_review")
+        assert review, f"{name} carries no owner review"
+        for r in review["verdicts"]:
+            if r["verdict"] != "overturned":
+                continue
+            still = d["labels"].get(str(r["video_id"]), {}).get(r["field"])
+            # `was` is what the published key says, and it still says it.
+            if r["was"] is not None:
+                assert str(still).lower() == r["was"], (
+                    f"{name}: {r['video_id']} {r['field']} was rewritten "
+                    f"in `labels`; corrections must stay additive")
+
+
+def test_corrections_are_applied_by_the_accessor_not_the_file():
+    corrected = lab.corrected_labels("own")
+    raw = json.loads((FIXTURES / "holdout_labels_own.json")
+                     .read_text(encoding="utf-8"))["labels"]
+    changed = [(v, f) for v, fields in corrected.items()
+               for f in set(fields) | set(raw.get(str(v), {}))
+               if raw.get(str(v), {}).get(f) != fields.get(f)]
+    assert changed, "the owner corrected something; it must show up here"
+
+
+def test_cannot_tell_removes_the_label_rather_than_keeping_the_guess():
+    """The owner looked at the same frames and could not decide. That
+    is positive evidence the question has no answer here, and scoring
+    a model against a coin-flip label rewards whichever way it fell."""
+    corrected = lab.corrected_labels("own")
+    d = json.loads((FIXTURES / "holdout_labels_own.json")
+                   .read_text(encoding="utf-8"))
+    unsure = [r for r in d["_owner_review"]["verdicts"]
+              if r["verdict"] == "cannot_tell"]
+    assert unsure, "this guards a real case; retire it deliberately"
+    for r in unsure:
+        assert r["field"] not in corrected.get(int(r["video_id"]), {})
+
+
+def test_an_overturned_yes_no_becomes_a_boolean_not_the_string_yes():
+    """`owner_said` is stored as text. A label of the string "yes"
+    would compare unequal to a model's `True` and silently score every
+    corrected publication wrong."""
+    for cohort in ("own", "competitor"):
+        for fields in lab.corrected_labels(cohort).values():
+            for f, v in fields.items():
+                if f.endswith("_visible") or f.endswith("_present"):
+                    assert isinstance(v, bool), (f, v)
+
+
+def test_the_review_records_what_it_does_not_establish():
+    """Ten of twenty-one is the error rate on the hardest 4% of label
+    decisions, not on the set. Stating it without that caveat would
+    be the most misreadable number in the project."""
+    d = json.loads((FIXTURES / "holdout_labels_own.json")
+                   .read_text(encoding="utf-8"))
+    found = d["_owner_review"]["_what_it_found"].lower()
+    assert "not generalise" in found or "do not generalise" in found
+    assert "hardest" in found

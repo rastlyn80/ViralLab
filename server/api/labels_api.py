@@ -461,3 +461,43 @@ def review_frames(video_id: int,
         "frames": [{"at_s": f["at_s"], "jpeg_b64": f["jpeg_b64"]}
                    for f in frames],
     }
+
+
+def corrected_labels(cohort: str) -> dict[int, dict]:
+    """The labels with the owner's verdicts applied.
+
+    **`labels` in the fixture is never rewritten.** It is the
+    published answer key and every benchmark already reported has to
+    stay reproducible from it; a file that silently corrected itself
+    would make its own history unreadable. So the corrections are
+    additive and this is where they are applied.
+
+    Any NEW analysis should use this. Anything reproducing a
+    published figure should read `labels` directly and say so.
+
+    A `cannot_tell` verdict REMOVES the field rather than keeping the
+    model's guess. The owner looking at the same frames and being
+    unable to decide is positive evidence that the question has no
+    answer here, and scoring a model against a coin-flip label
+    rewards whichever way the coin fell.
+    """
+    name = dict(SOURCES)[cohort] if cohort in dict(SOURCES) else None
+    if name is None:
+        name = next(n for c, n in SOURCES if c == cohort)
+    d = json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+    out = {int(k): dict(v) for k, v in d.get("labels", {}).items()}
+    for r in (d.get("_owner_review") or {}).get("verdicts", []):
+        vid, field = int(r["video_id"]), r["field"]
+        if r["verdict"] == "confirmed":
+            continue
+        if r["verdict"] == "cannot_tell":
+            out.setdefault(vid, {}).pop(field, None)
+            continue
+        answer = _normalise(r.get("owner_said") or "")
+        if answer == YES:
+            out.setdefault(vid, {})[field] = True
+        elif answer == NO:
+            out.setdefault(vid, {})[field] = False
+        elif answer:
+            out.setdefault(vid, {})[field] = answer
+    return out

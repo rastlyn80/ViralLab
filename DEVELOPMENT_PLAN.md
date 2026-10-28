@@ -2009,6 +2009,40 @@ Other items:
   over 20 of 31 publications is a sample, and the comparison says so.
   **[OPEN]**
 
+**Label review — the owner checked the answer key (2026-10-28)**
+- **Ten of twenty-one flagged labels were wrong.** The owner answered
+  all of them at `#/review/labels`. Denominator matters: these are
+  the 21 Claude itself flagged out of ~480 label decisions, so it is
+  the error rate on the hardest 4%, not on the set, and it does not
+  generalise to labels nobody flagged. **[CLOSED — measured]**
+- **The correction improved Sonnet rather than deflating it.** On
+  three of five own-cohort corrections Sonnet had agreed with the
+  owner against the label; sheet-music specificity rose 0.857 to
+  0.867 and face 0.833 to 0.905. The headline falls from 40/40 to
+  **39/40** on piano keys: publication 91 shows the keys in the last
+  frame only, which the labelling rule counts as true. A correlated
+  -error artefact would have got worse, not better. **[CLOSED]**
+- **Two review-screen defects, both mine, both found by running it.**
+  The first version hid the model's label and then asked the owner to
+  confirm or overturn it - unanswerable - and four of eight
+  "overturns" returned the model's own value. The second omission was
+  worse: the page never showed the rule the labels were made under
+  ("true if visible in ANY of the four frames"), so publication 91
+  was filed as agreeing that no keys were visible. Both fixed; the
+  rule is now read from the fixture. **[CLOSED]**
+- **`setting` has no written definition in either fixture** and its
+  vocabulary was too narrow to describe a public piano in a railway
+  concourse, which is why publication 403 was left blank. A
+  definition is supplied in `labels_api.SUPPLIED_DEFINITIONS` and
+  `public_space` added, but the fixtures themselves still carry no
+  definition for it and the task enum is unchanged. **[OPEN]**
+- **Sheet music is a definition disagreement, not a detection
+  failure.** The owner called 217 and 496 "no sheet music at all"
+  while accepting framed notation in 287 and composited overlays in
+  696 and 752. The fixture's own `_ambiguity` block predicted exactly
+  this. What "sheet music" means needs settling before the field can
+  be promoted. **[OPEN]**
+
 **Visual intelligence — a paid model solves it, and the labels now
 block it (2026-10-27)**
 - **Claude Sonnet answered all 40 own publications with zero errors**

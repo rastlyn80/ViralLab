@@ -124,6 +124,64 @@ ADR 0009 and the competitor arm is untested for this provider.
 
 ---
 
+## 3a. The owner reviewed the labels, 2026-10-28
+
+The circularity in §3 is no longer hypothetical, and the result is
+better than the worry suggested.
+
+The owner answered all twenty-one flagged labels at `#/review/labels`,
+judging own-account publications from the same frames the model saw
+and competitor publications from the live post. **Ten of the twenty-one
+were wrong.**
+
+That number needs its denominator. These are the twenty-one *Claude
+itself flagged* out of roughly 480 label decisions across 80
+publications, so it is the error rate on the hardest 4% and not on the
+set. Read the other way, the self-flagging worked: it found where it
+was unreliable.
+
+**On three of the five own-cohort corrections, Sonnet had agreed with
+the owner against the label.**
+
+| publication | published label | owner | Sonnet | |
+|---|---|---|---|---|
+| 217 sheet music | true | **false** | false | Sonnet right, label wrong |
+| 496 sheet music | true | **false** | false | Sonnet right, label wrong |
+| 91 face | false | **true** | true | Sonnet right, label wrong |
+| 3 face | false | **true** | false | Sonnet wrong |
+| 91 piano keys | false | **true** | false | Sonnet wrong |
+
+So the labels had been *penalising* the model on sheet music.
+Rescored against the corrected labels:
+
+| field | specificity before → after | errors before → after |
+|---|---|---|
+| piano keys | 1.000 → 1.000 | 0 → **1** |
+| hands | 1.000 → 1.000 | 0 → 0 |
+| sheet music | 0.857 → **0.867** | 7 → **5** |
+| face | 0.833 → **0.905** | 4 → **3** |
+| text overlay | 1.000 → 1.000 | 0 → 0 |
+
+**The headline changes from "40 of 40" to "39 of 40" on piano keys.**
+Publication 91 shows the keys in the last frame only; under the
+labelling rule - *"true if the thing is visible in ANY of the four
+frames"* - that is a yes, the published label said no, and Sonnet said
+no with it. One real miss, found only because a human looked.
+
+**Sheet music and faces got better, not worse**, which is the opposite
+of what a correlated-error artefact would do. If Sonnet's score had
+rested on agreeing with a Claude-written key, correcting that key
+would have hurt it.
+
+**What this does and does not settle.** It is 21 judgements on the
+hardest cases, by one person, and it does not generalise to the labels
+nobody flagged. It is not a retraction: `labels` in both fixtures is
+unchanged and every published figure stays reproducible from it, with
+the corrections additive and applied by `labels_api.corrected_labels`.
+But the specific worry in §3 - that a perfect score measured agreement
+between two Claude models - is now tested rather than feared, and it
+survived.
+
 ## 4. What follows
 
 1. **The owner confirms or overturns the flagged-ambiguous labels.**
