@@ -180,6 +180,11 @@ export const api = {
   strategistAsk: (body) => request('/api/strategist/ask',
     { method: 'POST', body }),
   strategistHistory: () => request('/api/strategist/history'),
+  // The wide vision pass, described rather than judged. No
+  // outcomes are returned by this endpoint at all.
+  visualProfile: () => request('/api/visual-profile'),
+  publicationProfile: (id) => request(
+    `/api/visual-profile/publication/${encodeURIComponent(id)}`),
   credentials: () => request('/api/credentials'),
   setCredential: (key, value) => request(
     `/api/credentials/${encodeURIComponent(key)}`,

@@ -53,6 +53,8 @@ STATIC_ROUTES: tuple[tuple[str, str], ...] = (
     ("#/hooks/retention", "Hooks vs retention"),
     ("#/cohort/2", "You against other creators"),
     ("#/next", "What to try next"),
+    ("#/look", "Visual profile"),
+    ("#/ask", "Ask ViralLab"),
     ("#/glossary", "What everything means"),
     ("#/features", "Feature catalogue"),
     ("#/ai", "AI models"),
@@ -220,6 +222,18 @@ def main(argv: list[str] | None = None) -> int:
             for route, label in routes:
                 page.goto(base + route, wait_until="networkidle",
                           timeout=45000)
+                # `networkidle` fires before a view's OWN fetch
+                # returns, because the view starts it after the
+                # route renders. Reading there audited the spinner:
+                # "What to try next" was recorded as 781 characters
+                # and clean when the finished page is 21,529 and
+                # also clean. An audit that passes a spinner is
+                # worse than no audit, so wait for the spinner to go.
+                try:
+                    page.wait_for_selector(".spinner, [aria-busy=true]",
+                                           state="detached", timeout=20000)
+                except Exception:          # noqa: BLE001 - never had one
+                    pass
                 page.wait_for_timeout(700)
                 text = visible_primary_text(page)
                 f = findings_for(text, handles)
