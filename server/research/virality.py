@@ -348,7 +348,17 @@ OUTLIER_Z = 2.0
 MIN_OUTLIERS = 12
 
 
-def breakthroughs(session: Session, *, own: bool = False) -> dict:
+def _origin_of(session: Session) -> dict[int, str]:
+    """Whose music each publication is, by video id."""
+    rows = session.execute(
+        select(VideoFeature.video_id, VideoFeature.value_text)
+        .where(VideoFeature.feature == "content_origin",
+               VideoFeature.status == "ok")).all()
+    return {vid: text for vid, text in rows if text}
+
+
+def breakthroughs(session: Session, *, own: bool = False,
+                  origin: str | None = None) -> dict:
     """What is different about a creator's outliers.
 
     The analysis above treats view rank as a smooth gradient, and
@@ -392,6 +402,15 @@ def breakthroughs(session: Session, *, own: bool = False) -> dict:
             published_at=posted, views=int(views),
             observed_at=captured, caption=caption))
 
+    # The baseline is always built from the creator's WHOLE run.
+    # Scoring an original composition only against other original
+    # compositions would ask whether it beat the ones around it in
+    # a sparse series, which is a different and much noisier
+    # question. Breaking out means beating what the account normally
+    # does; the filter applies to which outliers are then compared,
+    # not to what they were compared against.
+    origins = _origin_of(session) if origin else {}
+
     is_outlier: dict[int, bool] = {}
     z_by_video: dict[int, float] = {}
     for cid, obs in by_creator.items():
@@ -409,13 +428,19 @@ def breakthroughs(session: Session, *, own: bool = False) -> dict:
             z_by_video[vid] = float(z)
             is_outlier[vid] = float(z) >= OUTLIER_Z
 
+    if origin:
+        is_outlier = {v: flag for v, flag in is_outlier.items()
+                      if origins.get(v) == origin}
+
     n_out = sum(1 for v in is_outlier.values() if v)
     if n_out < MIN_OUTLIERS:
         return {
             "outliers": n_out, "compared": len(is_outlier),
-            "differences": [],
+            "origin": origin, "differences": [],
             "why_empty": (
-                f"Only {n_out} publications cleared their own creator's "
+                f"Only {n_out} "
+                f"{origin.replace('_', ' ') + ' ' if origin else ''}"
+                f"publications cleared their own creator's "
                 f"rolling baseline by {OUTLIER_Z} robust deviations. "
                 f"Below {MIN_OUTLIERS} there is nothing to compare, and "
                 f"a difference computed on a handful of outliers would "
@@ -436,7 +461,8 @@ def breakthroughs(session: Session, *, own: bool = False) -> dict:
             continue
         a = [values[v] for v in hits if v in values]
         b = [values[v] for v in rest if v in values]
-        if len(a) < 8 or len(b) < 30 or len(set(a + b)) < 3:
+        floor_b = 30 if origin is None else 15
+        if len(a) < 8 or len(b) < floor_b or len(set(a + b)) < 3:
             continue
         p = _mann_whitney_p(a, b)
         if p is None:
@@ -446,9 +472,26 @@ def breakthroughs(session: Session, *, own: bool = False) -> dict:
         cands.append((feature, len(a), len(b), ma, mb, p))
 
     qs = benjamini_hochberg([c[5] for c in cands])
-    out = []
+    out, weak = [], []
     for (feature, na, nb, ma, mb, p), q in zip(cands, qs):
         if q is None or q > Q_THRESHOLD:
+            # Did not survive correction. Kept separately and never
+            # called a finding: splitting by category leaves few
+            # outliers per cell, and the strongest uncorrected signal
+            # in a thin cell is exactly what noise looks like. It is
+            # shown because knowing what to watch is useful and
+            # because hiding it would make the next analyst redo it.
+            if p is not None and p <= 0.05 and len(out) == 0:
+                weak.append({
+                    "feature": feature,
+                    "display_name": lex.display_name(feature),
+                    "describes": _describes(feature),
+                    "outliers_mean": round(ma, 4),
+                    "others_mean": round(mb, 4),
+                    "direction": "higher" if ma > mb else "lower",
+                    "n_outliers": na, "n_others": nb,
+                    "p_value": round(p, 5), "q_value": round(q, 5),
+                })
             continue
         out.append({
             "feature": feature,
@@ -469,10 +512,18 @@ def breakthroughs(session: Session, *, own: bool = False) -> dict:
     out.sort(key=lambda d: d["q_value"])
     return {
         "outliers": n_out, "compared": len(is_outlier),
+        "origin": origin,
         "creators": len([c for c, o in by_creator.items()
                          if len(o) >= MIN_PER_CREATOR]),
         "outlier_threshold_z": OUTLIER_Z,
         "differences": out,
+        "weak_signals": sorted(weak, key=lambda d: d["p_value"])[:8],
+        "weak_signals_warning": (
+            "None of these survived correction for testing many "
+            "measurements at once. They are what to watch, not what "
+            "to act on, and in a cell this small the strongest "
+            "uncorrected signal is exactly what noise looks like."
+            if weak else ""),
         "how_to_read": {
             "why_a_threshold": (
                 "Breaking out is not the top of a gradient. A video at "

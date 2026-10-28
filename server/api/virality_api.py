@@ -38,6 +38,15 @@ def compare(session: Session = Depends(get_session)) -> dict:
     # produced the first competitor finding in the project.
     their_breaks = vir.breakthroughs(session, own=False)
     my_breaks = vir.breakthroughs(session, own=True)
+    # Split by whose music it is. The owner plays both and wants
+    # both to travel, and lumping them together averages over two
+    # populations that behave differently - his own compositions
+    # take a median 746 views against repertoire's 3,211, so the
+    # combined findings are mostly a description of the repertoire
+    # half.
+    by_origin = {
+        kind: vir.breakthroughs(session, own=True, origin=kind)
+        for kind in ("repertoire", "own_composition")}
 
     their_feats = {f["feature"] for f in theirs["findings"]}
     my_feats = {f["feature"] for f in mine["findings"]}
@@ -46,6 +55,7 @@ def compare(session: Session = Depends(get_session)) -> dict:
         "theirs": theirs,
         "mine": mine,
         "my_breakthroughs": my_breaks,
+        "my_breakthroughs_by_origin": by_origin,
         "their_breakthroughs": their_breaks,
         # The comparison the owner actually asked for. It is empty
         # today and saying so plainly is the point - a page that

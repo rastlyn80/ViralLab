@@ -41,6 +41,18 @@ logger = logging.getLogger("extract_context")
 
 KIND = "context"
 
+#: Every feature name this extractor owns, so a version bump can
+#: clear what the previous one wrote.
+_OURS = (
+    "composer_period", "composer_is_mainstream", "piece_recognisability",
+    "piece_is_widely_known", "is_first_post", "days_since_previous_post",
+    "publications_before_this", "usual_gap_days", "gap_vs_usual",
+    "composer_repeated_recently", "distinct_composers_recently",
+    "share_recent_same_composer", "form_repeated_recently",
+    "is_improvisation", "is_arrangement", "is_own_composition",
+    "content_origin",
+)
+
 
 def _existing(session, video_ids: list[int]) -> dict[int, dict]:
     """The composer and form already detected, per publication."""
@@ -112,6 +124,17 @@ def main() -> int:
     print(json.dumps(plan, indent=1))
 
     with Session() as s:
+        # Older versions of this extractor wrote the same feature
+        # names under a different method version. Leaving them would
+        # give one publication two values for one measurement, and
+        # the analysis reads features by name.
+        stale = s.query(VideoFeature).filter(
+            VideoFeature.feature.in_(_OURS),
+            VideoFeature.method_version != cx.METHOD_VERSION).delete(
+                synchronize_session=False)
+        s.commit()
+        if stale:
+            logger.info("removed %d rows from an earlier version", stale)
         run = VideoFeatureRun(method_version=cx.METHOD_VERSION, kind=KIND,
                               status="running")
         s.add(run)
@@ -133,6 +156,7 @@ def main() -> int:
 
                 feats: dict[str, object] = {}
                 feats |= cx.repertoire(p.caption, composer)
+                feats |= cx.origin(p.caption, composer)
                 feats |= cx.cadence(p.posted_at, list(seen_dates))
                 feats |= cx.novelty(
                     composer=composer, form_named=form,
@@ -159,6 +183,12 @@ def main() -> int:
             .where(VideoFeature.method_version == cx.METHOD_VERSION)
             .group_by(VideoFeature.feature)
             .order_by(func.count(VideoFeature.id).desc())).all()
+        origins = s.execute(
+            select(VideoFeature.value_text, func.count(VideoFeature.id))
+            .where(VideoFeature.method_version == cx.METHOD_VERSION,
+                   VideoFeature.feature == "content_origin")
+            .group_by(VideoFeature.value_text)
+            .order_by(func.count(VideoFeature.id).desc())).all()
         tiers = s.execute(
             select(VideoFeature.value_num, func.count(VideoFeature.id))
             .where(VideoFeature.method_version == cx.METHOD_VERSION,
@@ -169,6 +199,7 @@ def main() -> int:
         **plan, "described": written,
         "per_feature": {f: n for f, n in per},
         "recognisability": {f"tier_{int(t)}": n for t, n in tiers},
+        "content_origin": {k: n for k, n in origins},
     }, indent=1))
     return 0
 

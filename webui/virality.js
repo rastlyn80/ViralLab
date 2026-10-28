@@ -55,6 +55,7 @@ export const virality = {
     d.my_breakthroughs)}
       ${breakout("What THEIR breakthroughs had in common",
     d.their_breakthroughs)}
+      ${byOrigin(d)}
       ${trends(d)}
 
       ${card('How this is measured', `
@@ -83,6 +84,44 @@ function agreement(d) {
  * what separates average from slightly-above-average. Asking it this
  * way produced the first competitor finding the project has had.
  */
+/**
+ * Your own music against other people's, asked separately.
+ *
+ * They are different problems. A Chopin nocturne arrives with its
+ * own audience; an original composition has to earn attention from
+ * the first bar with nothing borrowed. Averaging them produces a
+ * description of whichever half is larger.
+ */
+function byOrigin(d) {
+  const by = d.my_breakthroughs_by_origin;
+  if (!by) return '';
+  const LABEL = { repertoire: 'Other people’s music',
+    own_composition: 'Your own compositions' };
+  return `<section class="card">
+    <h2>Split by whose music it is</h2>
+    <p class="sub">These behave differently and are asked separately.
+      Averaging them describes whichever half is larger.</p>
+    ${Object.entries(by).map(([kind, b]) => `
+      <div class="gl-entry">
+        <h3>${esc(LABEL[kind] || kind)}</h3>
+        <p class="muted">${b.outliers} of ${b.compared} broke past
+          your usual run.</p>
+        ${b.differences && b.differences.length
+    ? `<ul class="plain">${b.differences.map((x) => `<li>
+            <b>${esc(x.display_name)}</b> &mdash; ${esc(x.direction)}
+          </li>`).join('')}</ul>`
+    : (b.weak_signals && b.weak_signals.length
+      ? `${note(`<b>Nothing confirmed.</b>
+          ${esc(b.weak_signals_warning)}`, 'warn')}
+         <ul class="plain">${b.weak_signals.map((w) => `<li>
+            ${esc(w.display_name)} &mdash; ${esc(w.direction)}
+            <span class="technical muted">p = ${w.p_value}</span>
+          </li>`).join('')}</ul>`
+      : `<p class="muted">${esc(b.why_empty || '')}</p>`)}
+      </div>`).join('')}
+  </section>`;
+}
+
 function breakout(title, b) {
   if (!b) return '';
   if (!b.differences || !b.differences.length) {

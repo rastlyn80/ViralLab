@@ -52,7 +52,7 @@ from datetime import datetime
 
 logger = logging.getLogger("virallab.features.context")
 
-METHOD_VERSION = "context-v1"
+METHOD_VERSION = "context-v2"
 
 #: Composer to period. Coarse on purpose: the question is whether a
 #: scroller hears "old formal music" or "film-score piano", not
@@ -125,6 +125,68 @@ TIER_2: tuple[tuple[str, ...], ...] = (
     ("un sospiro",),
     ("chopin heroic", "heroic polonaise", "polonaise op. 53"),
 )
+
+
+#: Phrases a performer uses when the music is theirs. First person
+#: matters: "Chopin composed this" is not a claim of authorship and
+#: a bare "composition" appears in plenty of repertoire captions.
+OWN_WORK = (
+    "my composition", "my own composition", "my piece", "my own piece",
+    "my original", "original composition", "i composed", "i wrote",
+    "composed by me", "written by me", "my music", "my new piece",
+    "original music", "original piano", "#originalmusic",
+    "#originalcomposition", "#mycomposition", "#originalsong",
+)
+IMPROVISED = (
+    "improvis", "improv ", "#improv", "made this up", "on the spot",
+)
+ARRANGED = (
+    "my arrangement", "arranged by me", "i arranged", "my version of",
+    "my take on", "my cover", "#arrangement",
+)
+
+
+def origin(caption: str | None, composer: str | None) -> dict:
+    """Whose music this is: repertoire, the performer's own, or neither.
+
+    The owner raised this and it is not a bookkeeping distinction.
+    A Chopin nocturne arrives with its own audience - the piece does
+    some of the work. An original composition does none of that, and
+    has to earn attention from the first bar with nothing borrowed.
+    So the two are different problems and what makes one break out
+    is not necessarily what makes the other.
+
+    Both matter to this owner, who plays both and wants both to
+    travel. Lumping them together means every finding is an average
+    over two populations that behave differently, which is how a
+    real effect in one of them gets cancelled by its absence in the
+    other.
+    """
+    out: dict[str, object] = {}
+    if not caption:
+        return out
+    low = caption.lower()
+    own = any(w in low for w in OWN_WORK)
+    improvised = any(w in low for w in IMPROVISED)
+    arranged = any(w in low for w in ARRANGED)
+
+    out["is_improvisation"] = improvised
+    out["is_arrangement"] = arranged and not own
+    out["is_own_composition"] = own or improvised
+
+    if own or improvised:
+        kind = "own_composition"
+    elif arranged:
+        kind = "arrangement"
+    elif composer:
+        kind = "repertoire"
+    else:
+        # No composer named and no claim of authorship. Most often a
+        # performance whose caption simply does not say, and calling
+        # it either would be inventing the answer.
+        kind = "unstated"
+    out["content_origin"] = kind
+    return out
 
 
 def _tier(caption: str) -> int | None:
@@ -227,8 +289,9 @@ RECENT_WINDOW = 10
 BOOLEANS = frozenset({
     "composer_is_mainstream", "piece_is_widely_known", "is_first_post",
     "composer_repeated_recently", "form_repeated_recently",
+    "is_improvisation", "is_arrangement", "is_own_composition",
 })
-TEXTS = frozenset({"composer_period"})
+TEXTS = frozenset({"composer_period", "content_origin"})
 
 
 def describes(feature: str) -> str:
@@ -260,4 +323,13 @@ def describes(feature: str) -> str:
             "composer."),
         "form_repeated_recently": (
             "Whether they had recently posted the same kind of piece."),
+        "is_own_composition": (
+            "Whether the performer says the music is theirs."),
+        "is_improvisation": "Whether it is described as improvised.",
+        "is_arrangement": (
+            "Whether it is the performer's arrangement of someone "
+            "else's piece."),
+        "content_origin": (
+            "Whose music it is: repertoire, the performer's own, an "
+            "arrangement, or not stated."),
     }.get(feature, feature)
