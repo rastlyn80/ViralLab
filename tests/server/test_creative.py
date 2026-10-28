@@ -195,3 +195,31 @@ def test_a_thin_brief_refuses_rather_than_generating():
     assert cr.Brief(findings=[{"what": "x"}]).is_thin() is False
     assert cr.Brief(best_hooks=[{}, {}, {}]).is_thin() is False
     assert cr.Brief(best_hooks=[{}, {}]).is_thin()
+
+
+# ---------------------------------------------------------------------------
+# reporting a measurement without turning it into a rule
+# ---------------------------------------------------------------------------
+
+def test_performs_better_is_a_rule_not_a_report():
+    """Seen in a live suggestion, and it reads as a finding.
+
+    The brief says fewer emoji WENT WITH doing better - a statement
+    about videos that already exist. "Fewer emoji performs better"
+    is a claim about what will happen next.
+    """
+    for claim in ("Fewer emoji performs better.",
+                  "Shorter hooks work better here.",
+                  "Naming the composer does better."):
+        kinds = {v["kind"] for v in cr.review(json.dumps(
+            {"items": [{"text": "x", "grounded_in": claim}]}))}
+        assert "causal_language" in kinds, claim
+
+
+def test_the_briefs_own_wording_still_passes():
+    """The gate must not reject the honest phrasing it asks for."""
+    fine = json.dumps({"items": [{
+        "text": "Beethoven. What happens in the second movement.",
+        "grounded_in": ("Naming the composer went with doing better "
+                        "on both your account and other creators'.")}]})
+    assert cr.review(fine) == []

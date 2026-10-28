@@ -59,6 +59,20 @@ export const creative = {
             </li>`).join('') || '<li class="muted">None yet.</li>'}</ul>
           </div>
         </div>
+        ${(b.agreed_by_both || []).length ? `<p><b>Held on both your
+          account and other creators':</b>
+          ${esc(b.agreed_by_both.join(', '))}. This is the strongest
+          thing the evidence can say.</p>` : ''}
+        ${(b.other_creators || []).length ? `
+          <h3>What other creators' breakthroughs did
+            (${b.other_creators.length})</h3>
+          <ul class="plain">${b.other_creators.map((f) => `<li>
+            <b>${esc(f.what)}</b> &mdash; ${esc(f.direction)}
+            <span class="muted technical">${esc(f.measured_on || '')}</span>
+          </li>`).join('')}</ul>
+          <p class="muted">Measured on other pianists, whose audience
+            is not yours. Worth trying, not established for you.</p>`
+    : ''}
         <p class="muted">Repertoire it can draw on:
           ${b.repertoire.map((r) => `${esc(r.composer)}`).join(', ')}.</p>
         <details><summary>What it will not do</summary>

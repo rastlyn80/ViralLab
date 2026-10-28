@@ -79,13 +79,22 @@ class Brief:
     """Everything the generator is allowed to know."""
 
     findings: list[dict] = field(default_factory=list)
+    #: The same thing measured on other creators. Separate from
+    #: `findings` because they are not equally relevant to him and
+    #: the generator has to be able to tell them apart.
+    theirs: list[dict] = field(default_factory=list)
+    #: Measurements that came out the same way on both sides.
+    agreed: list[str] = field(default_factory=list)
     best_hooks: list[dict] = field(default_factory=list)
     repertoire: list[dict] = field(default_factory=list)
     recent: list[str] = field(default_factory=list)
     counts: dict = field(default_factory=dict)
 
     def as_dict(self) -> dict:
-        return {"findings": self.findings, "best_hooks": self.best_hooks,
+        return {"findings": self.findings,
+                "other_creators": self.theirs,
+                "agreed_by_both": self.agreed,
+                "best_hooks": self.best_hooks,
                 "repertoire": self.repertoire, "recent": self.recent,
                 "counts": self.counts}
 
@@ -96,8 +105,15 @@ class Brief:
         brief with no findings and no examples would produce exactly
         the generic output this module exists to avoid, and would do
         it while looking grounded.
+
+        Other creators' findings count towards having something to
+        say. They are weaker evidence for him than his own, and
+        they are still measurement rather than the model's general
+        sense of what does well on social media, which is the thing
+        this gate is actually guarding against.
         """
-        return not self.findings and len(self.best_hooks) < 3
+        return (not self.findings and not self.theirs
+                and len(self.best_hooks) < 3)
 
 
 def build_brief(session: Session) -> Brief:
@@ -115,10 +131,33 @@ def build_brief(session: Session) -> Brief:
             "outliers": d["outliers_mean"], "others": d["others_mean"],
         })
     gradient = vir.build(session, own=True)
+    their_breaks = vir.breakthroughs(session, own=False)
+    their_gradient = vir.build(session, own=False)
+
+    # Agreement is worked out on the FULL sets, before anything is
+    # truncated for the brief. Computing it afterwards silently
+    # dropped the one measurement that held on both sides, because
+    # it sat ninth in his list and the brief takes eight - a display
+    # limit deciding what counts as evidence.
+    their_names = ({d["display_name"]
+                    for d in their_breaks.get("differences", [])}
+                   | {d["display_name"]
+                      for d in their_gradient.get("findings", [])})
+    mine_names = ({d["display_name"]
+                   for d in breaks.get("differences", [])}
+                  | {d["display_name"]
+                     for d in gradient.get("findings", [])})
+    brief.agreed = sorted(mine_names & their_names)
+
     seen = {f["what"] for f in brief.findings}
-    for d in gradient.get("findings", [])[:8]:
+    # Anything both sides agree on goes in whatever its rank, then
+    # the strongest of the rest.
+    ordered = sorted(gradient.get("findings", []),
+                     key=lambda d: d["display_name"] not in brief.agreed)
+    for d in ordered[:8]:
         if d["display_name"] in seen:
             continue
+        seen.add(d["display_name"])
         brief.findings.append({
             "what": d["display_name"],
             "direction": ("more went with doing better"
@@ -126,6 +165,44 @@ def build_brief(session: Session) -> Brief:
                           else "less went with doing better"),
             "among": "all your publications, ranked against your own average",
             "outliers": None, "others": None,
+            "also_true_of_other_creators":
+                d["display_name"] in brief.agreed,
+        })
+
+    # Other creators' findings, which his own history cannot
+    # contain. The brief was his account only, so the generator
+    # could suggest refinements of what he already does and nothing
+    # beyond it - and researching other creators is the first thing
+    # he asked this product to do.
+    #
+    # Kept in a separate list rather than merged, because the two
+    # are not equally relevant to him: a difference measured on
+    # ninety other pianists may be about their audiences rather than
+    # about piano videos, and the generator is told which is which.
+    for d in their_breaks.get("differences", []):
+        brief.theirs.append({
+            "what": d["display_name"],
+            "direction": d["direction"],
+            "among": ("other creators' publications that broke past "
+                      "their own usual run"),
+            "outliers": d["outliers_mean"], "others": d["others_mean"],
+            "measured_on": f"{d['n_outliers']} of theirs vs {d['n_others']}",
+        })
+    their_seen = {f["what"] for f in brief.theirs}
+    for d in their_gradient.get("findings", [])[:6]:
+        if d["display_name"] in their_seen:
+            continue
+        brief.theirs.append({
+            "what": d["display_name"],
+            "direction": ("more went with doing better"
+                          if d["direction"] == "positive"
+                          else "less went with doing better"),
+            "among": ("all other creators' publications, each ranked "
+                      "against its own creator's average"),
+            "outliers": None, "others": None,
+            "measured_on": f"{d['n']} publications",
+            "also_true_of_your_account":
+                d["display_name"] in brief.agreed,
         })
 
     own = (select(Video.id).join(Creator, Creator.id == Video.creator_id)
@@ -178,6 +255,8 @@ def build_brief(session: Session) -> Brief:
 
     brief.counts = {
         "findings": len(brief.findings),
+        "other_creators": len(brief.theirs),
+        "agreed_by_both": len(brief.agreed),
         "examples": len(brief.best_hooks),
         "composers": len(brief.repertoire),
     }
@@ -212,10 +291,26 @@ def _tidy(text: str) -> str:
 SYSTEM = """You write for a professional concert pianist, for short
 vertical video.
 
-You are given a BRIEF assembled from this account's own measured
-data: what his publications that broke out had in common, the
-on-screen text from his best-performing videos, the repertoire he
-plays, and what he posted recently. Work from the brief.
+You are given a BRIEF assembled from measured data: what his
+publications that broke out had in common, the on-screen text from
+his best-performing videos, the repertoire he plays, and what he
+posted recently. Work from the brief.
+
+The brief has three kinds of evidence and they are not equal.
+
+* `findings` are measured on HIS account. Most relevant, and
+  limited: they can only describe what he has already done.
+* `other_creators` are measured on other pianists. These can point
+  at something his own history never could, and they are measured
+  on people whose audience is not his, so treat them as worth
+  trying rather than as established for him.
+* `agreed_by_both` held on both sides. That is the strongest thing
+  this evidence can say, and a suggestion resting on one of these
+  is better grounded than one resting on either side alone.
+
+Say which kind a suggestion draws on. "Your breakthroughs tended
+to name the composer" and "other pianists' breakthroughs tended
+to" are different sentences and must not be swapped.
 
 Rules you must not break.
 

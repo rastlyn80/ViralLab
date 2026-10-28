@@ -98,6 +98,13 @@ CAUSAL_PATTERNS = (
     r"\b(?:boosts?|boosting|increases?|increasing) (?:your |the )?"
     r"(?:views?|reach|engagement|performance|watch[- ]time)\b",
     r"\bthe key to (?:getting|more|better|a)\b",
+    # "Fewer emoji performs better" - seen in a live suggestion. It
+    # reads as a report of the measurement and is not one: the brief
+    # says fewer emoji WENT WITH doing better on both accounts,
+    # which is a statement about videos that exist. This phrasing
+    # turns it into a rule. Deliberately narrow so the brief's own
+    # wording - "went with doing better" - keeps passing.
+    r"\b(?:performs?|perform|works?|does|do) better\b",
 )
 
 #: Promises about reach. Also deliberately broad.
