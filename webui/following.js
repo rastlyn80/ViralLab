@@ -134,6 +134,9 @@ function finding(f) {
       the line <b>${fmt(f.threshold)}</b>
       (breakthroughs ${fmt(f.breakout_level)},
       everything else ${fmt(f.usual_level)}).</p>
+    ${f.source_breakouts ? `<p class="muted technical">The line is
+      drawn from ${f.source_breakouts} breakthroughs against
+      ${f.source_others} other publications.</p>` : ''}
   </div>`;
 }
 

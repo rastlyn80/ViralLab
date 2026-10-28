@@ -223,6 +223,14 @@ def check(session: Session, *, recent: int = RECENT,
             # "7 of 9 below it", which reads as a bug whether or not
             # it is one. The median cannot disagree with the count.
             "your_recent_typical": _median(mine),
+            # How much evidence the LINE rests on, as distinct from
+            # how much his own side rests on. It matters most on the
+            # competitor tab: only part of their corpus has vision
+            # analysis, so a visual difference there can be drawn
+            # from far fewer publications than the creator count
+            # above it suggests.
+            "source_breakouts": d.get("n_outliers"),
+            "source_others": d.get("n_others"),
             "followed": followed, "measured": measured,
             "unmeasured": len(pubs) - measured,
             "share": round(followed / measured, 3) if measured else None,

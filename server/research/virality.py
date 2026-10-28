@@ -240,7 +240,22 @@ def build(session: Session, *, own: bool = False) -> dict:
         if len(paired) < MIN_TOTAL:
             continue
         xs = [p[0] for p in paired]
-        if len(set(xs)) < 3:
+        if is_boolean(xs):
+            # A yes/no answer has exactly two values, so the
+            # "nearly constant" rule below must not see one.
+            # Excluding booleans by value count threw away every
+            # boolean measurement in the project - see the note on
+            # `why_not_testable`. A Spearman correlation against a
+            # 0/1 variable is a rank-biserial correlation, which is
+            # a real and well-defined thing to compute.
+            #
+            # The same floor the threshold analysis uses: a boolean
+            # true a handful of times cannot support a correlation
+            # however small its p. A constant one falls out too.
+            trues = sum(xs)
+            if min(trues, len(xs) - trues) < MIN_BOOLEAN_CASES:
+                continue
+        elif len(set(xs)) < 3:
             # A feature that is nearly constant has no information in
             # it, and a correlation on three distinct values is a
             # coin dressed as a measurement.
@@ -345,6 +360,62 @@ def _describes(feature: str) -> str:
 OUTLIER_Z = 2.0
 
 #: Below this many outliers there is nothing to compare them against.
+def is_boolean(values) -> bool:
+    """Whether a measurement is a yes/no answer stored as 0 and 1."""
+    return set(values) <= {0.0, 1.0}
+
+
+def why_not_testable(a: list[float], b: list[float],
+                     floor_b: int = 30) -> str:
+    """Why this measurement cannot be compared, or "" if it can.
+
+    Pulled out of the loop and given a reason string after it
+    silently discarded **43 of 103 measurements** for the whole life
+    of the analysis. The test was:
+
+        if len(a) < 8 or len(b) < floor_b or len(set(a + b)) < 3:
+
+    and a boolean has exactly two distinct values. Every yes/no
+    measurement in the project failed it: eleven hook devices, every
+    caption shape, whether the music is his own, twenty vision
+    questions. The boolean-specific rule underneath was unreachable
+    code the entire time, which is why it never caught anything
+    either, and why nobody noticed.
+
+    The lesson is in the shape of the thing rather than the
+    arithmetic: a silent `continue` inside a loop over a hundred
+    measurements cannot be audited by reading the output, because a
+    measurement that is never tested looks exactly like one that was
+    tested and found nothing. Hence a reason, hence a function with
+    a name, hence tests.
+    """
+    if len(a) < 8:
+        return f"only {len(a)} breakthroughs measured, need 8"
+    if len(b) < floor_b:
+        return f"only {len(b)} others measured, need {floor_b}"
+    both = a + b
+    if is_boolean(both):
+        # A boolean true a handful of times cannot support a
+        # comparison, however small its p. Measured: hook_is_what_if
+        # and hook_names_celebrity are each true on
+        # 3 publications EACH out of 442, and both came out at
+        # p = 0.011 against breaking out - which reads as a finding
+        # and is two videos. A rank test does not know that two is
+        # not a sample; this does. A constant boolean falls out here
+        # too, because `min` is then zero.
+        trues = sum(both)
+        falses = len(both) - trues
+        if min(trues, falses) < MIN_BOOLEAN_CASES:
+            return (f"only {int(min(trues, falses))} publications on the "
+                    f"smaller side, need {MIN_BOOLEAN_CASES}")
+        if sum(a) < 3:
+            return f"true on only {int(sum(a))} breakthroughs, need 3"
+        return ""
+    if len(set(both)) < 3:
+        return f"only {len(set(both))} distinct values"
+    return ""
+
+
 MIN_OUTLIERS = 12
 
 #: A yes/no measurement needs this many of each answer across the
@@ -466,21 +537,8 @@ def breakthroughs(session: Session, *, own: bool = False,
         a = [values[v] for v in hits if v in values]
         b = [values[v] for v in rest if v in values]
         floor_b = 30 if origin is None else 15
-        if len(a) < 8 or len(b) < floor_b or len(set(a + b)) < 3:
+        if why_not_testable(a, b, floor_b):
             continue
-        # A boolean that is true a handful of times in the whole
-        # corpus cannot support a comparison, however small its p.
-        #
-        # Measured: `hook_is_what_if` and `hook_names_celebrity` are
-        # true on 3 publications EACH out of 442. Both came out at
-        # p = 0.011 against breaking out, which reads as a finding
-        # and is two videos. A rank test does not know that two is
-        # not a sample; this does.
-        if set(a + b) <= {0.0, 1.0}:
-            trues = sum(a) + sum(b)
-            falses = len(a) + len(b) - trues
-            if min(trues, falses) < MIN_BOOLEAN_CASES or sum(a) < 3:
-                continue
         p = _mann_whitney_p(a, b)
         if p is None:
             continue

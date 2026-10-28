@@ -38,18 +38,40 @@ def test_time_proxies_are_excluded_from_breakthrough_differences():
 def test_a_rare_boolean_cannot_produce_a_difference():
     """The floor is on the rarer answer, not on the row count: a
     feature measured on 442 publications and true on 3 of them has
-    442 rows and 3 cases."""
+    442 rows and 3 cases.
+
+    Checked by running the rule rather than by reading the source.
+    The previous version of this test asserted that the string
+    "min(trues, falses)" appeared in `breakthroughs`, and it passed
+    for months while that line was **unreachable** - a guard above
+    it dropped every boolean before it could be applied. A test that
+    reads source proves the code is present; only running it proves
+    the code runs.
+    """
     assert vir.MIN_BOOLEAN_CASES >= 10
-    src = inspect.getsource(vir.breakthroughs)
-    assert "min(trues, falses)" in src
-    assert "MIN_BOOLEAN_CASES" in src
+    rare_a = [1.0] * 2 + [0.0] * 30
+    rare_b = [1.0] * 1 + [0.0] * 200
+    assert vir.why_not_testable(rare_a, rare_b) != ""
 
 
 def test_the_outlier_side_needs_cases_too():
-    """A feature true on 40 publications overall but on none of the
-    outliers still has nothing to say about outliers."""
-    src = inspect.getsource(vir.breakthroughs)
-    assert "sum(a) < 3" in src
+    """A feature true on 40 publications overall but on almost none
+    of the outliers still has nothing to say about outliers."""
+    a = [1.0] * 2 + [0.0] * 40
+    b = [1.0] * 40 + [0.0] * 40
+    assert "breakthroughs" in vir.why_not_testable(a, b)
+
+
+def test_a_healthy_boolean_is_not_caught_by_the_rare_one_guard():
+    """The other half, which nothing checked and which was broken.
+
+    Guarding against a rare boolean must not become guarding
+    against every boolean. It did, and the cost was 43 of 103
+    measurements never being tested at all.
+    """
+    a = [1.0] * 10 + [0.0] * 10
+    b = [1.0] * 30 + [0.0] * 30
+    assert vir.why_not_testable(a, b) == ""
 
 
 def test_the_guards_are_documented_where_they_bite():
