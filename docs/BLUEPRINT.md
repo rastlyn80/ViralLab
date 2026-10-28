@@ -1412,6 +1412,51 @@ attributes their effect to whatever it did measure.
 
 ---
 
+### 8.10a Breakthroughs are a threshold, not the top of a gradient
+
+Added 2026-10-28 after the owner pointed out that the breakthrough
+is always one of the most important things to consider. He was
+right, and the correction is methodological rather than cosmetic.
+
+A correlation against view rank treats performance as a smooth
+gradient: it asks what nudges the 50th percentile to the 60th. But
+breaking out is not the top of that gradient. A video at ten times
+its creator's median is a *different kind of event* from one at 1.2
+times, and what separates those two need not be what separates
+average from slightly-above-average.
+
+So every measurement is also asked the threshold question: take
+publications that beat their own creator's **rolling local
+baseline** by a wide margin, and compare them with everything that
+did not.
+
+The rolling baseline is why this rests on firmer ground than the
+percentile version. `baseline.rolling_baseline` scores each
+publication against the window that *preceded* it - trailing, not
+centred - so age is handled by construction. An old post is compared
+with its contemporaries rather than with the creator's whole career,
+instead of having a log partialled out of it and hoping.
+
+**It worked immediately, and on the side that had nothing.** The
+gradient analysis found zero competitor findings across 48
+measurements. The threshold question found one: breakthrough videos
+carry **larger on-screen text** than their creator's other
+publications, 0.065 against 0.048 of frame height, across 34
+outliers of 351 scored. That is the first thing this project has
+established about other people's videos.
+
+On the owner's own account, 97 outliers of 560, four differences
+survive - more visual detail, more background detail, more
+complexity where captions sit, and *less* colour intensity - and all
+four also appear in the gradient analysis, which is a consistency
+check passing rather than a second finding.
+
+**Two cautions that belong next to it.** A breakthrough is also the
+outcome most likely to be luck, because §8.10's cascade dynamics
+compound hardest at the top. And these are what outliers had in
+common, not what made them outliers - the difference between those
+two sentences is the whole of §8.9.
+
 ### 8.11 The matched-pair design
 
 The instrument the owner's question actually implies.

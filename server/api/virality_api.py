@@ -33,6 +33,11 @@ def compare(session: Session = Depends(get_session)) -> dict:
     """Findings on both sides, and what each side is missing."""
     theirs = vir.build(session, own=False)
     mine = vir.build(session, own=True)
+    # The threshold question, which is a different one. Breaking out
+    # is not the top of a gradient, and asking it separately is what
+    # produced the first competitor finding in the project.
+    their_breaks = vir.breakthroughs(session, own=False)
+    my_breaks = vir.breakthroughs(session, own=True)
 
     their_feats = {f["feature"] for f in theirs["findings"]}
     my_feats = {f["feature"] for f in mine["findings"]}
@@ -40,6 +45,8 @@ def compare(session: Session = Depends(get_session)) -> dict:
     return {
         "theirs": theirs,
         "mine": mine,
+        "my_breakthroughs": my_breaks,
+        "their_breakthroughs": their_breaks,
         # The comparison the owner actually asked for. It is empty
         # today and saying so plainly is the point - a page that
         # listed "agreements" from a side with no findings would be

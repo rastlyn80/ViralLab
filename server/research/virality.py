@@ -74,6 +74,25 @@ MIN_TOTAL = 60
 #: Benjamini-Hochberg threshold, matching `features/catalogue.py`.
 Q_THRESHOLD = 0.05
 
+#: Measurements that are a count of elapsed time wearing a content
+#: name. `publications_before_this` is literally an index of how far
+#: into the account's life a video sits, and age is the one thing
+#: this analysis is trying to hold constant - so when it surfaces as
+#: a "finding" it is residual age confounding, not a property of the
+#: video.
+#:
+#: The tell was that it came out POSITIVE on the owner's account and
+#: NEGATIVE on competitors'. A content property would not reverse;
+#: an imperfectly-controlled time trend does, depending on whether
+#: the account was growing over the window.
+#:
+#: They are still computed and still reported - "your later videos
+#: do better" is worth knowing - but as an account trend, under a
+#: separate heading, never mixed in with what the videos are.
+TIME_PROXIES = frozenset({
+    "publications_before_this", "is_first_post",
+})
+
 
 @dataclass
 class Finding:
@@ -264,11 +283,22 @@ def build(session: Session, *, own: bool = False) -> dict:
             ])
         findings.append(f)
 
+    trends = [f for f in findings if f.feature in TIME_PROXIES]
+    findings = [f for f in findings if f.feature not in TIME_PROXIES]
     findings.sort(key=lambda f: -abs(f.partial_rho or 0))
+    trends.sort(key=lambda f: -abs(f.partial_rho or 0))
     return {
         "n": len(pop), "creators": n_creators,
         "measurements_tested": len(candidates),
         "findings": [f.as_dict() for f in findings],
+        "account_trends": [f.as_dict() for f in trends],
+        "trends_note": (
+            "These are counts of elapsed time, not properties of a "
+            "video. They are reported because an account that is "
+            "growing or fading is worth knowing about, and kept apart "
+            "because nothing about them can be acted on when making "
+            "the next video."
+            if trends else ""),
         "how_to_read": {
             "within_creator": (
                 "Every video is scored against its own creator's other "
@@ -287,6 +317,12 @@ def build(session: Session, *, own: bool = False) -> dict:
                 "These say what tended to go together in videos that "
                 "already exist. Only the experiment loop can say "
                 "anything caused anything."),
+            "time_is_not_content": (
+                "Measurements that are really a count of elapsed time "
+                "are listed separately. One of them came out positive "
+                "on this account and negative on other creators', "
+                "which is what an imperfectly-controlled time trend "
+                "does and what a content property does not."),
         },
     }
 
@@ -295,3 +331,166 @@ def _describes(feature: str) -> str:
     from server.features import publication_meta as pm
     d = pm.describes(feature)
     return d if d != feature else lex.display_name(feature)
+
+
+# ---------------------------------------------------------------------------
+# breakthroughs, which are a different question from "did well"
+# ---------------------------------------------------------------------------
+
+#: A publication whose robust z against its own rolling baseline
+#: clears this is an outlier for that creator. `breakthrough.py`
+#: uses 3.5 for declaring a career change-point; this is lower,
+#: because here the job is to collect enough outliers to compare
+#: rather than to assert that a creator's level permanently moved.
+OUTLIER_Z = 2.0
+
+#: Below this many outliers there is nothing to compare them against.
+MIN_OUTLIERS = 12
+
+
+def breakthroughs(session: Session, *, own: bool = False) -> dict:
+    """What is different about a creator's outliers.
+
+    The analysis above treats view rank as a smooth gradient, and
+    virality is not one. A video at the 60th percentile of its
+    creator's distribution is an ordinary video; one at ten times
+    their median is a different kind of event, and what separates
+    the two is not necessarily what separates 50th from 60th.
+
+    So this asks the threshold question: take every publication that
+    beat its creator's own **rolling local baseline** by a wide
+    margin, and compare it with everything that did not.
+
+    The rolling baseline is why this is better founded than the
+    percentile version. `baseline.rolling_baseline` scores each
+    publication against the window that *preceded* it, trailing
+    rather than centred, so age is handled by construction instead
+    of by partialling out a log - an older post is compared with its
+    contemporaries, not with the creator's whole career.
+    """
+    from server.research.baseline import Observation, rolling_baseline
+
+    rows = session.execute(
+        select(Video.id, Video.creator_id, Video.external_id,
+               Video.posted_at, Video.caption,
+               MetricsSnapshot.views, MetricsSnapshot.captured_at)
+        .join(Creator, Creator.id == Video.creator_id)
+        .join(MetricsSnapshot, MetricsSnapshot.video_id == Video.id)
+        .where(Creator.is_own_account.is_(own),
+               MetricsSnapshot.views.is_not(None),
+               Video.posted_at.is_not(None))
+        .order_by(Video.id, MetricsSnapshot.captured_at.desc())).all()
+
+    seen: set[int] = set()
+    by_creator: dict[int, list[Observation]] = {}
+    for vid, cid, ext, posted, caption, views, captured in rows:
+        if vid in seen:
+            continue
+        seen.add(vid)
+        by_creator.setdefault(cid, []).append(Observation(
+            video_id=vid, external_id=ext or str(vid),
+            published_at=posted, views=int(views),
+            observed_at=captured, caption=caption))
+
+    is_outlier: dict[int, bool] = {}
+    z_by_video: dict[int, float] = {}
+    for cid, obs in by_creator.items():
+        if len(obs) < MIN_PER_CREATOR:
+            continue
+        obs.sort(key=lambda o: o.published_at)
+        for point in rolling_baseline(obs):
+            # The id lives on the observation, not the point: a
+            # BaselinePoint is a scoring OF an observation and keeps
+            # it rather than copying its fields.
+            vid = point.observation.video_id
+            z = point.robust_z
+            if vid is None or z is None:
+                continue          # too few prior posts to score against
+            z_by_video[vid] = float(z)
+            is_outlier[vid] = float(z) >= OUTLIER_Z
+
+    n_out = sum(1 for v in is_outlier.values() if v)
+    if n_out < MIN_OUTLIERS:
+        return {
+            "outliers": n_out, "compared": len(is_outlier),
+            "differences": [],
+            "why_empty": (
+                f"Only {n_out} publications cleared their own creator's "
+                f"rolling baseline by {OUTLIER_Z} robust deviations. "
+                f"Below {MIN_OUTLIERS} there is nothing to compare, and "
+                f"a difference computed on a handful of outliers would "
+                f"be a description of those few videos rather than of "
+                f"breakthroughs."),
+        }
+
+    ids = sorted(is_outlier)
+    feats = _feature_values(session, ids)
+    hits = [v for v in ids if is_outlier[v]]
+    rest = [v for v in ids if not is_outlier[v]]
+
+    from server.research.cohort import _mann_whitney_p
+
+    cands = []
+    for feature, values in sorted(feats.items()):
+        if feature in TIME_PROXIES:
+            continue
+        a = [values[v] for v in hits if v in values]
+        b = [values[v] for v in rest if v in values]
+        if len(a) < 8 or len(b) < 30 or len(set(a + b)) < 3:
+            continue
+        p = _mann_whitney_p(a, b)
+        if p is None:
+            continue
+        ma = sum(a) / len(a)
+        mb = sum(b) / len(b)
+        cands.append((feature, len(a), len(b), ma, mb, p))
+
+    qs = benjamini_hochberg([c[5] for c in cands])
+    out = []
+    for (feature, na, nb, ma, mb, p), q in zip(cands, qs):
+        if q is None or q > Q_THRESHOLD:
+            continue
+        out.append({
+            "feature": feature,
+            "display_name": lex.display_name(feature),
+            "describes": _describes(feature),
+            "outliers_mean": round(ma, 4),
+            "others_mean": round(mb, 4),
+            "direction": "higher" if ma > mb else "lower",
+            "n_outliers": na, "n_others": nb,
+            "p_value": round(p, 5), "q_value": round(q, 5),
+            "grade": "Observed",
+            "plain": (
+                f"Publications that broke out had "
+                f"{'more' if ma > mb else 'less'} "
+                f"{lex.display_name(feature).lower()} than the ones "
+                f"that did not - {ma:.3g} against {mb:.3g}."),
+        })
+    out.sort(key=lambda d: d["q_value"])
+    return {
+        "outliers": n_out, "compared": len(is_outlier),
+        "creators": len([c for c, o in by_creator.items()
+                         if len(o) >= MIN_PER_CREATOR]),
+        "outlier_threshold_z": OUTLIER_Z,
+        "differences": out,
+        "how_to_read": {
+            "why_a_threshold": (
+                "Breaking out is not the top of a gradient. A video at "
+                "ten times its creator's median is a different kind of "
+                "event from one at 1.2 times, and what separates those "
+                "two is not necessarily what separates an average video "
+                "from a slightly-above-average one."),
+            "why_this_handles_age": (
+                "Each publication is scored against the window that "
+                "preceded it, so an old post is compared with its "
+                "contemporaries rather than with the creator's whole "
+                "career. Age is handled by construction here, not by "
+                "partialling out a log."),
+            "still_not_causal": (
+                "A breakthrough is also the thing most likely to have "
+                "been luck: short-form distribution is path-dependent "
+                "and a better first hour compounds. These differences "
+                "are what outliers had in common, not what made them "
+                "outliers."),
+        },
+    }
