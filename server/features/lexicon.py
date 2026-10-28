@@ -676,6 +676,371 @@ PLAIN: dict[str, Plain] = {
         measures="Which composer, on the same terms as the piece.",
         limitations="Not available, as for the piece.",
     ),
+
+    # -- timing, caption and repertoire, measured ---------------------
+    # Added when the deeper competitor corpus started surfacing
+    # findings on features that had never reached a page: the UI
+    # audit caught "hashtag_count" rendered as a column name. The
+    # fallback (capitalise the key) is not good enough - "Posted
+    # hour utc" and "Hook is pov" are both jargon wearing a
+    # sentence's clothes.
+    "posted_hour_utc": Plain(
+        display_name="Hour of day it went out",
+        measures="The hour the publication went live, in UTC.",
+        not_a_measure_of=("the hour in your audience's time zone, or "
+                          "in yours. UTC is the storage format, not a "
+                          "claim about when anyone was awake."),
+        limitations=("An audience spread across time zones makes a "
+                     "single posting hour close to meaningless. Read "
+                     "it as a description of your habit, not of their "
+                     "attention."),
+    ),
+    "posted_weekday": Plain(
+        display_name="Day of the week",
+        measures="Which day it went out, Monday as 0.",
+        limitations=("A number, so an average over it is nonsense - "
+                     "Wednesday is not the mean of Sunday and "
+                     "Saturday. Compare days, never average them."),
+    ),
+    "posted_is_weekend": Plain(
+        display_name="Posted at the weekend",
+        measures="Whether it went out on a Saturday or Sunday, UTC.",
+    ),
+    "days_since_previous_post": Plain(
+        display_name="Days since your previous post",
+        measures="The gap between this publication and the one before.",
+        not_a_measure_of=("how often you post in general. This is one "
+                          "gap, not a rate."),
+    ),
+    "usual_gap_days": Plain(
+        display_name="Your usual gap between posts",
+        measures=("The typical number of days between publications, "
+                  "at the moment this one went out."),
+        method=("Computed from earlier publications only. Using later "
+                "ones would let the future describe the past."),
+    ),
+    "gap_vs_usual": Plain(
+        display_name="This gap against your usual one",
+        measures=("How this gap compares with the creator's own habit "
+                  "- above 1 means a longer silence than usual."),
+        high_means="a longer pause than this creator normally leaves.",
+        low_means="posted sooner after the last one than usual.",
+    ),
+    "publications_before_this": Plain(
+        display_name="How many you had already posted",
+        measures="The size of the catalogue when this one went out.",
+        not_a_measure_of=("anything about the video. It is a count of "
+                          "elapsed career, which means it tracks time "
+                          "and audience growth together and cannot be "
+                          "acted on when making the next one."),
+        limitations=("Treated as a time proxy and reported apart from "
+                     "content findings for that reason."),
+    ),
+    "is_first_post": Plain(
+        display_name="The first thing on the account",
+        measures="Whether this is the creator's earliest publication.",
+    ),
+    "caption_chars": Plain(
+        display_name="Caption length",
+        measures="How many characters the caption runs to.",
+    ),
+    "caption_words": Plain(
+        display_name="Words in the caption",
+        measures="How many words the caption runs to.",
+    ),
+    "caption_first_line_words": Plain(
+        display_name="Words before the More link",
+        measures=("How many words appear before the caption is cut "
+                  "off, which is all most viewers read."),
+        limitations=("Where the cut actually falls depends on the "
+                     "app, the device and the font. A word count is a "
+                     "stand-in for it, not the thing itself."),
+    ),
+    "caption_emoji_count": Plain(
+        display_name="Emoji in the caption",
+        measures="How many emoji the caption contains.",
+    ),
+    "caption_has_question": Plain(
+        display_name="The caption asks something",
+        measures="Whether the caption puts a question to the reader.",
+        method=("Matched on question marks and opening question "
+                "words. A rhetorical question counts, because the "
+                "pattern cannot tell the difference."),
+    ),
+    "caption_has_cta": Plain(
+        display_name="The caption asks you to do something",
+        measures=("Whether it asks the reader to follow, comment, "
+                  "save, share or tag."),
+        method="Matched against a written-down phrase list.",
+    ),
+    "caption_is_hashtags_only": Plain(
+        display_name="Caption is only hashtags",
+        measures="Whether the caption carries no sentence at all.",
+    ),
+    "hashtag_count": Plain(
+        display_name="Number of hashtags",
+        measures="How many hashtags the caption carries.",
+        not_a_measure_of=("whether they are the right hashtags, or "
+                          "whether anyone browses them. It counts "
+                          "them and nothing else."),
+    ),
+    "mention_count": Plain(
+        display_name="Accounts tagged",
+        measures="How many other accounts the caption mentions.",
+    ),
+    "duration_s": Plain(
+        display_name="How long the video runs",
+        measures="The length of the publication in seconds.",
+    ),
+
+    # -- what is being played -----------------------------------------
+    "composer": Plain(
+        display_name="Composer",
+        measures="Which composer the publication credits.",
+        method=("Read from the caption against a name list. A "
+                "publication that names nobody has no value here, "
+                "which is not the same as having no composer."),
+    ),
+    "composer_named": Plain(
+        display_name="A composer is named",
+        measures="Whether the caption names a composer at all.",
+    ),
+    "composer_period": Plain(
+        display_name="Period",
+        measures=("Baroque, Classical, Romantic, Modern or "
+                  "Contemporary, from the composer."),
+        limitations=("A composer's period, not a piece's. A late "
+                     "Beethoven work and an early one are filed "
+                     "together."),
+    ),
+    "composer_is_mainstream": Plain(
+        display_name="A composer most people have heard of",
+        measures=("Whether the composer is one a general audience "
+                  "would recognise by name."),
+        not_a_measure_of=("musical worth, and not a judgement about "
+                          "the composer. It is a statement about an "
+                          "audience outside classical music."),
+        method="A written-down list, which can be argued with.",
+    ),
+    "piece_recognisability": Plain(
+        display_name="How recognisable the piece is",
+        measures=("Whether a non-specialist would know the work "
+                  "within a few seconds: tier 1 is instantly "
+                  "familiar, tier 2 broadly known, tier 0 neither."),
+        not_a_measure_of=("quality or difficulty. The hardest piece "
+                          "in the repertoire can be unrecognisable "
+                          "and a simple one instantly known."),
+        method=("Two written-down lists. The owner's own view of "
+                "which pieces land is better than any model's and "
+                "this is where it goes."),
+    ),
+    "piece_is_widely_known": Plain(
+        display_name="A piece most people would recognise",
+        measures="Whether the work is in the instantly-familiar tier.",
+    ),
+    "work_form_named": Plain(
+        display_name="The form is named",
+        measures=("Whether the caption says what kind of piece it is "
+                  "- nocturne, etude, sonata."),
+    ),
+    "content_origin": Plain(
+        display_name="Whose music it is",
+        measures=("Whether the publication is repertoire, the "
+                  "owner's own composition, an arrangement or an "
+                  "improvisation."),
+        limitations=("Read from the caption. A composition posted "
+                     "without saying so is filed as repertoire, and "
+                     "nothing in the video can correct that."),
+    ),
+    "is_own_composition": Plain(
+        display_name="Your own composition",
+        measures="Whether the music is the creator's own.",
+        limitations=("Worth separating because it behaves "
+                     "differently: the owner's own compositions take "
+                     "a median 746 views against repertoire's 3,211, "
+                     "so analysing them together mostly describes "
+                     "the repertoire half."),
+    ),
+    "is_arrangement": Plain(
+        display_name="An arrangement",
+        measures=("Whether it is someone else's music rewritten - a "
+                  "transcription, a cover, a mashup."),
+    ),
+    "is_improvisation": Plain(
+        display_name="Improvised",
+        measures="Whether the caption says it was made up on the spot.",
+    ),
+    "composer_repeated_recently": Plain(
+        display_name="Same composer as recently",
+        measures=("Whether this composer also appeared in the "
+                  "creator's recent publications."),
+        method="Looks backwards only, never at later publications.",
+    ),
+    "distinct_composers_recently": Plain(
+        display_name="How varied the recent repertoire was",
+        measures=("How many different composers appeared in the "
+                  "recent run before this one."),
+    ),
+    "share_recent_same_composer": Plain(
+        display_name="How much recent work was this composer",
+        measures=("The share of the recent run given to the same "
+                  "composer as this publication."),
+        high_means="a run concentrated on one composer.",
+    ),
+    "form_repeated_recently": Plain(
+        display_name="Same kind of piece as recently",
+        measures=("Whether the recent run also named the form of "
+                  "the work."),
+    ),
+
+    # -- what the opening text is doing -------------------------------
+    # Not how much text, which was already measured - what kind of
+    # sentence it is, which is the part a creator can act on.
+    "hook_is_pov": Plain(
+        display_name="Puts the viewer in the scene",
+        measures=("Whether the opening text addresses the viewer as "
+                  "if they were inside it - \"POV:\", \"when you\", "
+                  "\"imagine\"."),
+        method=("Matched against a written-down phrase list, which "
+                "is blunt, free, and can be corrected by reading it."),
+    ),
+    "hook_is_question": Plain(
+        display_name="Asks the viewer something",
+        measures="Whether the opening text puts a question to them.",
+    ),
+    "hook_is_what_if": Plain(
+        display_name="Poses a what-if",
+        measures=("Whether it sets up a counterfactual - \"what if "
+                  "Rachmaninoff wrote We Are The Champions\"."),
+    ),
+    "hook_is_story": Plain(
+        display_name="Tells a story",
+        measures=("Whether the opening text narrates something "
+                  "rather than labelling the content."),
+    ),
+    "hook_has_cta": Plain(
+        display_name="Asks the viewer to do something",
+        measures="Whether it asks them to tag, comment, follow or save.",
+    ),
+    "hook_is_instruction": Plain(
+        display_name="Tells the viewer how to listen",
+        measures=("Whether it directs attention - \"close your "
+                  "eyes\", \"wait for\", \"headphones on\"."),
+    ),
+    "hook_has_number_claim": Plain(
+        display_name="A number carries the hook",
+        measures=("Whether a figure does the work - \"40 years of "
+                  "practice\", \"in 2 seconds\"."),
+    ),
+    "hook_names_celebrity": Plain(
+        display_name="Names someone outside classical music",
+        measures=("Whether the opening text borrows a name a general "
+                  "audience knows."),
+        method=("A deliberately short list. A long one would catch "
+                "composers and turn every repertoire caption into "
+                "a celebrity hook."),
+    ),
+    "hook_has_contrast": Plain(
+        display_name="Sets up a reversal",
+        measures=("Whether it turns on a contrast - \"but\", "
+                  "\"until\", \"turns out\"."),
+    ),
+    "hook_is_plain_label": Plain(
+        display_name="Just names the piece",
+        measures=("Whether the opening text uses no device at all - "
+                  "\"Chopin Nocturne op. 9 no. 2\"."),
+        not_a_measure_of=("a mistake. Naming the piece is a choice, "
+                          "and for a recognisable work it may be the "
+                          "right one."),
+    ),
+    "hook_device_count": Plain(
+        display_name="How many devices the opening stacks",
+        measures=("How many of the above the opening text uses at "
+                  "once. Stacking them is itself a choice."),
+    ),
+    "hook_text_length": Plain(
+        display_name="Characters read from the screen",
+        measures="How much text was read off the opening frames.",
+        not_a_measure_of=("how much text a viewer sees. Watermarks "
+                          "and repeated frame reads inflate it."),
+    ),
+
+    # -- what is in the room ------------------------------------------
+    "vision_second_person_visible": Plain(
+        display_name="Someone else in frame",
+        measures="Whether a second person appears.",
+        not_a_measure_of=("who they are. The model will not identify "
+                          "people and is not asked to."),
+    ),
+    "vision_audience_visible": Plain(
+        display_name="An audience is visible",
+        measures="Whether listeners appear in the frame.",
+    ),
+    "vision_facing_camera": Plain(
+        display_name="The performer faces the camera",
+        measures="Whether the player is turned towards the lens.",
+    ),
+    "vision_other_instrument_visible": Plain(
+        display_name="Another instrument is visible",
+        measures="Whether an instrument other than the piano appears.",
+    ),
+    "vision_microphone_visible": Plain(
+        display_name="A microphone is visible",
+        measures="Whether a mic appears in shot.",
+    ),
+    "vision_recording_gear_visible": Plain(
+        display_name="Recording equipment is visible",
+        measures="Whether cameras, stands or cables appear.",
+    ),
+    "vision_music_stand_visible": Plain(
+        display_name="A music stand is visible",
+        measures="Whether a stand or propped score appears.",
+    ),
+    "vision_screen_visible": Plain(
+        display_name="A screen is visible",
+        measures="Whether a phone, tablet or monitor appears.",
+    ),
+    "vision_window_visible": Plain(
+        display_name="A window is visible",
+        measures="Whether a window appears in the frame.",
+    ),
+    "vision_chandelier_visible": Plain(
+        display_name="A chandelier is visible",
+        measures="Whether a chandelier or grand light fitting appears.",
+    ),
+    "vision_candles_or_flowers_visible": Plain(
+        display_name="Candles or flowers are visible",
+        measures="Whether either is dressed into the shot.",
+    ),
+    "vision_pet_or_child_visible": Plain(
+        display_name="A pet or child is visible",
+        measures="Whether an animal or a child appears.",
+    ),
+    "vision_formality": Plain(
+        display_name="How formal the setting looks",
+        measures=("Whether the surroundings read as a concert hall, "
+                  "a studio or a living room."),
+        not_a_measure_of=("how good the performance is, or how "
+                          "seriously it should be taken."),
+    ),
+    "vision_camera_movement": Plain(
+        display_name="Whether the camera moves",
+        measures="Whether the shot is locked off, panning or handheld.",
+        limitations=("Judged from four still frames, so slow movement "
+                     "and a static shot can look alike."),
+    ),
+    "vision_depth_of_field": Plain(
+        display_name="How blurred the background is",
+        measures="Whether the background falls out of focus.",
+    ),
+    "vision_frame_descriptions": Plain(
+        display_name="What the model saw, in its own words",
+        measures=("The written description each sampled frame "
+                  "produced, kept so an answer can be checked "
+                  "against what was actually in front of it."),
+        not_a_measure_of=("a number. It is evidence for the other "
+                          "answers, not a measurement itself."),
+    ),
 }
 
 

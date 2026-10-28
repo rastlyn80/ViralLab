@@ -189,7 +189,8 @@ export const api = {
   virality: () => request('/api/virality'),
   // Whether recent publications follow what the breakthroughs
   // did. The clause between researching and suggesting.
-  adherence: () => request('/api/virality/adherence'),
+  adherence: (against = 'mine') => request(
+    `/api/virality/adherence${qs({ against })}`),
   // The brief costs nothing and is fetched before the box is
   // enabled, so the owner can see the evidence before paying for a
   // suggestion that rests on it.

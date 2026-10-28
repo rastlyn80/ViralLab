@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from server.api.deps import get_session
 from server.api.ui import require_ui
+from server.features import lexicon as lex
 from server.research import adherence as adh
 from server.research import virality as vir
 
@@ -62,9 +63,13 @@ def compare(session: Session = Depends(get_session)) -> dict:
         # today and saying so plainly is the point - a page that
         # listed "agreements" from a side with no findings would be
         # inventing the thing it was built to measure.
-        "in_both": sorted(their_feats & my_feats),
-        "only_theirs": sorted(their_feats - my_feats),
-        "only_mine": sorted(my_feats - their_feats),
+        # Named, not keyed. These three lists were raw column names
+        # while both sides were empty and nothing ever rendered
+        # them; the first competitor finding put `hashtag_count` on
+        # the page in front of the owner.
+        "in_both": _named(their_feats & my_feats),
+        "only_theirs": _named(their_feats - my_feats),
+        "only_mine": _named(my_feats - their_feats),
         "the_gap": _gap(theirs, mine),
         "how_to_read": {
             "same_test_both_sides": (
@@ -82,6 +87,8 @@ def compare(session: Session = Depends(get_session)) -> dict:
 
 @router.get("/adherence", dependencies=[Depends(require_ui)])
 def adherence(recent: int = Query(default=adh.RECENT, ge=3, le=60),
+              against: str = Query(default="mine",
+                                   pattern="^(mine|theirs)$"),
               session: Session = Depends(get_session)) -> dict:
     """Whether recent publications follow what the breakthroughs did.
 
@@ -91,7 +98,17 @@ def adherence(recent: int = Query(default=adh.RECENT, ge=3, le=60),
     sit on a dashboard for a month while every video published in
     that month went the other way, and nothing would say so.
     """
-    return adh.check(session, recent=recent)
+    return adh.check(session, recent=recent, against=against)
+
+
+
+def _named(features) -> list[dict]:
+    """Feature keys with the words a reader should actually see."""
+    return sorted(({"feature": f,
+                    "display_name": lex.display_name(f),
+                    "describes": lex.as_dict(f)["measures"]}
+                   for f in features),
+                  key=lambda d: d["display_name"])
 
 
 def _gap(theirs: dict, mine: dict) -> str:

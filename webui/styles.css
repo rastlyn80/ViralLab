@@ -269,6 +269,19 @@ button.primary:hover:not(:disabled) { filter: brightness(1.08); color: #fff; }
 button.ok { color: var(--ok); }
 button.danger { color: var(--danger); }
 button.warn { color: var(--warn); }
+/* `.btn` on an anchor, for a tab that is a real link. The class was
+   previously only ever written on a <button>, where the element
+   rule above already styled it and the class did nothing. */
+a.btn {
+  display: inline-block; text-decoration: none;
+  font-weight: 600; background: var(--surface); color: var(--fg);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  padding: 8px 14px;
+}
+a.btn:hover { border-color: var(--accent); color: var(--accent); }
+a.btn.active, button.btn.active {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
 
 .toolbar {
   display: flex; gap: 10px; flex-wrap: wrap; align-items: center;

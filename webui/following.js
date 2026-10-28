@@ -1,12 +1,24 @@
 /**
- * Am I doing it? — recent publications against the account's own
- * breakthrough findings.
+ * Am I doing it? — recent publications against breakthrough findings.
  *
  * The middle clause of what the owner asked for: research what
  * separates the videos that broke out, *check that he is following
  * the same*, then suggest. The first and third had pages. This one
  * did not, so a finding could sit on a dashboard for a month while
  * every video published in that month went the other way.
+ *
+ * Two sides, because his requirement names other creators first and
+ * his own account second:
+ *
+ *  - **his own breakthroughs**, which can only ever tell him to
+ *    repeat what he has already done;
+ *  - **other creators' breakthroughs**, which can point at a
+ *    strategy his own history never could, and are measured on
+ *    people whose audience is not his.
+ *
+ * The competitor tab is shown even while it is empty. A tab that
+ * vanishes when it has nothing to say would hide the most important
+ * fact about this project's evidence.
  *
  * The page is built to resist being flattering, because a page like
  * this is where flattery is easiest and most useless:
@@ -33,27 +45,52 @@ const VERDICT = {
   'not enough measured': { label: 'Too few measured', cls: '' },
 };
 
+const SIDES = [
+  ['mine', 'Against my own breakthroughs'],
+  ['theirs', "Against other creators' breakthroughs"],
+];
+
 export const following = {
   title: 'Am I doing it?',
-  async render(root) {
+  // The side lives in the URL rather than in a variable, so the
+  // competitor view can be linked to and survives a reload.
+  async render(root, params) {
+    const against = params && params.get('against') === 'theirs'
+      ? 'theirs' : 'mine';
     root.innerHTML = `<h1>Am I doing it?</h1>${spinner()}`;
-    const d = await api.adherence();
+    const d = await api.adherence(against);
     const s = d.summary || {};
     const findings = d.findings || [];
     const how = d.how_to_read || {};
+    const src = d.source || {};
+
+    // Both sides are offered even when one of them is empty. A tab
+    // that disappears when it has nothing to say hides the most
+    // important fact about this project's evidence: the competitor
+    // half is thin, and that is a data problem rather than a
+    // finding that nothing about other creators matters.
+    const tabs = `<p>${SIDES.map(([k, label]) => `
+      <a class="btn${k === against ? ' active' : ''}"
+        href="#/following?against=${k}">${label}</a>`).join(' ')}</p>`;
 
     if (!findings.length) {
-      root.innerHTML = `<h1>Am I doing it?</h1>
-        ${note(esc(s.headline || 'Nothing to check yet.'), 'warn')}`;
+      root.innerHTML = `<h1>Am I doing it?</h1>${tabs}
+        ${note(esc(s.headline || 'Nothing to check yet.'), 'warn')}
+        <p class="muted">${esc(src.why_it_matters || '')}</p>`;
       return;
     }
 
     root.innerHTML = `
       <h1>Am I doing it?</h1>
+      ${tabs}
       <p class="lede">Your last ${d.recent} publications, checked
-        against the differences measured on your own breakthroughs.</p>
+        against the differences measured on
+        ${esc(src.whose || 'your own breakthroughs')}
+        (${src.outliers} breakthroughs among ${src.compared}
+        publications, ${src.creators} creators).</p>
       ${note(`<strong>${esc(s.headline || '')}</strong>`,
     s.not_following ? 'bad' : 'warn')}
+      <p class="muted">${esc(src.why_it_matters || '')}</p>
 
       <section class="card">
         <h2>Each finding, against your recent work</h2>

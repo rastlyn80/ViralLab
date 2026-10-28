@@ -138,15 +138,39 @@ def _verdict(followed: int, measured: int) -> str:
     return "mixed"
 
 
-def check(session: Session, *, recent: int = RECENT) -> dict:
-    """Each breakthrough finding, against the owner's recent work."""
+#: Whose breakthroughs to measure the owner against.
+#:
+#: `mine` is his own: what separated his hits from his misses. It is
+#: the only one that has ever had findings, and it has an obvious
+#: ceiling - it can only repeat what he has already done.
+#:
+#: `theirs` is the clause he actually asked for first: research what
+#: makes *other* creators' videos work, then check he is following
+#: the same. It can say something his own history cannot, because it
+#: contains strategies he has never tried.
+SOURCES = ("mine", "theirs")
+
+
+def check(session: Session, *, recent: int = RECENT,
+          against: str = "mine") -> dict:
+    """Breakthrough findings, against the owner's recent work.
+
+    `against="theirs"` measures him on other creators' findings. The
+    arithmetic is identical and the levels are not: a line drawn
+    from other people's breakthroughs is a line he has never been
+    fitted to, which is the point of drawing it.
+    """
     from server.research import virality as vir
 
-    breaks = vir.breakthroughs(session, own=True)
+    if against not in SOURCES:
+        raise ValueError(f"unknown source {against!r}; expected "
+                         f"one of {list(SOURCES)}")
+    breaks = vir.breakthroughs(session, own=(against == "mine"))
     differences = breaks.get("differences", [])
     pubs = _recent_own(session, recent)
     if not pubs:
         return {"findings": [], "publications": [], "recent": 0,
+                "against": against,
                 "summary": {"why": "No publications with a date."},
                 "how_to_read": _how_to_read()}
 
@@ -206,7 +230,8 @@ def check(session: Session, *, recent: int = RECENT) -> dict:
             "separates": _separates(mine, hi, lo, wants_higher),
             "grade": d.get("grade", "Observed"),
             "plain": _plain(d, followed, measured, len(pubs),
-                            _separates(mine, hi, lo, wants_higher)),
+                            _separates(mine, hi, lo, wants_higher),
+                            against),
         })
 
     findings.sort(key=lambda f: (f["verdict"] != "not following",
@@ -232,6 +257,23 @@ def check(session: Session, *, recent: int = RECENT) -> dict:
     settled = [f for f in findings if not f["separates"]]
     return {
         "recent": len(pubs),
+        "against": against,
+        "source": {
+            "whose": ("your own breakthroughs" if against == "mine"
+                      else "other creators' breakthroughs"),
+            "creators": breaks.get("creators", 0),
+            "outliers": breaks.get("outliers", 0),
+            "compared": breaks.get("compared", 0),
+            "why_it_matters": (
+                "Your own history can only tell you to repeat what "
+                "you have already done. It cannot suggest a strategy "
+                "you have never tried."
+                if against == "mine" else
+                "These come from creators other than you, so they "
+                "can point at something your own history never "
+                "could. They are also measured on people whose "
+                "audience is not yours."),
+        },
         "findings": findings,
         "publications": publications,
         "summary": {
@@ -240,7 +282,7 @@ def check(session: Session, *, recent: int = RECENT) -> dict:
             "not_following": len(not_following),
             "no_longer_separates": len(settled),
             "headline": _headline(findings, not_following, settled,
-                                  len(pubs)),
+                                  len(pubs), against, breaks),
             "ignored": [f["display_name"] for f in not_following],
             "settled": [f["display_name"] for f in settled],
         },
@@ -249,10 +291,13 @@ def check(session: Session, *, recent: int = RECENT) -> dict:
 
 
 def _plain(d: dict, followed: int, measured: int, total: int,
-           separates: bool) -> str:
+           separates: bool, against: str = "mine") -> str:
     name = lex.display_name(d["feature"]).lower()
     more = "more" if d["direction"] == "higher" else "less"
-    had = f"Your publications that broke out had {more} {name}."
+    whose = ("Your publications that broke out"
+             if against == "mine"
+             else "Other creators' publications that broke out")
+    had = f"{whose} had {more} {name}."
     if not measured:
         return (f"{had} None of your last {total} have been measured "
                 f"for it.")
@@ -266,17 +311,31 @@ def _plain(d: dict, followed: int, measured: int, total: int,
 
 
 def _headline(findings: list[dict], not_following: list[dict],
-              settled: list[dict], total: int) -> str:
+              settled: list[dict], total: int, against: str = "mine",
+              breaks: dict | None = None) -> str:
     if not findings:
+        if against == "theirs":
+            # The competitor side's standing answer, and it must not
+            # read as "other creators do nothing in particular".
+            b = breaks or {}
+            return (
+                f"Nothing to check against yet. No difference has "
+                f"separated other creators' breakthroughs from their "
+                f"ordinary publications - measured across "
+                f"{b.get('creators', 0)} creators with deep enough "
+                f"catalogues and {b.get('compared', 0)} publications. "
+                f"That is a shortage of data, not a finding that "
+                f"nothing matters.")
         return ("Nothing to check yet: no differences have separated "
                 "your breakthroughs from your other publications.")
+    whose = ("your own breakthroughs" if against == "mine"
+             else "other creators' breakthroughs")
     if not_following:
         names = ", ".join(f["display_name"].lower()
                           for f in not_following[:3])
         return (f"Your recent publications go against "
                 f"{len(not_following)} of the {len(findings)} "
-                f"differences measured on your own breakthroughs - "
-                f"{names}.")
+                f"differences measured on {whose} - {names}.")
     if settled:
         # The result on this account the first time it ran: three of
         # four findings cleared by everything. A page saying "broadly
@@ -295,7 +354,7 @@ def _headline(findings: list[dict], not_following: list[dict],
         return (f"{spent} {left} still tells them apart; that is the "
                 f"one worth watching.")
     return (f"Your last {total} publications are broadly in line with "
-            f"what your breakthroughs did.")
+            f"what {whose} did.")
 
 
 def _how_to_read() -> dict:

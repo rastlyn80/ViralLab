@@ -154,3 +154,50 @@ def test_plain_english_says_unmeasured_rather_than_failing():
     d = {"feature": "colourfulness", "direction": "higher"}
     out = adh._plain(d, 0, 0, 12, separates=False)
     assert "None of your last 12 have been measured" in out
+
+
+# ---------------------------------------------------------------------------
+# whose breakthroughs are being measured against
+# ---------------------------------------------------------------------------
+
+def test_the_headline_names_whose_findings_these_are():
+    """A competitor check that says "your own breakthroughs" is a lie.
+
+    It shipped that way for one run: the competitor tab reported the
+    first finding the project has ever had on other creators and
+    attributed it to his own account.
+    """
+    findings = [_f("Size of the largest text", "not following")]
+    theirs = adh._headline(findings, findings, [], 12, "theirs")
+    assert "other creators' breakthroughs" in theirs
+    assert "your own breakthroughs" not in theirs
+
+    mine = adh._headline(findings, findings, [], 12, "mine")
+    assert "your own breakthroughs" in mine
+
+
+def test_in_line_also_names_the_source():
+    out = adh._headline([_f("A")], [], [], 12, "theirs")
+    assert "other creators' breakthroughs" in out
+
+
+def test_an_empty_competitor_side_blames_the_data_not_the_creators():
+    """"No findings" must not read as "nothing about them matters"."""
+    out = adh._headline([], [], [], 12, "theirs",
+                        {"creators": 43, "compared": 1105})
+    assert "shortage of data" in out
+    assert "43" in out and "1105" in out
+
+
+def test_plain_english_names_whose_breakthroughs_too():
+    d = {"feature": "colourfulness", "direction": "higher"}
+    theirs = adh._plain(d, 7, 9, 12, True, "theirs")
+    assert theirs.startswith("Other creators' publications that broke out")
+    mine = adh._plain(d, 7, 9, 12, True, "mine")
+    assert mine.startswith("Your publications that broke out")
+
+
+def test_an_unknown_source_is_refused(tmp_path):
+    import pytest
+    with pytest.raises(ValueError):
+        adh.check(None, against="everyone")

@@ -68,7 +68,8 @@ function agreement(d) {
     return `<p>These hold on <b>both</b> your account and other
       creators', which is the strongest thing this page can say:</p>
       <ul class="plain">${d.in_both.map(
-    (f) => `<li><b>${esc(f)}</b></li>`).join('')}</ul>`;
+    (f) => `<li><b>${esc(f.display_name)}</b>${f.describes
+      ? ` &mdash; ${esc(f.describes)}` : ''}</li>`).join('')}</ul>`;
   }
   return `<p class="muted">Nothing yet. A pattern that holds on your
     account <i>and</i> on other creators' is the strongest signal this
