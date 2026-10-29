@@ -104,6 +104,22 @@ OUTCOMES: dict[str, OutcomePlain] = {
             "how long anyone watched. It counts skips, not watch time, "
             "and the two are not interchangeable."),
     ),
+    "ig_reels_avg_watch_time": OutcomePlain(
+        display_name="Average watch time",
+        measures=("How long, on average, a Reel was watched for, as "
+                  "Instagram reports it."),
+        better_when="higher",
+        method=("Read from Instagram's own metric, once per "
+                "publication, at whatever age it happened to be."),
+        not_a_measure_of=(
+            "the share of the video that was watched. It INCLUDES "
+            "REPLAYS, so dividing it by the length does not give a "
+            "percentage - one publication here averages 3.38 times "
+            "its own duration."),
+        limitations=("Instagram does not say whether the figure "
+                     "counts viewers who arrived through paid "
+                     "promotion (ADR 0008)."),
+    ),
     "text_region_score": OutcomePlain(
         display_name="Visual complexity in text areas",
         measures=("How visually busy the parts of the frame where "
@@ -1173,5 +1189,27 @@ def humanise(text: str | None) -> str | None:
 
 
 def humanise_all(items) -> list:
-    """`humanise` over a list of strings, preserving order."""
-    return [humanise(x) for x in (items or [])]
+    """`humanise` over a list, preserving order and shape.
+
+    Tolerant of items that are not strings, because this is a
+    presentation helper and a whole page 500ing over one
+    unexpected element is out of proportion to the problem. A dict
+    has its string values humanised and its structure kept; a
+    number passes through.
+
+    `/api/hooks/retention` was handing it `survivor_collinearity`,
+    which is a list of `{a, b, rho, n, note}`, and returning 500
+    for two days. The page said "Could not load this" and the UI
+    audit called it clean, because an error message contains no
+    jargon.
+    """
+    out = []
+    for item in (items or []):
+        if isinstance(item, str):
+            out.append(humanise(item))
+        elif isinstance(item, dict):
+            out.append({k: humanise(v) if isinstance(v, str) else v
+                        for k, v in item.items()})
+        else:
+            out.append(item)
+    return out

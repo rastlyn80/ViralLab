@@ -75,6 +75,16 @@ STATIC_ROUTES: tuple[tuple[str, str], ...] = (
     ("#/creators", "Creators we study"),
 )
 
+#: What the interface says when something failed. Matched on the
+#: rendered words because that is the only signal available from
+#: outside the app, and because it is exactly what the owner would
+#: see. Keep in step with the error copy in `webui/`.
+BROKEN_MARKERS = (
+    "Could not load", "Internal Server Error", "Something went wrong",
+    "Failed to fetch", "could not be loaded", "Could not generate",
+    "Could not start",
+)
+
 #: A snake_case identifier: two or more lowercase word parts joined by
 #: underscores. Matches `edge_density`, not `Hook intelligence`.
 SNAKE = re.compile(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b")
@@ -252,8 +262,17 @@ def main(argv: list[str] | None = None) -> int:
                 text = visible_primary_text(page)
                 f = findings_for(text, handles)
                 total = sum(len(v) for v in f.values())
+                # A page that failed to load carries no jargon, so a
+                # jargon audit calls it clean. `#/hooks/retention`
+                # returned 500 for two days and every run of this
+                # script passed it. An audit that cannot tell
+                # "readable" from "broken" is measuring the wrong
+                # thing.
+                low = text.lower()
+                broken = [m for m in BROKEN_MARKERS if m.lower() in low]
                 entry = {"viewport": vp_name, "route": route,
                          "label": label, "issues": total, **f,
+                         "broken": broken,
                          "chars": len(text)}
                 if shots:
                     name = route.replace("#/", "").replace("/", "_") or "home"
@@ -277,6 +296,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps(report, indent=1))
     else:
+        # Reported first and separately. A broken page is not a
+        # worse kind of jargon, it is a different failure, and
+        # burying it under a count of column names is how it went
+        # unnoticed for two days.
+        broken = [pg for pg in report["pages"] if pg.get("broken")]
+        if broken:
+            print(f"{len(broken)} PAGE(S) DID NOT LOAD:")
+            for pg in broken:
+                print(f"  {pg['viewport']:<8} {pg['route']} "
+                      f"-> {pg['broken'][0]}")
+            print()
         print(f"{report['total_issues']} jargon finding(s) across "
               f"{len(report['pages'])} page render(s)\n")
         for w in report["worst"]:

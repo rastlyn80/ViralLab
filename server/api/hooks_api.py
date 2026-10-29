@@ -315,6 +315,10 @@ def retention_report(session: Session = Depends(get_session)
         skip_range=list(rep.skip_range) if rep.skip_range else None,
         associations=[AssociationView(**vars(a)) for a in rep.associations],
         survivors=lex.humanise_all(rep.survivors),
+        # A list of {a, b, rho, n, note}, not a list of strings.
+        # `humanise_all` now keeps the shape and translates the
+        # string values; passing it straight through returned 500
+        # for two days and the page said "Could not load this".
         survivor_collinearity=lex.humanise_all(
             rep.survivor_collinearity),
         method_version=rep.method_version,

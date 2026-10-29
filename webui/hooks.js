@@ -433,10 +433,13 @@ export const hookRetention = {
           ${a.caveats.map((c) => `<br>${esc(c)}`).join('')}</td></tr>` : ''}`)
     .join('')}
         </tbody></table>
-        <p class="muted">Spearman rank correlation. <b>+dur+age</b> is the
-          one to read: it controls for both video length and how old the
-          post was when retention was captured. A negative value means a
-          higher feature value goes with <em>less</em> skipping.</p>`)}
+        <p class="muted">The <b>+dur+age</b> column is the one to read:
+          it allows for both the length of the video and how old the
+          post was when the figure was captured, so neither a long
+          video nor an old one is flattered. A negative number means
+          more of that thing went with <em>less</em> skipping.
+          <span class="technical">Spearman rank correlation, partial
+          on duration and log age.</span></p>`)}
       ${r.survivor_collinearity.length ? card(
     'Are the survivors the same finding?', `<ul style="margin:0 0 0 18px">${
       r.survivor_collinearity.map((c) => `<li>${esc(c.note)}</li>`)
