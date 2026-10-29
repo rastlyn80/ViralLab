@@ -43,7 +43,9 @@ import re
 import signal
 import subprocess
 import threading
+import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -166,38 +168,50 @@ def _cost_of(summary: dict | None) -> float:
     return 0.0
 
 
+def log_path(row_id: int) -> Path:
+    """Where this run's output is written. Survives a restart."""
+    directory = Path(cat.ROOT) / "logs" / "operations"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory / f"{row_id}.log"
+
+
 def _run(row_id: int, kind: str, params: dict) -> None:
     argv = cat.argv(kind, params)
     env = dict(os.environ)
     _update(row_id, status="running",
             started_at=datetime.now(timezone.utc),
             progress_note="Starting")
-    chunks: list[str] = []
+    path = log_path(row_id)
     try:
-        proc = subprocess.Popen(
-            argv, cwd=cat.ROOT, env=env, text=True,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            # A list and `shell=False`: there is no shell to inject
-            # into, and the argument list came from the catalogue.
-            shell=False)
-        _update(row_id, pid=proc.pid)
-        assert proc.stdout is not None
-        for line in proc.stdout:
-            chunks.append(line)
-            note = _progress_from(line)
-            if note:
-                _update(row_id, **note)
-            if len(chunks) % 40 == 0:
-                _update(row_id, log=_tail("".join(chunks)))
-        code = proc.wait()
+        # Output goes to a FILE, and the child gets its own session.
+        #
+        # The first version piped stdout to this thread. When the
+        # API restarted, the reader vanished, the pipe filled, and
+        # a two-hour collection died at the write - after
+        # `reconcile` had already recorded it as interrupted, so
+        # nothing even looked wrong. A job the owner started must
+        # not depend on the web app staying up, and its output must
+        # outlive the process that launched it.
+        with path.open("w", encoding="utf-8") as sink:
+            proc = subprocess.Popen(
+                argv, cwd=cat.ROOT, env=env, text=True,
+                stdout=sink, stderr=subprocess.STDOUT,
+                # A list and `shell=False`: there is no shell to
+                # inject into, and the argv came from the catalogue.
+                shell=False,
+                # Its own process group, so a signal aimed at the
+                # API does not take the collection with it.
+                start_new_session=True)
+            _update(row_id, pid=proc.pid)
+            code = _follow(proc, row_id, path)
     except Exception as exc:                # noqa: BLE001 - recorded
         logger.exception("operation %s failed to run", kind)
         _update(row_id, status="failed", error=str(exc)[:1000],
                 finished_at=datetime.now(timezone.utc),
-                log=_tail("".join(chunks)))
+                log=_tail(_read(path)))
         return
 
-    output = "".join(chunks)
+    output = _read(path)
     summary = _summarise(output)
     # An operation is the only thing that changes the rows the
     # analyses read, so this is the moment the remembered results
@@ -215,6 +229,39 @@ def _run(row_id: int, kind: str, params: dict) -> None:
             progress_note="Finished" if code == 0 else "Stopped",
             cost_usd=_cost_of(summary),
             summary=summary, log=_tail(output))
+
+
+def _read(path: Path) -> str:
+    """Whatever the run has written so far."""
+    try:
+        return path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def _follow(proc, row_id: int, path: Path) -> int:
+    """Watch the log file while the run works, and report progress.
+
+    Polling a file rather than reading a pipe, so that losing this
+    thread - an API restart, a crash - costs the progress bar and
+    nothing else. The run keeps going and keeps writing.
+    """
+    seen = 0
+    last_note: dict | None = None
+    while True:
+        code = proc.poll()
+        text = _read(path)
+        if len(text) != seen:
+            seen = len(text)
+            for line in text.splitlines()[-40:]:
+                note = _progress_from(line)
+                if note and note != last_note:
+                    last_note = note
+                    _update(row_id, **note)
+            _update(row_id, log=_tail(text))
+        if code is not None:
+            return code
+        time.sleep(3.0)
 
 
 def _progress_from(line: str) -> dict | None:

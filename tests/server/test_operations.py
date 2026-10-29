@@ -245,3 +245,39 @@ def test_reconcile_closes_an_operation_whose_process_is_gone(monkeypatch):
     assert runner.reconcile(S()) == 1
     assert dead.status == "failed"
     assert commits == [1]
+
+
+# ---------------------------------------------------------------------------
+# a job must outlive the web app that started it
+# ---------------------------------------------------------------------------
+
+def test_output_goes_to_a_file_not_a_pipe():
+    """The failure that killed a two-hour collection.
+
+    Output was piped to a thread in the API. A restart took the
+    reader away, the pipe filled, and the run died at the write -
+    after `reconcile` had already recorded it as interrupted, so
+    nothing even looked wrong. A job the owner started must not
+    depend on the web app staying up.
+    """
+    src = inspect.getsource(runner._run)
+    assert "subprocess.PIPE" not in src
+    assert "stdout=sink" in src
+
+
+def test_the_child_gets_its_own_session():
+    """So a signal aimed at the API does not take the work with it."""
+    assert "start_new_session=True" in inspect.getsource(runner._run)
+
+
+def test_progress_comes_from_reading_the_file():
+    """Losing the follower costs the progress bar, not the run."""
+    src = inspect.getsource(runner._follow)
+    assert "_read(path)" in src
+    assert "proc.poll()" in src
+
+
+def test_the_log_survives_in_a_predictable_place():
+    p = runner.log_path(17)
+    assert p.name == "17.log"
+    assert "operations" in str(p)
