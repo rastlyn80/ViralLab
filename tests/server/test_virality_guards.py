@@ -113,3 +113,64 @@ def test_the_confounded_measurements_are_still_reported():
     src = inspect.getsource(vir.breakthroughs)
     assert "cadence_against_the_baseline" in src
     assert "cadence_warning" in src
+
+
+# ---------------------------------------------------------------------------
+# a question the project does not trust cannot become a finding
+# ---------------------------------------------------------------------------
+
+def test_only_verified_visual_questions_may_support_a_claim():
+    """Phase 1 graded all 42 visual questions; nothing read the grade.
+
+    `vision_questions.may_enter_statistics` allows the 9 graded
+    `verified`. The analysis never consulted it, so an `indicative`
+    answer could become a finding - and one had. "Sheet music
+    visible" was reported as a breakthrough difference at
+    q = 0.024, carried into the adherence check, and handed to the
+    generator, on a question the project had already decided was
+    not reliable enough to support a claim.
+    """
+    assert vir.may_be_a_finding("vision_face_visible"), (
+        "face_visible is verified and must still count")
+    for indicative in ("vision_sheet_music_visible", "vision_camera_angle",
+                       "vision_framing", "vision_formality",
+                       "vision_lighting"):
+        assert not vir.may_be_a_finding(indicative), indicative
+
+
+def test_a_deterministic_measurement_is_not_graded_by_this_gate():
+    """Arithmetic on pixels is not a model answer.
+
+    Whether an edge-density figure is MEANINGFUL is a separate
+    argument from whether it is ACCURATE, and this gate is about
+    the second one.
+    """
+    for deterministic in ("edge_density", "hashtag_count",
+                          "ocr_word_count", "composer_named",
+                          "posted_hour_utc"):
+        assert vir.measurement_grade(deterministic) == "deterministic"
+        assert vir.may_be_a_finding(deterministic)
+
+
+def test_the_grade_matches_what_vision_questions_says():
+    """One source of truth, not two that can drift."""
+    from server.ai import vision_questions as vq
+
+    for q in vq.ALL:
+        feature = f"vision_{q.name}"
+        assert vir.may_be_a_finding(feature) is \
+            vq.may_enter_statistics(q.name), q.name
+
+
+def test_a_held_back_measurement_is_still_reported():
+    """Hiding it would make the next person measure it again.
+
+    And the reason has to be the right one: these are held back
+    because the QUESTION is unproven, not because the RESULT was
+    weak, and those two deserve different responses from the owner.
+    """
+    src = inspect.getsource(vir.breakthroughs)
+    assert "not_verified_enough" in src
+    assert "not_verified_warning" in src
+    build_src = inspect.getsource(vir.build)
+    assert "not_verified_enough" in build_src

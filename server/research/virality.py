@@ -271,6 +271,7 @@ def build(session: Session, *, own: bool = False) -> dict:
 
     qs = benjamini_hochberg([c[4] for c in candidates])
     findings: list[Finding] = []
+    ungraded: list[Finding] = []
     n_creators = len({d["creator_id"] for d in pop.values()})
     for (feature, n, rho, prho, p), q in zip(candidates, qs):
         if q is None or q > Q_THRESHOLD:
@@ -296,6 +297,17 @@ def build(session: Session, *, own: bool = False) -> dict:
                 "knows which of their videos were promoted - so no "
                 "finding here can rise above Observed.",
             ])
+        if not may_be_a_finding(feature):
+            # Same gate as `breakthroughs`. A question the project
+            # has not checked against enough human-confirmed answers
+            # does not become a finding by correlating well.
+            f.grade = "Unavailable"
+            f.limitations.insert(0, (
+                "This question has not been checked against enough "
+                "human-confirmed answers to support a claim. It is "
+                "reported and not counted."))
+            ungraded.append(f)
+            continue
         findings.append(f)
 
     trends = [f for f in findings if f.feature in TIME_PROXIES]
@@ -306,6 +318,13 @@ def build(session: Session, *, own: bool = False) -> dict:
         "n": len(pop), "creators": n_creators,
         "measurements_tested": len(candidates),
         "findings": [f.as_dict() for f in findings],
+        "not_verified_enough": [f.as_dict() for f in ungraded],
+        "not_verified_warning": (
+            "Held back because the QUESTION has not been checked "
+            "against enough human-confirmed answers, not because the "
+            "result was weak. Confirming more labels is what moves "
+            "one of these into the list above."
+            if ungraded else ""),
         "account_trends": [f.as_dict() for f in trends],
         "trends_note": (
             "These are counts of elapsed time, not properties of a "
@@ -360,6 +379,34 @@ def _describes(feature: str) -> str:
 OUTLIER_Z = 2.0
 
 #: Below this many outliers there is nothing to compare them against.
+def measurement_grade(feature: str) -> str:
+    """How far a measurement can be trusted: the gate Phase 1 set.
+
+    `vision_questions` grades all 42 visual questions, and
+    `may_enter_statistics` allows exactly the 9 graded `verified`.
+    Nothing in this module consulted it, so an `indicative`
+    measurement could become a finding - and one had.
+    **"Sheet music visible" was reported as a breakthrough
+    difference at q = 0.024, carried into the adherence check and
+    handed to the generator**, on a question the project had
+    already decided was not reliable enough to support a claim.
+
+    Deterministic measurements are not graded here because they are
+    not model answers: an edge-density figure is arithmetic on
+    pixels, and whether it is *meaningful* is a separate argument
+    from whether it is *accurate*.
+    """
+    if not feature.startswith("vision_"):
+        return "deterministic"
+    from server.ai.wide_vision import reliability_of
+    return reliability_of(feature)
+
+
+def may_be_a_finding(feature: str) -> bool:
+    """Whether this measurement may support a claim at all."""
+    return measurement_grade(feature) in ("deterministic", "verified")
+
+
 def is_boolean(values) -> bool:
     """Whether a measurement is a yes/no answer stored as 0 and 1."""
     return set(values) <= {0.0, 1.0}
@@ -573,7 +620,7 @@ def breakthroughs(session: Session, *, own: bool = False,
         cands.append((feature, len(a), len(b), ma, mb, p))
 
     qs = benjamini_hochberg([c[5] for c in cands])
-    out, weak, cadence = [], [], []
+    out, weak, cadence, unverified = [], [], [], []
     for (feature, na, nb, ma, mb, p), q in zip(cands, qs):
         if q is None or q > Q_THRESHOLD:
             # Did not survive correction. Kept separately and never
@@ -610,6 +657,20 @@ def breakthroughs(session: Session, *, own: bool = False,
                 f"{lex.display_name(feature).lower()} than the ones "
                 f"that did not - {ma:.3g} against {mb:.3g}."),
         }
+        if not may_be_a_finding(feature):
+            # Shown, never called a finding. The grade travels with
+            # it so a reader can see WHY it is set aside, rather
+            # than wondering why something interesting is in the
+            # second list.
+            record["grade"] = "Unavailable"
+            record["reliability"] = measurement_grade(feature)
+            record["plain"] = (
+                f"{record['plain']} This question has not been "
+                f"checked against enough human-confirmed answers to "
+                f"support a claim, so it is reported and not "
+                f"counted.")
+            unverified.append(record)
+            continue
         if feature in BASELINE_DISTANCE:
             record["grade"] = "Unavailable"
             record["plain"] = (
@@ -622,6 +683,7 @@ def breakthroughs(session: Session, *, own: bool = False,
         out.append(record)
     out.sort(key=lambda d: d["q_value"])
     cadence.sort(key=lambda d: d["q_value"])
+    unverified.sort(key=lambda d: d["q_value"])
     return {
         "outliers": n_out, "compared": len(is_outlier),
         "origin": origin,
@@ -631,6 +693,17 @@ def breakthroughs(session: Session, *, own: bool = False,
         "differences": out,
         # Reported, never called a finding. See `BASELINE_DISTANCE`.
         "cadence_against_the_baseline": cadence,
+        # Likewise, for a different reason: the question itself is
+        # not reliable enough yet. See `measurement_grade`.
+        "not_verified_enough": unverified,
+        "not_verified_warning": (
+            "These came out of the same test as the findings above "
+            "and are held back because the QUESTION has not been "
+            "checked against enough human-confirmed answers, not "
+            "because the result was weak. Confirming more labels on "
+            "'Check uncertain labels' is what moves one of these "
+            "into the list above."
+            if unverified else ""),
         "cadence_warning": (
             "Breaking out means beating a trailing window of earlier "
             "posts, so a publication put out after a long gap is "

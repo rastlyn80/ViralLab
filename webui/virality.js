@@ -128,7 +128,7 @@ function breakout(title, b) {
   if (!b.differences || !b.differences.length) {
     return card(title, `<p class="muted">${esc(b.why_empty
       || 'Nothing survived correction.')}</p>`
-      + confounded(b));
+      + unverified(b) + confounded(b));
   }
   const h = b.how_to_read || {};
   return `<section class="card">
@@ -143,6 +143,7 @@ function breakout(title, b) {
         ${x.n_outliers} against ${x.n_others}</span>
     </li>`).join('')}</ul>
     <p class="muted">${esc(h.still_not_causal || '')}</p>
+    ${unverified(b)}
     ${confounded(b)}
   </section>`;
 }
@@ -162,6 +163,31 @@ function breakout(title, b) {
  * it. Mixed in with the findings, this one would have been the
  * headline.
  */
+/**
+ * Measurements held back because the QUESTION is unproven.
+ *
+ * Different from `confounded`, and the difference is what the
+ * owner should do about it. A confounded measurement needs a
+ * better method. An unverified one needs him to confirm more
+ * labels — which is a thing he can actually go and do, so the
+ * block says so.
+ */
+function unverified(b) {
+  const rows = b.not_verified_enough || [];
+  if (!rows.length) return '';
+  return `<div class="not-a-measure">
+    <h3>Not counted yet</h3>
+    <ul class="plain">${rows.map((x) => `<li>
+      <b>${esc(x.display_name)}</b> &mdash; ${esc(x.direction || '')}
+      ${x.outliers_mean !== undefined
+    ? `(${x.outliers_mean} against ${x.others_mean})` : ''}
+      <span class="technical muted">${esc(x.reliability || '')}</span>
+    </li>`).join('')}</ul>
+    <p class="muted">${esc(b.not_verified_warning || '')}</p>
+    <p><a href="#/review/labels">Check uncertain labels</a></p>
+  </div>`;
+}
+
 function confounded(b) {
   const rows = b.cadence_against_the_baseline || [];
   if (!rows.length) return '';
