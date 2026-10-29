@@ -214,6 +214,14 @@ def _sentence(feature: str, direction: str, n: int, creators: int, *,
 
 
 def build(session: Session, *, own: bool = False) -> dict:
+    """The gradient analysis, remembered briefly. See `_build`."""
+    from server.research import memo
+    return memo.remember("virality.build",
+                         lambda: _build(session, own=own),
+                         session=session, own=own)
+
+
+def _build(session: Session, *, own: bool = False) -> dict:
     """Every measurement tested against within-creator view rank."""
     pop = _population(session, own=own)
     if len(pop) < MIN_TOTAL:
@@ -507,6 +515,22 @@ def _origin_of(session: Session) -> dict[int, str]:
 
 def breakthroughs(session: Session, *, own: bool = False,
                   origin: str | None = None) -> dict:
+    """The threshold analysis, remembered briefly.
+
+    See `_breakthroughs` for what it does and why. The wrapper
+    exists because four surfaces ask for the same numbers to draw
+    one page, and recomputing a few hundred rank tests each time
+    made every page a two-second wait.
+    """
+    from server.research import memo
+    return memo.remember(
+        "virality.breakthroughs",
+        lambda: _breakthroughs(session, own=own, origin=origin),
+        session=session, own=own, origin=origin)
+
+
+def _breakthroughs(session: Session, *, own: bool = False,
+                   origin: str | None = None) -> dict:
     """What is different about a creator's outliers.
 
     The analysis above treats view rank as a smooth gradient, and

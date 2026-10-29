@@ -26,11 +26,15 @@ export const virality = {
     const d = await api.virality();
     const h = d.how_to_read || {};
 
+    // The caveat used to be the first thing on the page. It is
+    // true and it is not an answer, and a page that opens with a
+    // disclaimer teaches the reader to scroll past the top.
+    // Content first, caveat after it, where it still travels with
+    // every number above it.
     root.innerHTML = `
       <h1>What goes with more views</h1>
-      ${note(`<strong>${esc(h.not_causal || '')}</strong>`, 'warn')}
-
       ${card('Where they agree', agreement(d))}
+      ${note(`<strong>${esc(h.not_causal || '')}</strong>`, 'warn')}
 
       <section class="card">
         <h2>Your account</h2>

@@ -578,3 +578,9 @@ a.chip { text-decoration: none; }
   .home-post { flex-wrap: wrap; gap: 6px; }
   .home-post > b { text-align: left; }
 }
+
+/* Inside the Research hub the sub-view's own <h1> duplicates the
+   tab label that is already highlighted two lines above it. The
+   module keeps the heading so it still works on its own URL; the
+   hub hides it rather than six modules losing it. */
+#sub > h1:first-child { display: none; }

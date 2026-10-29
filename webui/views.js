@@ -1213,9 +1213,12 @@ export const cohortCompare = {
       </div>`;
     }).join('');
 
+    // The caveat sits under the comparison rather than above it.
+    // A page that opens with a disclaimer teaches the reader to
+    // scroll past the top, and it still travels with every number
+    // from one line below them.
     root.innerHTML = `
       <h1>You against other creators</h1>
-      ${note(`<strong>${esc(c.what_this_cannot_say)}</strong>`, 'warn')}
 
       <section class="card">
         <h2>Who you are being compared with</h2>
@@ -1241,6 +1244,8 @@ export const cohortCompare = {
     : card('How your openings differ', note(`Not enough of the cohort
         has been measured yet to compare anything. Collecting a
         creator's videos and measuring them are separate steps.`, ''))}
+
+      ${note(`<strong>${esc(c.what_this_cannot_say)}</strong>`, 'warn')}
 
       ${card('What this does and does not show',
     `<ul style="margin:0 0 0 18px">${(c.limitations || []).map(

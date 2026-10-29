@@ -25,13 +25,13 @@ from server.research import virality as vir
 def test_a_count_of_elapsed_time_is_not_a_content_finding():
     assert "publications_before_this" in vir.TIME_PROXIES
     assert "is_first_post" in vir.TIME_PROXIES
-    src = inspect.getsource(vir.build)
+    src = inspect.getsource(vir._build)
     assert "account_trends" in src, (
         "time proxies must still be reported, just not as findings")
 
 
 def test_time_proxies_are_excluded_from_breakthrough_differences():
-    src = inspect.getsource(vir.breakthroughs)
+    src = inspect.getsource(vir._breakthroughs)
     assert "TIME_PROXIES" in src
 
 
@@ -110,7 +110,7 @@ def test_a_creators_habitual_cadence_is_not_excluded():
 
 def test_the_confounded_measurements_are_still_reported():
     """Hiding a measurement makes the next person re-derive it."""
-    src = inspect.getsource(vir.breakthroughs)
+    src = inspect.getsource(vir._breakthroughs)
     assert "cadence_against_the_baseline" in src
     assert "cadence_warning" in src
 
@@ -169,8 +169,8 @@ def test_a_held_back_measurement_is_still_reported():
     because the QUESTION is unproven, not because the RESULT was
     weak, and those two deserve different responses from the owner.
     """
-    src = inspect.getsource(vir.breakthroughs)
+    src = inspect.getsource(vir._breakthroughs)
     assert "not_verified_enough" in src
     assert "not_verified_warning" in src
-    build_src = inspect.getsource(vir.build)
+    build_src = inspect.getsource(vir._build)
     assert "not_verified_enough" in build_src

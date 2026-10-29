@@ -199,6 +199,15 @@ def _run(row_id: int, kind: str, params: dict) -> None:
 
     output = "".join(chunks)
     summary = _summarise(output)
+    # An operation is the only thing that changes the rows the
+    # analyses read, so this is the moment the remembered results
+    # stop being true. The TTL is the safety net; this is the
+    # mechanism.
+    try:
+        from server.research import memo
+        memo.clear()
+    except Exception:                       # noqa: BLE001 - reported
+        logger.exception("could not clear the remembered analyses")
     _update(row_id,
             status="ok" if code == 0 else "failed",
             error=None if code == 0 else f"exited with code {code}",

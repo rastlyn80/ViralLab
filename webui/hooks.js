@@ -380,10 +380,10 @@ export const hookRetention = {
 
     const sig = (a) => (a.p_adjusted !== null && a.p_adjusted < 0.05);
     root.innerHTML = `
-      <div class="row" style="justify-content:space-between;align-items:start">
-        <h1>Do opening characteristics relate to retention?</h1>
-        <a href="#/hooks"><button>Hook intelligence</button></a>
-      </div>
+      <h1>Do opening characteristics relate to retention?</h1>
+      <p class="lede">Whether what happens in the first seconds
+        relates to people staying. <a href="#/research?on=openings"
+        >See what those openings contain</a>.</p>
       ${note(`<strong>Outcome:</strong> ${esc(r.outcome_note)}`, 'accent')}
       ${note(`<strong>${esc(r.verdict)}</strong>`,
     r.survivors.length ? 'warn' : '')}
