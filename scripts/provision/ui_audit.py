@@ -63,6 +63,16 @@ STATIC_ROUTES: tuple[tuple[str, str], ...] = (
     ("#/features", "Feature catalogue"),
     ("#/ai", "AI models"),
     ("#/settings", "Settings"),
+    # The four tabs the owner actually sees, and every sub-tab of
+    # Research. A hub that renders six views is six chances to break
+    # one, and only auditing the default tab would miss five.
+    ("#/research", "Research"),
+    ("#/research?on=doing", "Research / am I doing it"),
+    ("#/research?on=look", "Research / how my videos look"),
+    ("#/research?on=openings", "Research / my openings"),
+    ("#/research?on=watching", "Research / staying watched"),
+    ("#/research?on=others", "Research / against other creators"),
+    ("#/creators", "Creators we study"),
 )
 
 #: A snake_case identifier: two or more lowercase word parts joined by

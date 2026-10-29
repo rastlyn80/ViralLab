@@ -512,3 +512,51 @@ a.chip { text-decoration: none; }
   display: block; height: 100%; background: var(--accent);
   transition: width .4s ease;
 }
+
+/* --- Four tabs, and everything else --------------------------- */
+/* The primary four are bigger than the folded list, because the
+   difference between "where I work" and "where I go to check
+   something" should be visible before reading a word. */
+.nav > a[data-nav] { font-size: 14.5px; padding: 9px 10px; }
+
+.nav-more { margin-top: 14px; border-top: 1px solid var(--line);
+  padding-top: 8px; }
+.nav-more > summary {
+  cursor: pointer; list-style: none; padding: 7px 10px;
+  border-radius: var(--radius-sm); font-size: 13px;
+  color: var(--fg-muted); display: flex; align-items: center; gap: 6px;
+}
+.nav-more > summary::-webkit-details-marker { display: none; }
+/* The marker is a flex child rather than a prefix on the label, so
+   the label sits beside it and any count is pushed to the far end
+   by the spacer. `space-between` on the summary put the words on
+   the right-hand edge, away from their own disclosure arrow. */
+.nav-more > summary::before {
+  content: "B8"; color: var(--fg-faint); font-size: 10px;
+}
+.nav-more[open] > summary::before { content: "BE"; }
+.nav-more > summary .count { margin-left: auto; }
+.nav-more > summary:hover { background: var(--surface-2); }
+.nav-more a { font-size: 13.5px; }
+
+/* --- Sub-tabs inside Research --------------------------------- */
+.subtabs {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  border-bottom: 1px solid var(--line); margin: 0 0 14px;
+}
+.subtab {
+  padding: 8px 12px; font-size: 13.5px; font-weight: 550;
+  color: var(--fg-muted); text-decoration: none;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.subtab:hover { color: var(--fg); text-decoration: none; }
+.subtab.active {
+  color: var(--accent); border-bottom-color: var(--accent);
+  font-weight: 650;
+}
+/* A sub-view keeps its own <h1> so it still works on its own URL.
+   Inside the hub that heading is a section title, not a page
+   title, so it is demoted here rather than edited out of six
+   modules. */
+#sub h1 { font-size: 15px; margin: 4px 0 6px; }
+#sub .lede { font-size: 13.5px; margin-bottom: 14px; }

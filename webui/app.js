@@ -13,6 +13,7 @@ import { loadLexicon } from './lexicon.js';
 import { discover } from './discover.js';
 import { hookDetail, hookRetention, hooks } from './hooks.js';
 import { research, researchCreator } from './research.js';
+import { researchHub } from './research_hub.js';
 import { settings } from './settings.js';
 import { creatorReport, creatorTimeline } from './timeline.js';
 import { labelReview } from './labelreview.js';
@@ -35,12 +36,16 @@ const ROUTES = [
   { pattern: /^\/review\/masters$/, view: reviewMasters, nav: 'review-masters' },
   { pattern: /^\/review\/pairs$/, view: reviewPairs, nav: 'review-pairs' },
   { pattern: /^\/competitors$/, view: competitors, nav: 'competitors' },
-  { pattern: /^\/research$/, view: research, nav: 'research' },
-  { pattern: /^\/research\/(\d+)$/, view: researchCreator, nav: 'research' },
+  // `#/research` is the findings hub now. The list of creators
+  // we study moved to `#/creators`, because "research" is what
+  // the owner calls the answers, not the inputs.
+  { pattern: /^\/research$/, view: researchHub, nav: 'research-hub' },
+  { pattern: /^\/creators$/, view: research, nav: 'creators' },
+  { pattern: /^\/research\/(\d+)$/, view: researchCreator, nav: 'creators' },
   { pattern: /^\/research\/(\d+)\/timeline$/, view: creatorTimeline,
-    nav: 'research' },
+    nav: 'creators' },
   { pattern: /^\/research\/(\d+)\/report$/, view: creatorReport,
-    nav: 'research' },
+    nav: 'creators' },
   { pattern: /^\/discover$/, view: discover, nav: 'discover' },
   { pattern: /^\/collections$/, view: collections, nav: 'collections' },
   { pattern: /^\/collections\/(\d+)$/, view: collectionDetail,
@@ -67,10 +72,29 @@ const ROUTES = [
   { pattern: /^\/settings$/, view: settings, nav: 'settings' },
 ];
 
+/**
+ * Four places to be, and everything else folded away.
+ *
+ * There were twenty items here. Six of them were findings pages
+ * whose names differed only by their verb, which meant the owner
+ * opened three to find out which one answered his question.
+ *
+ * `MORE` is not a junk drawer and not a demotion. It holds the
+ * pages that explain the machinery - what every measurement means,
+ * what the models cost, which creators are in the set - and those
+ * are reference, consulted when a number looks wrong, not part of
+ * the daily loop. Nothing was deleted and every old URL still
+ * works.
+ */
 const NAV = [
-  { group: 'Your content' },
   { id: 'dashboard', href: '#/', label: 'Home' },
-  { id: 'library', href: '#/library', label: 'My videos' },
+  { id: 'research-hub', href: '#/research', label: 'Research' },
+  { id: 'make', href: '#/make', label: 'Make something' },
+  { id: 'work', href: '#/collect', label: 'Collect data' },
+];
+
+//: Shown only when the owner opens "Everything else".
+const MORE = [
   { group: 'Needs you' },
   { id: 'labelreview', href: '#/review/labels',
     label: 'Check uncertain labels' },
@@ -79,55 +103,60 @@ const NAV = [
   { id: 'review-pairs', href: '#/review/pairs',
     label: 'Same video, both platforms',
     count: (o) => o?.review.publication_links_proposed },
-  { id: 'work', href: '#/collect', label: 'Collect data' },
-  { group: 'What we have learned' },
-  { id: 'make', href: '#/make',
-    label: 'Make something' },
-  { id: 'following', href: '#/following',
-    label: 'Am I doing it?' },
-  { id: 'views', href: '#/views',
-    label: 'What goes with more views' },
-  { id: 'look', href: '#/look',
-    label: 'What my videos look like' },
+  { group: 'Your videos' },
+  { id: 'library', href: '#/library', label: 'All my videos' },
   { id: 'next', href: '#/next', label: 'What to try next' },
-  { id: 'hooks', href: '#/hooks', label: 'How my openings look' },
-  { id: 'hook-retention', href: '#/hooks/retention',
-    label: 'What keeps people watching' },
-  { id: 'glossary', href: '#/glossary',
-    label: 'What everything means' },
+  { group: 'Other creators' },
+  { id: 'creators', href: '#/creators', label: 'Creators we study' },
+  { id: 'discover', href: '#/discover', label: 'Find creators' },
+  { id: 'collections', href: '#/collections', label: 'Groups of creators' },
+  { group: 'Reference' },
+  { id: 'glossary', href: '#/glossary', label: 'What everything means' },
   { id: 'features', href: '#/features',
     label: 'Everything we can measure' },
-  { id: 'cohort', href: '#/cohort/2',
-    label: 'You against other creators' },
-  { group: 'Other creators' },
-  { id: 'discover', href: '#/discover', label: 'Find creators' },
-  { id: 'research', href: '#/research', label: 'Creators we study' },
-  { id: 'collections', href: '#/collections', label: 'Groups of creators' },
-  { id: 'competitors', href: '#/competitors', label: 'What we cannot do yet' },
-  { group: 'Under the bonnet' },
+  { id: 'competitors', href: '#/competitors',
+    label: 'What we cannot do yet' },
   { id: 'ai', href: '#/ai', label: 'AI models and spending' },
-  // Planned surfaces are listed but not linked: the navigation shape is
-  // part of the architecture, and showing where things will live is honest
-  // as long as nothing pretends to work.
   { id: 'strategist', href: '#/ask', label: 'Ask ViralLab' },
-  { group: 'Setup' },
   { id: 'settings', href: '#/settings', label: 'Connections' },
 ];
 
+//: Which nav item lights up for a page that lives under one.
+const UNDER = {
+  views: 'research-hub', following: 'research-hub',
+  look: 'research-hub', hooks: 'research-hub',
+  'hook-retention': 'research-hub', cohort: 'research-hub',
+};
+
 let overviewCache = null;
 
+function navLink(n, active) {
+  if (n.group) return `<div class="nav-group">${esc(n.group)}</div>`;
+  if (n.planned) {
+    return `<a class="is-planned" aria-disabled="true" title="Not built yet"
+      >${esc(n.label)}<span class="count">${esc(n.planned)}</span></a>`;
+  }
+  const c = n.count?.(overviewCache);
+  return `<a href="${n.href}" data-nav="${n.id}"${
+    active === n.id ? ' aria-current="page"' : ''}>${esc(n.label)}${
+    c ? `<span class="count">${c}</span>` : ''}</a>`;
+}
+
 function renderNav(active) {
-  const items = NAV.map((n) => {
-    if (n.group) return `<div class="nav-group">${esc(n.group)}</div>`;
-    if (n.planned) {
-      return `<a class="is-planned" aria-disabled="true" title="Not built yet"
-        >${esc(n.label)}<span class="count">${esc(n.planned)}</span></a>`;
-    }
-    const c = n.count?.(overviewCache);
-    return `<a href="${n.href}" data-nav="${n.id}"${
-      active === n.id ? ' aria-current="page"' : ''}>${esc(n.label)}${
-      c ? `<span class="count">${c}</span>` : ''}</a>`;
-  }).join('');
+  const lit = UNDER[active] || active;
+  // A count on something hidden inside the fold would never be
+  // seen, so anything waiting bubbles up onto the disclosure
+  // itself. Work the owner has to do must not be discoverable
+  // only by opening a drawer.
+  const waiting = MORE.reduce(
+    (sum, n) => sum + (n.count?.(overviewCache) || 0), 0);
+  const open = MORE.some((n) => n.id === active);
+  const items = NAV.map((n) => navLink(n, lit)).join('')
+    + `<details class="nav-more"${open ? ' open' : ''}>
+         <summary>Everything else${waiting
+  ? `<span class="count">${waiting}</span>` : ''}</summary>
+         ${MORE.map((n) => navLink(n, active)).join('')}
+       </details>`;
   document.getElementById('nav').innerHTML = items;
 }
 
