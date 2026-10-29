@@ -644,6 +644,11 @@ def breakthroughs(session: Session, *, own: bool = False,
         record = {
             "feature": feature,
             "display_name": lex.display_name(feature),
+            # Carried so a reader downstream can phrase it. "Had
+            # more colour intensity" works; "had more the form is
+            # named" does not, and a yes/no measurement needs to be
+            # described as a share rather than an amount.
+            "is_boolean": is_boolean(a + b),
             "describes": _describes(feature),
             "outliers_mean": round(ma, 4),
             "others_mean": round(mb, 4),

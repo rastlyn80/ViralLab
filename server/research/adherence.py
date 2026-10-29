@@ -305,7 +305,17 @@ def _plain(d: dict, followed: int, measured: int, total: int,
     whose = ("Your publications that broke out"
              if against == "mine"
              else "Other creators' publications that broke out")
-    had = f"{whose} had {more} {name}."
+    # A yes/no measurement is a share, not an amount. "Had more
+    # colour intensity" reads; "had more the form is named" does
+    # not, and that sentence was on the home screen.
+    hi, lo = d.get("outliers_mean"), d.get("others_mean")
+    if d.get("is_boolean") and hi is not None and lo is not None:
+        whose_short = ("your breakthroughs" if against == "mine"
+                       else "other creators' breakthroughs")
+        had = (f"{name.capitalize()} in {hi:.0%} of {whose_short}, "
+               f"against {lo:.0%} of everything else.")
+    else:
+        had = f"{whose} had {more} {name}."
     if not measured:
         return (f"{had} None of your last {total} have been measured "
                 f"for it.")

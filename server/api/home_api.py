@@ -100,7 +100,24 @@ def home(session: Session = Depends(get_session)) -> dict:
         .order_by(Creator.is_own_account.desc(),
                   func.count(Video.id).desc())).all()
 
+    from server.research import next_steps as ns
+
+    # Added after the owner said the platform, not a coding session,
+    # should be where the research happens - and then that he kept
+    # losing track. A home screen that describes state answers
+    # neither. These two answer "did the thing I posted work" and
+    # "what should I do now", which are the questions he actually
+    # arrives with.
+    try:
+        changed = ns.what_changed(session)
+        steps = ns.next_steps(session)
+    except Exception:                       # noqa: BLE001 - reported
+        logger.exception("could not build the home guidance")
+        changed, steps = {"publications": []}, []
+
     return {
+        "what_changed": changed,
+        "next_steps": steps,
         "mine": mine,
         "my_total": sum(m["publications"] for m in mine),
         "my_analysed": sum(m["analysed"] for m in mine),

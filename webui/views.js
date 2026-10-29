@@ -157,6 +157,60 @@ export const dashboard = {
  * The six questions a creator opens the product with, answered from
  * counts taken at request time. Nothing here is configured.
  */
+/**
+ * What changed, and what to do about it.
+ *
+ * The home screen described state - how many videos, how many
+ * measured, how many creators. All true and none of it the reason
+ * anyone opens the product. These two blocks answer the questions
+ * a person actually arrives with: did the thing I posted work, and
+ * what should I do now.
+ *
+ * Both are computed, not written down. A step appears because a
+ * measurement says so and disappears on its own when it stops
+ * being true, which is the only way a list like this stays honest
+ * past its first week.
+ */
+const VERDICT = {
+  'broke out': 'ok',
+  'did well': 'ok',
+  'about usual': '',
+  'did poorly': 'warn',
+  'too early to say': '',
+};
+
+function whatChanged(h) {
+  const rows = h.what_changed?.publications || [];
+  if (!rows.length) return '';
+  return `<section class="card">
+    <h2>Your last few posts</h2>
+    <ul class="plain">${rows.map((v) => `<li class="home-post">
+      <span class="chip ${VERDICT[v.verdict] ?? ''}">${esc(v.verdict)}</span>
+      <b>${v.views.toLocaleString()}</b>
+      <span>${esc((v.caption || '(no caption)').replace(/\s+/g, ' ')
+    .slice(0, 72))}</span>
+    </li>`).join('')}</ul>
+    <p class="muted">${esc(h.what_changed.how_scored || '')}</p>
+  </section>`;
+}
+
+function nextSteps(h) {
+  const steps = h.next_steps || [];
+  if (!steps.length) {
+    return `<section class="card"><h2>What to do next</h2>
+      <p class="muted">Nothing is waiting on you and nothing recent
+        goes against what we have measured.</p></section>`;
+  }
+  return `<section class="card">
+    <h2>What to do next</h2>
+    ${steps.map((s) => `<div class="gl-entry">
+      <h3 class="suggestion">${esc(s.what)}</h3>
+      <p>${esc(s.why)}</p>
+      <p><a class="btn" href="${esc(s.where)}">${esc(s.action)}</a></p>
+    </div>`).join('')}
+  </section>`;
+}
+
 function homeTop(h) {
   const mine = h.mine.map((m) => `
     <div class="home-plat">
@@ -193,6 +247,9 @@ function homeTop(h) {
         this much data would be dressing a guess as a plan.</p>`;
 
   return `
+    ${nextSteps(h)}
+    ${whatChanged(h)}
+
     <section class="card home-hero">
       <h2>What we have</h2>
       <div class="home-plats">${mine}</div>

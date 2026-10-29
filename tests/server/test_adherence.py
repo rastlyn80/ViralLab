@@ -201,3 +201,33 @@ def test_an_unknown_source_is_refused(tmp_path):
     import pytest
     with pytest.raises(ValueError):
         adh.check(None, against="everyone")
+
+
+def test_a_yes_no_measurement_is_described_as_a_share():
+    """"Had more the form is named" was on the home screen.
+
+    A boolean is a share, not an amount. The sentence that works
+    for colour intensity does not work for a measurement whose
+    display name is already a statement.
+    """
+    d = {"feature": "work_form_named", "direction": "higher",
+         "is_boolean": True, "outliers_mean": 0.266,
+         "others_mean": 0.1382}
+    out = adh._plain(d, 2, 12, 12, True, "mine")
+    assert "more the" not in out
+    assert "27% of your breakthroughs" in out
+    assert "14% of everything else" in out
+
+
+def test_an_amount_is_still_described_as_an_amount():
+    d = {"feature": "colourfulness", "direction": "lower",
+         "is_boolean": False, "outliers_mean": 0.269,
+         "others_mean": 0.332}
+    out = adh._plain(d, 7, 9, 12, True, "mine")
+    assert "had less" in out
+
+
+def test_a_boolean_without_means_falls_back_rather_than_crashing():
+    d = {"feature": "work_form_named", "direction": "higher",
+         "is_boolean": True}
+    assert adh._plain(d, 2, 12, 12, True, "mine")
