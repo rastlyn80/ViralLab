@@ -258,28 +258,43 @@ def reconcile(session: Session) -> int:
     to be running forever would block its kind from ever being
     started again.
     """
-    stale = live(session)
-    for row in stale:
-        alive = False
-        if row.pid:
-            try:
-                os.kill(row.pid, 0)
-                alive = True
-            except (ProcessLookupError, PermissionError):
-                alive = False
-            except Exception:               # noqa: BLE001
-                alive = False
-        row.status = "partial" if alive else "failed"
+    closed = 0
+    for row in live(session):
+        if row.pid and _alive(row.pid):
+            # Still working. Leave it alone.
+            #
+            # The first version closed every live row on startup and
+            # called it "Interrupted". A duplicate starter that
+            # failed to bind the port still ran the lifespan, so a
+            # perfectly healthy collection - forty minutes into a
+            # two-hour pass - was marked interrupted by a process
+            # that never served a request. The row is the only
+            # record the owner sees, so that reads as a failure
+            # that did not happen.
+            #
+            # Nothing is following it any more, which is a real
+            # loss, but the work continues and the next reconcile
+            # closes the row once the process is actually gone.
+            logger.info("operation %s is still running as pid %s; "
+                        "left alone", row.id, row.pid)
+            continue
+        row.status = "failed"
         row.finished_at = datetime.now(timezone.utc)
-        row.error = (
-            "the app restarted while this was running; the work may "
-            "have finished but nothing was watching it"
-            if alive else
-            "the app restarted while this was running and the process "
-            "is gone")
+        row.error = ("the app restarted while this was running and "
+                     "the process is gone")
         row.progress_note = "Interrupted"
-    if stale:
+        closed += 1
+    if closed:
         session.commit()
-        logger.warning("closed %d operation(s) left by a restart",
-                       len(stale))
-    return len(stale)
+        logger.warning("closed %d operation(s) whose process had gone",
+                       closed)
+    return closed
+
+
+def _alive(pid: int) -> bool:
+    """Whether that process still exists."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except (ProcessLookupError, PermissionError, OSError):
+        return False

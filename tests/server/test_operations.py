@@ -141,9 +141,14 @@ def test_the_one_live_run_rule_is_enforced_by_the_database():
 
 
 def test_a_restart_cannot_leave_a_kind_blocked_forever():
-    """`reconcile` exists because the follower is a thread."""
-    src = inspect.getsource(runner.reconcile)
-    assert "partial" in src and "failed" in src
+    """`reconcile` exists because the follower is a thread.
+
+    Checked by behaviour, not by reading the source - the two tests
+    below run it. This one only pins that it is wired into startup,
+    because without that one interrupted run blocks its kind for
+    ever and the owner is told "already running" about something
+    that stopped days ago.
+    """
     from server.api import app as app_module
     assert "reconcile" in inspect.getsource(app_module.lifespan)
 
@@ -191,3 +196,52 @@ def test_progress_is_read_from_the_lines_the_scripts_already_print():
         "done": 3, "total": 12, "progress_note": "Round 3 of 12"}
     assert runner._progress_from("INFO 400/2430")["done"] == 400
     assert runner._progress_from("nothing here") is None
+
+
+def test_reconcile_leaves_a_live_operation_alone(monkeypatch):
+    """A healthy two-hour pass must survive a restart of the app.
+
+    The first version closed every live row at startup. A duplicate
+    starter that failed to bind the port still ran the lifespan, so
+    a collection forty minutes in was marked "Interrupted" by a
+    process that never served a request - and that row is the only
+    thing the owner sees.
+    """
+    class Row:
+        def __init__(self, pid):
+            self.id, self.pid = 1, pid
+            self.status, self.error = "running", None
+            self.finished_at = self.progress_note = None
+
+    live_row = Row(pid=4242)
+    monkeypatch.setattr(runner, "live", lambda s, kind=None: [live_row])
+    monkeypatch.setattr(runner, "_alive", lambda pid: True)
+
+    class S:
+        def commit(self):
+            raise AssertionError("nothing to commit")
+
+    assert runner.reconcile(S()) == 0
+    assert live_row.status == "running"
+    assert live_row.progress_note is None
+
+
+def test_reconcile_closes_an_operation_whose_process_is_gone(monkeypatch):
+    class Row:
+        def __init__(self):
+            self.id, self.pid = 2, 999999
+            self.status, self.error = "running", None
+            self.finished_at = self.progress_note = None
+
+    dead = Row()
+    commits = []
+    monkeypatch.setattr(runner, "live", lambda s, kind=None: [dead])
+    monkeypatch.setattr(runner, "_alive", lambda pid: False)
+
+    class S:
+        def commit(self):
+            commits.append(1)
+
+    assert runner.reconcile(S()) == 1
+    assert dead.status == "failed"
+    assert commits == [1]

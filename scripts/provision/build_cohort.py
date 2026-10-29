@@ -70,7 +70,14 @@ order by c.follower_count desc
 COLLECTION_NAME = "Classical Piano"
 
 
-def pick(rows: list, n: int) -> list:
+#: A creator needs this many publications before their videos can
+#: be ranked against each other at all. Matches
+#: `virality.MIN_PER_CREATOR`, and it is the whole reason to deepen
+#: anyone: below it they contribute nothing to any comparison.
+DEEP_ENOUGH = 8
+
+
+def pick(rows: list, n: int, *, thin_first: bool = True) -> list:
     """Spread the cohort across the audience range.
 
     Taking the top n would produce a cohort of megastars whose
@@ -78,9 +85,27 @@ def pick(rows: list, n: int) -> list:
     comparison against it would read as "you are not famous".
     Stratified by rank instead: biggest, smallest, and evenly spaced
     between.
+
+    **Creators who are already deep enough are considered last.**
+    Research is idempotent, so re-selecting a creator collected
+    recently costs nothing and achieves nothing: a run picked the
+    same hundred as the previous one, spent $0.62, and moved ten
+    creators over the line. The spread still applies - it is applied
+    to the creators who actually need the work.
     """
+    if thin_first:
+        thin = [r for r in rows if (r.pubs or 0) < DEEP_ENOUGH]
+        if len(thin) >= n:
+            rows = thin
+        else:
+            # Not enough thin ones left: take them all, then spread
+            # across the rest to top up.
+            deep = [r for r in rows if (r.pubs or 0) >= DEEP_ENOUGH]
+            return thin + pick(deep, n - len(thin), thin_first=False)
     if len(rows) <= n:
         return list(rows)
+    if n <= 1:
+        return list(rows[:n])
     step = (len(rows) - 1) / (n - 1)
     return [rows[round(i * step)] for i in range(n)]
 
@@ -94,6 +119,9 @@ def main() -> int:
     ap.add_argument("--max-usd", type=float, default=1.20,
                     help="hard ceiling for THIS run, under the "
                          "category caps")
+    ap.add_argument("--include-deep", action="store_true",
+                    help="also consider creators who already "
+                         "have enough videos")
     ap.add_argument("--yes", action="store_true",
                     help="required: this spends real money")
     args = ap.parse_args()
@@ -105,7 +133,8 @@ def main() -> int:
         before = budget_state(s, provider="apify")
         rows = s.execute(text(COHORT_SQL),
                          {"platform": args.platform}).all()
-        chosen = pick(rows, args.creators)
+        chosen = pick(rows, args.creators,
+                      thin_first=not args.include_deep)
 
         adapter = ApifyDiscoveryAdapter(os.environ["APIFY_TOKEN"])
         from server.discovery.base import DiscoveryQuery, Platform, QueryKind
