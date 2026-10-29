@@ -19,6 +19,7 @@ import { labelReview } from './labelreview.js';
 import { opportunities } from './opportunities.js';
 import { creative } from './creative.js';
 import { following } from './following.js';
+import { work } from './work.js';
 import { visualProfile } from './profile.js';
 import { virality } from './virality.js';
 import { strategist } from './strategist.js';
@@ -52,6 +53,7 @@ const ROUTES = [
   { pattern: /^\/look$/, view: visualProfile, nav: 'look' },
   { pattern: /^\/views$/, view: virality, nav: 'views' },
   { pattern: /^\/make$/, view: creative, nav: 'make' },
+  { pattern: /^\/collect$/, view: work, nav: 'work' },
   { pattern: /^\/following$/, view: following,
     nav: 'following' },
   { pattern: /^\/next$/, view: opportunities, nav: 'next' },
@@ -77,6 +79,7 @@ const NAV = [
   { id: 'review-pairs', href: '#/review/pairs',
     label: 'Same video, both platforms',
     count: (o) => o?.review.publication_links_proposed },
+  { id: 'work', href: '#/collect', label: 'Collect data' },
   { group: 'What we have learned' },
   { id: 'make', href: '#/make',
     label: 'Make something' },

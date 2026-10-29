@@ -197,6 +197,14 @@ export const api = {
   creativeBrief: () => request('/api/creative/brief'),
   creativeGenerate: (body) => request('/api/creative/generate',
     { method: 'POST', body }),
+  // The platform collecting its own data, rather than
+  // somebody running a script over SSH.
+  operations: () => request('/api/operations'),
+  operation: (id) => request(`/api/operations/${id}`),
+  runOperation: (body) => request('/api/operations/run',
+    { method: 'POST', body }),
+  stopOperation: (id) => request(
+    `/api/operations/${id}/stop`, { method: 'POST' }),
   credentials: () => request('/api/credentials'),
   setCredential: (key, value) => request(
     `/api/credentials/${encodeURIComponent(key)}`,

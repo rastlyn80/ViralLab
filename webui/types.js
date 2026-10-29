@@ -1090,6 +1090,12 @@
  */
 
 /**
+ * @typedef {Object} Run
+ * @property {string} kind
+ * @property {Object<string, number>=} params
+ */
+
+/**
  * @typedef {Object} SearchHistoryRow
  * @property {number} job_id
  * @property {string} kind

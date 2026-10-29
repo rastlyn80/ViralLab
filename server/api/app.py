@@ -32,6 +32,7 @@ from server.api import (ai_api, creative_api, credentials_api,
                         features_api, frames_api, home_api, hooks_api,
                         labels_api,
                         opportunities_api, profile_api,
+                        ops_api,
                         research_api,
                         strategist_api, ui, virality_api,
                         vision_api)
@@ -167,6 +168,18 @@ async def lifespan(app: FastAPI):
             "anything that can reach this tailnet address. Set it to "
             "require a password.")
 
+    # An operation is followed by a thread in this process, so a
+    # restart loses the follower. Close those rows now: one left
+    # claiming to be running would block its kind from ever being
+    # started again, and the owner would be told "already running"
+    # about something that stopped days ago.
+    try:
+        from server.ops import runner as ops_runner
+        with deps.session_factory()() as s:
+            ops_runner.reconcile(s)
+    except Exception:                       # noqa: BLE001 - reported
+        logger.exception("could not reconcile operations at startup")
+
     tasks = [asyncio.create_task(_reaper_loop(REAPER_INTERVAL))]
     logger.info("reaper started (every %ss)", REAPER_INTERVAL)
     if COLLECTION_ENABLED:
@@ -233,6 +246,7 @@ app.include_router(experiments_api.router)
 app.include_router(profile_api.router)
 app.include_router(virality_api.router)
 app.include_router(creative_api.router)
+app.include_router(ops_api.router)
 
 
 @app.get("/health")

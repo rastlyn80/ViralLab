@@ -1886,3 +1886,67 @@ class ExperimentAssignment(Base):
               unique=True,
               postgresql_where=text("video_id is not null")),
     )
+
+
+class Operation(Base):
+    """A run the platform started for itself.
+
+    The owner's objection was that research happened in coding
+    sessions rather than on the platform. The analysis was already
+    here; what was not was any way to *refresh the data* without an
+    operator and an SSH session.
+
+    A row is one pass: what was asked for, how far it got, what it
+    cost and what it concluded. Kept after it finishes, because
+    "when was this last collected, and what happened" is a question
+    the owner will ask of any number on a page.
+
+    Not `analysis_batches`. That queue leases per-video modality
+    batches to the GPU worker and is right for that. An operation
+    has no worker and no lease: it is one long server-side pass
+    whose unit of progress is publications, not batch slots.
+    """
+
+    __tablename__ = "operations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    #: A key from the frozen catalogue in `server/ops/catalogue.py`.
+    #: Never a command line - the API accepts a key and nothing
+    #: else, so no request can choose what gets executed.
+    kind: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, default="queued")
+    params: Mapped[dict] = mapped_column(JSONB, default=dict)
+    requested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+    #: Plain English for the page, and a count for the bar. Both
+    #: optional: a pass that cannot count its work says so rather
+    #: than inventing a percentage.
+    progress_note: Mapped[str | None] = mapped_column(Text)
+    done: Mapped[int | None] = mapped_column(Integer)
+    total: Mapped[int | None] = mapped_column(Integer)
+    cost_usd: Mapped[float] = mapped_column(
+        Numeric(12, 6), default=0)
+    #: The tail of the output, capped by the writer.
+    log: Mapped[str | None] = mapped_column(Text)
+    summary: Mapped[dict | None] = mapped_column(JSONB)
+    error: Mapped[str | None] = mapped_column(Text)
+    pid: Mapped[int | None] = mapped_column(Integer)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status in ('queued','running','ok','partial','failed',"
+            "'cancelled')",
+            name="ck_operations_status"),
+        Index("ix_operations_kind_requested", "kind", "requested_at"),
+        # One live run per kind. These passes talk to other people's
+        # servers and to paid APIs; two concurrent copies would
+        # double both the request rate and the spend, which is the
+        # one thing ADR 0010's politeness argument cannot survive.
+        Index("uq_operations_one_live_per_kind", "kind", unique=True,
+              postgresql_where=text(
+                  "status in ('queued','running')")),
+    )
