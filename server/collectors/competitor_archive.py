@@ -112,8 +112,31 @@ class AcquireResult:
         }
 
 
+def analysed_ids(session: Session):
+    """Publications that already have every deterministic stage.
+
+    The stage list comes from `features/competitor.py` rather
+    than being restated, so what counts as analysed cannot drift
+    between the thing that measures coverage and the thing that
+    decides what to fetch.
+    """
+    from sqlalchemy import func
+
+    from server.db.models import VideoFeature
+    from server.features.competitor import STAGES
+
+    wanted = {mv for _n, _r, mv in STAGES}
+    return (select(VideoFeature.video_id)
+            .where(VideoFeature.method_version.in_(sorted(wanted)),
+            VideoFeature.status == "ok")
+            .group_by(VideoFeature.video_id)
+            .having(func.count(func.distinct(
+                VideoFeature.method_version)) >= len(wanted)))
+
+
 def candidates(session: Session, *, limit: int,
-               creator_id: int | None = None
+               creator_id: int | None = None,
+               redo: bool = False
                ) -> list[tuple[Video, Creator]]:
     """Competitor publications we can reach and do not already hold.
 
@@ -123,6 +146,19 @@ def candidates(session: Session, *, limit: int,
     `permalink.for_video`, which the rest of the product already
     uses for exactly this. Deriving is better than re-scraping to
     recover something we can compute.
+
+    **Already-analysed publications are excluded, and that is not
+    an optimisation.** The first version skipped only what was
+    currently held, and a file stops being held the moment the
+    deterministic pass releases it - so a twelve-cycle run
+    downloaded the same forty videos twelve times, analysed them
+    twelve times, and moved coverage by nothing after the first
+    cycle. Against somebody else's servers, that is not merely
+    wasteful; it is the opposite of the rate limiting the whole
+    route is conditioned on.
+
+    `redo=True` is for a method-version bump, when re-fetching is
+    the point.
     """
     have = select(TransientMedia.video_id).where(
         TransientMedia.deleted_at.is_(None))
@@ -132,6 +168,8 @@ def candidates(session: Session, *, limit: int,
                    Video.platform == "tiktok",
                    Video.external_id.is_not(None),
                    Video.id.not_in(have)))
+    if not redo:
+        stmt = stmt.where(Video.id.not_in(analysed_ids(session)))
     if creator_id is not None:
         stmt = stmt.where(Video.creator_id == creator_id)
 
@@ -190,6 +228,7 @@ def acquire_one(session: Session, video: Video,
 def acquire(session: Session, *, max_videos: int = DEFAULT_MAX_PER_RUN,
             creator_id: int | None = None,
             pause_s: float = MIN_SECONDS_BETWEEN,
+            redo: bool = False,
             sleeper=time.sleep) -> AcquireResult:
     """Fetch up to `max_videos` public competitor videos."""
     res = AcquireResult()
@@ -198,7 +237,8 @@ def acquire(session: Session, *, max_videos: int = DEFAULT_MAX_PER_RUN,
         res.stopped_reason = detail
         return res
 
-    todo = candidates(session, limit=max_videos, creator_id=creator_id)
+    todo = candidates(session, limit=max_videos,
+                      creator_id=creator_id, redo=redo)
     for i, (video, creator) in enumerate(todo):
         if i:
             sleeper(pause_s)

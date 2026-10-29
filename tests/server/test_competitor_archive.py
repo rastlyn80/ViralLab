@@ -186,3 +186,35 @@ def test_a_video_with_no_derivable_url_is_unavailable(monkeypatch):
         id = 1
 
     assert ca.acquire_one(None, FakeVideo(), None) == ca.SyncStatus.UNAVAILABLE
+
+
+def test_an_already_analysed_publication_is_not_fetched_again():
+    """The bug that cost twelve cycles and nothing to show for it.
+
+    `candidates` first excluded only publications currently HELD,
+    and a file stops being held the moment the deterministic pass
+    releases it. So a twelve-cycle run downloaded the same forty
+    videos twelve times and moved coverage by nothing after the
+    first. Against someone else's servers that is the opposite of
+    the rate limiting this whole route is conditioned on.
+    """
+    import inspect as _inspect
+    src = _inspect.getsource(ca.candidates)
+    assert "analysed_ids" in src
+    # And re-fetching stays possible, for a method-version bump.
+    assert "redo" in _inspect.signature(ca.candidates).parameters
+    assert "redo" in _inspect.signature(ca.acquire).parameters
+
+
+def test_what_counts_as_analysed_is_not_restated_here():
+    """One definition, shared with the thing that reports coverage.
+
+    Two copies of the stage list would let the fetcher and the
+    coverage report disagree about which publications are done,
+    which is the same class of bug one layer up.
+    """
+    src = inspect.getsource(ca.analysed_ids)
+    assert "from server.features.competitor import STAGES" in src
+    for version in ("hook-background-v1", "hook-ocr-v1"):
+        assert version not in inspect.getsource(ca), (
+            f"{version} is hardcoded; read it from STAGES instead")
