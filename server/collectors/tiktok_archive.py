@@ -443,6 +443,16 @@ def _classify(stderr: str, returncode: int) -> tuple[str, str]:
     """
     s = (stderr or "").lower()
     pairs = [
+        # MEASURED 2026-10-30: when this server had made a couple
+        # of thousand logged-out requests, TikTok stopped offering
+        # a video stream at all and served an audio-only format,
+        # and one reply said the IP was blocked outright. That is a
+        # throttle wearing a different hat, and calling it "failed"
+        # sent the collector back for more - which is the one
+        # behaviour the politeness argument in ADR 0010 cannot
+        # survive. It is classed as rate-limited so the pass stops.
+        (("requested format is not available",
+          "your ip address is blocked"), SyncStatus.RATE_LIMITED),
         (("http error 429", "too many requests", "rate-limit",
           "rate limit"), SyncStatus.RATE_LIMITED),
         (("private video", "is private", "login required",
@@ -577,9 +587,24 @@ def fetch_one(target: UrlTarget, dest: Path, *,
         # path downscales anyway - ANALYSIS_WIDTH in hookfeat, MAX_WIDTH 640
         # in the frames API - whereas a file the owner cannot play in their
         # own dashboard is a real loss.
+        # MEASURED 2026-10-30: the last two fallbacks could select
+        # an AUDIO-ONLY format. On a competitor video offering no
+        # H.264 rendition at all, yt-dlp reported "Downloading 1
+        # format(s): audio", wrote a 950 KB file with one AAC
+        # stream, and `probe` correctly threw it away - which
+        # presented as "the downloaded file would not probe as
+        # playable" on 8 of every 10 competitor fetches. The
+        # earlier note that "every video checked also offers an
+        # H.264 rendition" was measured on the OWNER's videos and
+        # does not hold for other people's.
+        #
+        # Every branch now requires a video stream. The HEVC
+        # fallback is last and real: better a file the browser
+        # cannot play - which `transcode` then fixes, and which
+        # ffmpeg can analyse regardless - than no file at all.
         "-f", ("b[vcodec^=h264]/b[vcodec^=avc1]/"
                "bv*[vcodec^=h264]+ba/bv*[vcodec^=avc1]+ba/"
-               "best[ext=mp4]/best"),
+               "b[ext=mp4][vcodec!=none]/bv*+ba/b[vcodec!=none]"),
         "--merge-output-format", "mp4",
         "-o", str(tmp),
     ]

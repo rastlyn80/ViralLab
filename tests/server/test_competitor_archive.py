@@ -64,7 +64,8 @@ def test_the_fetch_is_called_without_cookies(monkeypatch):
     class FakeVideo:
         id = 1
 
-    assert ca.acquire_one(None, FakeVideo(), None) == ta.SyncStatus.FAILED
+    status, _why = ca.acquire_one(None, FakeVideo(), None)
+    assert status == ta.SyncStatus.FAILED
     assert "cookies" not in seen["kwargs"], (
         "acquire_one must never pass a cookie jar")
 
@@ -105,7 +106,7 @@ def test_being_rate_limited_stops_the_whole_run(monkeypatch):
     monkeypatch.setattr(ca, "candidates",
                         lambda *a, **k: [(FakeVideo(), None)] * 5)
     monkeypatch.setattr(ca, "acquire_one",
-                        lambda *a, **k: ca.SyncStatus.RATE_LIMITED)
+                        lambda *a, **k: (ca.SyncStatus.RATE_LIMITED, ""))
     res = ca.acquire(None, max_videos=5, sleeper=seen.append)
 
     assert res.attempted == 1, "stopped after the first refusal"
@@ -130,7 +131,7 @@ def test_it_pauses_between_fetches_but_not_before_the_first(monkeypatch):
     monkeypatch.setattr(ca, "candidates",
                         lambda *a, **k: [(FakeVideo(), None)] * 3)
     monkeypatch.setattr(ca, "acquire_one",
-                        lambda *a, **k: ca.SyncStatus.UNAVAILABLE)
+                        lambda *a, **k: (ca.SyncStatus.UNAVAILABLE, "gone"))
     ca.acquire(None, max_videos=3, pause_s=7.0, sleeper=waits.append)
     assert waits == [7.0, 7.0]
 
@@ -175,7 +176,9 @@ def test_a_rejected_url_never_reaches_a_subprocess(monkeypatch):
     class FakeVideo:
         id = 1
 
-    assert ca.acquire_one(None, FakeVideo(), None) == ca.SyncStatus.BAD_URL
+    status, why = ca.acquire_one(None, FakeVideo(), None)
+    assert status == ca.SyncStatus.BAD_URL
+    assert why, 'the reason must travel with the status'
     assert called == [], "a rejected URL must not be downloaded"
 
 
@@ -185,7 +188,9 @@ def test_a_video_with_no_derivable_url_is_unavailable(monkeypatch):
     class FakeVideo:
         id = 1
 
-    assert ca.acquire_one(None, FakeVideo(), None) == ca.SyncStatus.UNAVAILABLE
+    status, why = ca.acquire_one(None, FakeVideo(), None)
+    assert status == ca.SyncStatus.UNAVAILABLE
+    assert why
 
 
 def test_an_already_analysed_publication_is_not_fetched_again():
@@ -218,3 +223,64 @@ def test_what_counts_as_analysed_is_not_restated_here():
     for version in ("hook-background-v1", "hook-ocr-v1"):
         assert version not in inspect.getsource(ca), (
             f"{version} is hardcoded; read it from STAGES instead")
+
+
+def test_a_failure_carries_its_reason():
+    """Eleven rows of {"status": "failed"} and no way to tell a
+    deleted video from a blocked one from a broken extractor.
+
+    The reason was computed by `_classify` and dropped on the way
+    out, which turned a diagnosable problem into a shrug.
+    """
+    res = ca.AcquireResult()
+    res.failures.append({"video_id": 1, "status": "failed",
+                         "why": "HTTP Error 403: Forbidden"})
+    res.refusals.append({"video_id": 2, "status": "unavailable",
+                         "why": "video has been removed"})
+    out = res.as_dict()
+    assert out["failures"][0]["why"]
+    assert out["refusals"][0]["why"]
+
+
+def test_reasons_are_counted_so_a_pattern_is_visible():
+    res = ca.AcquireResult()
+    for _ in range(9):
+        res.failures.append({"video_id": 1, "status": "failed",
+                             "why": "HTTP Error 403: Forbidden"})
+    res.failures.append({"video_id": 2, "status": "failed",
+                         "why": "something else"})
+    counts = res.why_counts()
+    assert counts["HTTP Error 403: Forbidden"] == 9
+    assert list(counts)[0] == "HTTP Error 403: Forbidden"
+
+
+def test_terminal_refusals_are_kept_apart_from_retryable_failures():
+    """A deleted video will never succeed; retrying it is wasted
+    politeness against someone else's servers."""
+    res = ca.AcquireResult()
+    assert res.refusals == []
+    assert "refusals" in res.as_dict()
+
+
+def test_being_served_audio_only_is_treated_as_throttling():
+    """MEASURED 2026-10-30: a throttle wearing a different hat.
+
+    After roughly two thousand logged-out requests TikTok stopped
+    offering any video stream and served an audio-only format, and
+    one reply said the IP was blocked outright. Classed as a plain
+    failure, the collector went back for more - which is the one
+    behaviour ADR 0010's politeness argument cannot survive.
+    """
+    for message in ("ERROR: Requested format is not available",
+                    "ERROR: [TikTok] 123: Your IP address is blocked "
+                    "from accessing this post"):
+        status, _detail = ta._classify(message, 1)
+        assert status == ta.SyncStatus.RATE_LIMITED, message
+
+
+def test_a_genuinely_missing_video_is_still_not_throttling():
+    """Otherwise one deleted video stops the whole pass."""
+    status, _ = ta._classify("ERROR: Video unavailable", 1)
+    assert status == ta.SyncStatus.UNAVAILABLE
+    status, _ = ta._classify("ERROR: This post is private", 1)
+    assert status == ta.SyncStatus.PRIVATE

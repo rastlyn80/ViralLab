@@ -97,7 +97,20 @@ class AcquireResult:
     unavailable: int = 0
     rate_limited: int = 0
     failures: list[dict] = field(default_factory=list)
+    #: Terminal refusals - deleted, private, region-blocked. Kept
+    #: apart from failures because they will never succeed and a
+    #: retry loop over them is wasted politeness.
+    refusals: list[dict] = field(default_factory=list)
     stopped_reason: str = ""
+
+    def why_counts(self) -> dict:
+        """How many of each reason, so a pattern is visible at a
+        glance rather than by reading twenty rows."""
+        counts: dict[str, int] = {}
+        for item in self.failures + self.refusals:
+            key = (item.get("why") or item.get("status") or "?")[:80]
+            counts[key] = counts.get(key, 0) + 1
+        return dict(sorted(counts.items(), key=lambda kv: -kv[1])[:8])
 
     def as_dict(self) -> dict:
         return {
@@ -106,6 +119,8 @@ class AcquireResult:
             "unavailable": self.unavailable,
             "rate_limited": self.rate_limited,
             "failures": self.failures[:20],
+            "refusals": self.refusals[:20],
+            "why_counts": self.why_counts(),
             "stopped_reason": self.stopped_reason,
             "cost_usd": 0.0,
             "permission_basis": PERMISSION_BASIS,
@@ -184,7 +199,7 @@ def candidates(session: Session, *, limit: int,
 
 def acquire_one(session: Session, video: Video,
                 creator: Creator | None = None, *,
-                now: datetime | None = None) -> str:
+                now: datetime | None = None) -> tuple[str, str]:
     """Fetch one public video. Returns a `SyncStatus`.
 
     No credential reaches `fetch_one`: `cookies` is left at its
@@ -193,21 +208,25 @@ def acquire_one(session: Session, video: Video,
     """
     url = permalink.for_video(video, creator)
     if not url:
-        return SyncStatus.UNAVAILABLE
+        return SyncStatus.UNAVAILABLE, "no public URL could be derived"
     # `(target, reason)`, not a target. It reports a rejected URL
     # rather than raising, so a caller that forgets to unpack hands
     # a tuple straight to the subprocess layer.
     target, reason = normalise_url(url)
     if target is None:
         logger.info("video %s has an unusable url: %s", video.id, reason)
-        return SyncStatus.BAD_URL
+        return SyncStatus.BAD_URL, reason
 
     dest = transient.path_for(video.id)
     # Deliberately no `cookies=`. See the module docstring: the
     # absence is the control.
     out = fetch_one(target, dest)
     if out.status != SyncStatus.OK:
-        return out.status
+        # The reason travels with the status. It was computed and
+        # dropped, so a run that fetched nothing reported eleven
+        # rows of {"status": "failed"} and no way to tell a deleted
+        # video from a blocked one from a broken extractor.
+        return out.status, (out.detail or "")[:300]
 
     try:
         transient.register(session, video_id=video.id, path=dest,
@@ -222,7 +241,7 @@ def acquire_one(session: Session, video: Video,
         logger.exception("could not register transient media for video %s; "
                          "the file has been deleted", video.id)
         raise
-    return SyncStatus.OK
+    return SyncStatus.OK, ""
 
 
 def acquire(session: Session, *, max_videos: int = DEFAULT_MAX_PER_RUN,
@@ -243,7 +262,7 @@ def acquire(session: Session, *, max_videos: int = DEFAULT_MAX_PER_RUN,
         if i:
             sleeper(pause_s)
         res.attempted += 1
-        status = acquire_one(session, video, creator)
+        status, detail = acquire_one(session, video, creator)
         if status == SyncStatus.OK:
             res.acquired += 1
             session.commit()
@@ -258,9 +277,12 @@ def acquire(session: Session, *, max_videos: int = DEFAULT_MAX_PER_RUN,
                 "than continuing to request")
             break
         if status in RETRYABLE:
-            res.failures.append({"video_id": video.id, "status": status})
+            res.failures.append({"video_id": video.id, "status": status,
+                                 "why": detail})
         else:
             res.unavailable += 1
+            res.refusals.append({"video_id": video.id, "status": status,
+                                 "why": detail})
     return res
 
 

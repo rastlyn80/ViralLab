@@ -1805,6 +1805,32 @@ posting window, comparables, uncertainty, alternatives for testing.
 > in larger text than your recent captions use", grounded in all
 > three of findings, agreed_by_both and where_you_go_against_it.
 
+> **The free route stopped working, 2026-10-30.** After roughly
+> two thousand logged-out `yt-dlp` requests, TikTok stopped
+> offering this server a video stream at all: **0 of 12 sampled
+> publications had one**, ten served an audio-only format and one
+> reply said the IP was blocked outright. Before that it worked -
+> 1,372 competitor publications were measured through it.
+>
+> Two bugs were found on the way and are fixed. The format
+> selector could fall through to an audio-only format, so an
+> 950 KB file with one AAC stream was downloaded and then
+> correctly discarded by `probe`, presenting as "would not probe
+> as playable" on 8 of 10 fetches. And the failure reason was
+> computed by `_classify` and then dropped, so a run that fetched
+> nothing reported eleven rows of `{"status": "failed"}` with no
+> way to tell a deleted video from a blocked one.
+>
+> Audio-only and an IP block are now classed as throttling, so a
+> pass stops rather than going back for more.
+>
+> **Open question for the owner.** The paid provider route
+> (`competitor_media.py`, capped at $3/month) still exists and
+> uses the provider's own infrastructure, not ours. ADR 0010 chose
+> the free route for private research; being throttled is the
+> predictable cost of doing the access ourselves, and it is now a
+> measured cost rather than a hypothetical one.
+
 **Milestone 8.3 — Conversational refinement** against stored artistic
 identity, equipment and repertoire.
 **Milestone 8.4 — Evidence lineage:** `recommendation_evidence` rows are
