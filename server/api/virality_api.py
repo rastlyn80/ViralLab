@@ -23,6 +23,7 @@ from server.api.deps import get_session
 from server.api.ui import require_ui
 from server.features import lexicon as lex
 from server.research import adherence as adh
+from server.research import matched_pairs as mpr
 from server.research import virality as vir
 
 logger = logging.getLogger("virallab.api.virality")
@@ -83,6 +84,20 @@ def compare(session: Session = Depends(get_session)) -> dict:
                 "experiment loop can say that, and it needs months."),
         },
     }
+
+
+@router.get("/pairs", dependencies=[Depends(require_ui)])
+def pairs(session: Session = Depends(get_session)) -> dict:
+    """Two of your videos that should have done the same, and did not.
+
+    ADR 0011. The nearest thing to a controlled comparison that
+    observation allows: match on the things that are not the
+    question, and look at what is left.
+    """
+    from server.research import memo
+
+    return memo.remember("matched_pairs",
+                         lambda: mpr.analyse(session), session=session)
 
 
 @router.get("/adherence", dependencies=[Depends(require_ui)])

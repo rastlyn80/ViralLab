@@ -72,6 +72,7 @@ STATIC_ROUTES: tuple[tuple[str, str], ...] = (
     ("#/research?on=openings", "Research / my openings"),
     ("#/research?on=watching", "Research / staying watched"),
     ("#/research?on=others", "Research / against other creators"),
+    ("#/research?on=pairs", "Research / two at a time"),
     ("#/creators", "Creators we study"),
 )
 

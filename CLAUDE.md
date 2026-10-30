@@ -316,8 +316,23 @@ extras:
 
 - Dashboard polish, automated publishing, trend intelligence, and commercial
   features are **not** MVP (Phases 9–11). Do not drift into them.
-- The MVP ends with **Phase 8, the live own-account experiment** — the MVP's
-  job is to test whether recommendations *improve outcomes*, not merely to
-  generate recommendations.
+- ~~The MVP ends with **Phase 8, the live own-account experiment**.~~
+  **Changed by ADR 0011 (2026-10-30), on the owner's decision.** The
+  experiment stays built, locked and running, and is no longer the
+  gate: 22 publications at 4.84 a month is four and a half months
+  for a test whose most likely outcome is "inconclusive", and the
+  owner's posting must not be constrained by it. In its place:
+  - **Replication is the bar.** A measurement may be promoted beyond
+    `Observed` only if it holds on the owner's account **and**
+    independently on the competitor corpus, in the same direction.
+    A pattern seen on one account describes that account.
+  - **Natural experiments** — matched pairs of the owner's own
+    publications, alike on everything but the question — are the
+    nearest thing to control that observation allows, and are used.
+  - **The ceiling is unchanged.** No volume of observational data
+    separates "videos naming the composer did better" from "the ones
+    where he named it were the ones he cared most about". Nothing
+    here is causal, and `Validated` is still reachable only through
+    the experiment.
 - The primary goal is scientific. An impressive UI that doesn't answer the
   outcome question is a failure, not a milestone.

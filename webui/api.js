@@ -189,6 +189,8 @@ export const api = {
   virality: () => request('/api/virality'),
   // Whether recent publications follow what the breakthroughs
   // did. The clause between researching and suggesting.
+  // Matched pairs: your own videos, two at a time.
+  matchedPairs: () => request('/api/virality/pairs'),
   adherence: (against = 'mine') => request(
     `/api/virality/adherence${qs({ against })}`),
   // The brief costs nothing and is fetched before the box is

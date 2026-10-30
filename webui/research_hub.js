@@ -22,6 +22,7 @@
 import { esc, spinner } from './components.js';
 import { following } from './following.js';
 import { hookRetention, hooks } from './hooks.js';
+import { matchedPairs } from './pairs.js';
 import { visualProfile } from './profile.js';
 import { cohortCompare } from './views.js';
 import { virality } from './virality.js';
@@ -39,6 +40,8 @@ const TABS = [
     'Where people stop watching, where the data allows it.'],
   ['others', 'Against other creators', cohortCompare,
     'You beside a saved group, each scored against their own average.'],
+  ['pairs', 'Two at a time', matchedPairs,
+    'Two of your videos that should have done the same, and did not.'],
 ];
 
 const DEFAULT_TAB = 'works';

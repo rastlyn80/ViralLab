@@ -584,3 +584,17 @@ a.chip { text-decoration: none; }
    module keeps the heading so it still works on its own URL; the
    hub hides it rather than six modules losing it. */
 #sub > h1:first-child { display: none; }
+
+/* --- Matched pairs -------------------------------------------- */
+/* Two videos side by side. The winner is marked by a rule rather
+   than a colour fill, because a green panel next to a plain one
+   reads as "good video / bad video" when the honest claim is only
+   "this one did better than its twin". */
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.pair-side {
+  border-left: 3px solid var(--line); padding-left: 10px;
+  font-size: 13.5px; color: var(--fg-muted);
+}
+.pair-win { border-left-color: var(--ok); color: var(--fg); }
+.pair-n { font-weight: 650; font-variant-numeric: tabular-nums; }
+@media (max-width: 620px) { .pair { grid-template-columns: 1fr; } }

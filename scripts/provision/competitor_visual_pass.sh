@@ -24,6 +24,22 @@
 # another batch a second later is the behaviour the per-pass stop was
 # there to avoid.
 set -uo pipefail
+
+# Say so on the way out, whatever the reason.
+#
+# A pass stopped at cycle 12 of 20 and the log simply ended after
+# the cycle header - indistinguishable from "still running" and
+# from "finished quietly". The most likely cause was the kernel
+# reclaiming memory, which leaves no message anywhere a normal user
+# can read. An exit line costs nothing and turns the next silent
+# death into a fact.
+on_exit() {
+  code=$?
+  echo "=== exited with code $code at $(date -Is) ==="
+  free -m | head -2
+}
+trap on_exit EXIT
+
 cd /home/rastlyn/virallab
 set -a; . ./.env; set +a
 
