@@ -87,3 +87,33 @@ def test_the_threshold_matches_the_analysis():
     assert bc.DEEP_ENOUGH == vir.MIN_PER_CREATOR, (
         "deepening to a different bar than the analysis uses would "
         "collect videos that still cannot be compared")
+
+
+def test_creators_with_no_follower_count_are_still_selectable():
+    """Written for TikTok, it excluded every Instagram creator.
+
+    `apify/instagram-reel-scraper` returns no follower count - the
+    adapter's own recorded verification says so - and the query
+    required one. A dry run reported "candidates: 0" on a platform
+    holding thirty creators, with nothing to explain why.
+    """
+    rows = [row(f"ig{i}", None, 1) for i in range(10)]
+    chosen = bc.pick(rows, 5)
+    assert len(chosen) == 5
+
+
+def test_without_followers_the_thin_ones_still_come_first():
+    rows = ([row(f"deep{i}", None, 30) for i in range(10)]
+            + [row(f"thin{i}", None, 1) for i in range(6)])
+    chosen = bc.pick(rows, 6)
+    assert all(c.handle.startswith("thin") for c in chosen)
+
+
+def test_a_mixed_platform_still_spreads_on_the_known_followers():
+    """Only an all-unknown set skips the spread."""
+    rows = [row(f"t{i}", 100_000 - i * 1000, 1) for i in range(40)]
+    rows.append(row("unknown", None, 1))
+    chosen = bc.pick(rows, 4)
+    known = [c.follower_count for c in chosen if c.follower_count]
+    assert len(known) >= 3
+    assert known[0] > known[-1]

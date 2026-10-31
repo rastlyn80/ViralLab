@@ -56,14 +56,24 @@ from server.research.service import research_creator  # noqa: E402
 #: biggest. M6's whole point is that "a 61-follower account and an
 #: 853k one are never silently averaged", which needs both ends
 #: present in the cohort, not a cohort of stars.
+#: Creators with no follower count are INCLUDED, and sorted last.
+#:
+#: The filter used to require one, which was written for TikTok and
+#: silently excluded every Instagram creator: `apify/
+#: instagram-reel-scraper` returns no follower count and no bio, as
+#: the adapter's own recorded verification says. The result was a
+#: dry run reporting `"candidates": 0` on a platform holding thirty
+#: creators, with nothing to explain why.
+#:
+#: `NULLS LAST` keeps the spread meaningful where followers are
+#: known and still returns the creators where they are not.
 COHORT_SQL = """
 select c.handle, c.platform, c.follower_count,
        (select count(*) from videos v where v.creator_id = c.id) pubs
 from creators c
 where not c.is_own_account
   and c.platform = :platform
-  and c.follower_count is not null
-order by c.follower_count desc
+order by c.follower_count desc nulls last, c.handle
 """
 
 #: The saved cohort M6's acceptance criterion names.
@@ -93,6 +103,15 @@ def pick(rows: list, n: int, *, thin_first: bool = True) -> list:
     creators over the line. The spread still applies - it is applied
     to the creators who actually need the work.
     """
+    # Where nobody has a follower count there is no audience range
+    # to spread across, so spreading by rank would just be an
+    # arbitrary sample dressed as a stratified one. Take the ones
+    # that need the work and say the spread was not applied.
+    if rows and all(r.follower_count is None for r in rows):
+        thin = [r for r in rows if (r.pubs or 0) < DEEP_ENOUGH]
+        pool = thin if len(thin) >= n else thin + [
+            r for r in rows if (r.pubs or 0) >= DEEP_ENOUGH]
+        return pool[:n]
     if thin_first:
         thin = [r for r in rows if (r.pubs or 0) < DEEP_ENOUGH]
         if len(thin) >= n:
