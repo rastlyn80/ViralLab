@@ -21,6 +21,8 @@ import { opportunities } from './opportunities.js';
 import { creative } from './creative.js';
 import { following } from './following.js';
 import { draft } from './draft.js';
+import { makeHub } from './make_hub.js';
+import { openings } from './openings.js';
 import { work } from './work.js';
 import { visualProfile } from './profile.js';
 import { virality } from './virality.js';
@@ -58,8 +60,12 @@ const ROUTES = [
     nav: 'cohort' },
   { pattern: /^\/look$/, view: visualProfile, nav: 'look' },
   { pattern: /^\/views$/, view: virality, nav: 'views' },
-  { pattern: /^\/make$/, view: creative, nav: 'make' },
-  { pattern: /^\/before$/, view: draft, nav: 'draft' },
+  // `#/make` is the hub. The three tools keep their own
+  // routes so older links still resolve.
+  { pattern: /^\/make$/, view: makeHub, nav: 'make' },
+  { pattern: /^\/write$/, view: creative, nav: 'make' },
+  { pattern: /^\/before$/, view: draft, nav: 'make' },
+  { pattern: /^\/openings$/, view: openings, nav: 'make' },
   { pattern: /^\/collect$/, view: work, nav: 'work' },
   { pattern: /^\/following$/, view: following,
     nav: 'following' },
@@ -91,8 +97,7 @@ const ROUTES = [
 const NAV = [
   { id: 'dashboard', href: '#/', label: 'Home' },
   { id: 'research-hub', href: '#/research', label: 'Research' },
-  { id: 'make', href: '#/make', label: 'Make something' },
-  { id: 'draft', href: '#/before', label: 'Before you post' },
+  { id: 'make', href: '#/make', label: 'Make' },
   { id: 'work', href: '#/collect', label: 'Collect data' },
 ];
 

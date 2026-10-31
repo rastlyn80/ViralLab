@@ -197,6 +197,9 @@ export const api = {
   // enabled, so the owner can see the evidence before paying for a
   // suggestion that rests on it.
   creativeBrief: () => request('/api/creative/brief'),
+  // Openings that worked, to browse. Filters go in the
+  // query string so a view is linkable.
+  openings: (params) => request(`/api/creative/openings${qs(params)}`),
   creativeGenerate: (body) => request('/api/creative/generate',
     { method: 'POST', body }),
   // A draft: the file goes up as the raw body, the caption in the

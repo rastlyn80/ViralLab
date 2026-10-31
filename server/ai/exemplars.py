@@ -171,6 +171,13 @@ def _is_language(body: str) -> bool:
             if len(w) >= 3 and w.isalpha() and w not in _NOT_WORDS]
     if len(real) < 4:
         return False
+    # And they have to be most of it. A chord chart with thirty
+    # chords and two stray words cleared the "four real words" bar
+    # and appeared in the library as an opening - it is an OCR pass
+    # over sheet music, and the owner reading it learns that long
+    # lists of two-letter tokens go viral.
+    if len(real) / max(len(words), 1) < 0.4:
+        return False
     tags = sum(1 for w in words if w.startswith("#") or w.startswith("@"))
     if tags and tags / max(len(words), 1) > 0.5:
         return False
@@ -239,4 +246,104 @@ def gather(session: Session) -> dict:
         "rule": (
             "These are other people's words. Learn the shape; never "
             "reuse the sentence."),
+    }
+
+
+# ---------------------------------------------------------------------------
+# the library: everything, browsable, rather than the best fourteen
+# ---------------------------------------------------------------------------
+
+#: The same percentile ranking as above, with the filtering left to
+#: Python. The devices are classified on the fly by `hooktext`
+#: rather than read from stored features, so the library and the
+#: analysis can never disagree about what a POV hook is - there is
+#: one classifier and it runs in one place.
+_LIBRARY = text("""
+with scored as (
+  select c.handle, c.platform, c.is_own_account, v.id as video_id,
+         m.views,
+         f.value_text as body,
+         percent_rank() over (partition by v.creator_id
+                              order by m.views) as pr,
+         count(*) over (partition by v.creator_id) as catalogue
+  from video_features f
+  join videos v on v.id = f.video_id
+  join creators c on c.id = v.creator_id
+  join lateral (
+    select views from metrics_snapshots ms
+    where ms.video_id = v.id and ms.views is not null
+    order by ms.captured_at desc limit 1
+  ) m on true
+  where f.feature = 'ocr_text'
+    and f.status = 'ok'
+    and f.value_text is not null
+    and length(f.value_text) > 18
+)
+select handle, platform, is_own_account, video_id, views, body, pr
+from scored
+where catalogue >= :min_cat
+order by pr desc, views desc
+limit 600
+""")
+
+
+def library(session: Session, *, whose: str = "all",
+            device: str = "", platform: str = "",
+            limit: int = 60) -> dict:
+    """Openings to browse, with what each one is doing.
+
+    The owner asked for a hook library and BLUEPRINT M10 lists one.
+    `gather` returns the best fourteen for a model to learn from;
+    this returns a browsable set for a person to read, which is a
+    different job: he wants to see twenty questions side by side
+    and decide whether he likes any of them.
+    """
+    from server.features import hooktext as ht
+
+    rows = []
+    for r in session.execute(_LIBRARY, {"min_cat": MIN_PER_CREATOR}):
+        body = _tidy(r.body)
+        if not body or not _is_language(body):
+            continue
+        if whose == "mine" and not r.is_own_account:
+            continue
+        if whose == "theirs" and r.is_own_account:
+            continue
+        if platform and r.platform != platform:
+            continue
+        found = ht.devices(body) or {}
+        devices = sorted(
+            k[len("hook_is_"):].replace("_", " ") if k.startswith("hook_is_")
+            else k[len("hook_has_"):].replace("_", " ")
+            for k, v in found.items()
+            if v is True and k.startswith(("hook_is_", "hook_has_"))
+            and k != "hook_is_plain_label")
+        if device and device not in devices:
+            continue
+        rows.append({
+            "text": body[:240],
+            "views": int(r.views),
+            "mine": bool(r.is_own_account),
+            "platform": r.platform,
+            "handle": "you" if r.is_own_account else r.handle,
+            "beat": round(r.pr * 100),
+            "devices": devices or ["plain label"],
+        })
+        if len(rows) >= limit:
+            break
+
+    counts: dict[str, int] = {}
+    for row in rows:
+        for d in row["devices"]:
+            counts[d] = counts.get(d, 0) + 1
+    return {
+        "openings": rows,
+        "devices": dict(sorted(counts.items(), key=lambda kv: -kv[1])),
+        "how_ordered": (
+            "Best first, where best means how far it beat its OWN "
+            "creator's other videos - so a small account's "
+            "breakout ranks beside a large one's."),
+        "rule": (
+            "Other people's words. Learn the shape; never reuse the "
+            "sentence."),
     }

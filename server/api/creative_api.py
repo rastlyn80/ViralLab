@@ -70,6 +70,30 @@ def brief(session: Session = Depends(get_session)) -> dict:
     }
 
 
+@router.get("/openings", dependencies=[Depends(require_ui)])
+def openings(whose: str = "all", device: str = "", platform: str = "",
+             limit: int = 60,
+             session: Session = Depends(get_session)) -> dict:
+    """Openings that worked, to browse rather than to generate from.
+
+    BLUEPRINT M10's "hook library". `creative/brief` returns the
+    best fourteen for a model; this returns a readable set for a
+    person, which is a different job - he wants twenty questions
+    side by side to decide whether he likes any of them.
+    """
+    from server.ai import exemplars as ex
+    from server.research import memo
+
+    whose = whose if whose in ("all", "mine", "theirs") else "all"
+    limit = max(10, min(200, limit))
+    return memo.remember(
+        "creative.openings",
+        lambda: ex.library(session, whose=whose, device=device,
+                           platform=platform, limit=limit),
+        session=session, whose=whose, device=device,
+        platform=platform, limit=limit)
+
+
 @router.post("/generate", dependencies=[Depends(require_ui_write)])
 def generate(body: Ask, session: Session = Depends(get_session)) -> dict:
     provider = _provider(body.model)
