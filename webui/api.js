@@ -199,6 +199,33 @@ export const api = {
   creativeBrief: () => request('/api/creative/brief'),
   creativeGenerate: (body) => request('/api/creative/generate',
     { method: 'POST', body }),
+  // A draft: the file goes up as the raw body, the caption in the
+  // query string. `request` only speaks JSON, and a multipart
+  // upload would need a server package for one endpoint.
+  checkDraft: async ({ file, caption }) => {
+    const res = await fetch(
+      `/api/creative/check?caption=${encodeURIComponent(caption || '')}`,
+      {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          [CSRF_HEADER]: '1',
+          'Content-Type': 'application/octet-stream',
+        },
+        body: file || new Blob([]),
+      });
+    const text = await res.text();
+    let payload = null;
+    try {
+      payload = text ? JSON.parse(text) : null;
+    } catch {
+      payload = { detail: text.slice(0, 400) };
+    }
+    if (!res.ok) {
+      throw new ApiError(res.status, payload?.detail || res.statusText);
+    }
+    return payload;
+  },
   // The platform collecting its own data, rather than
   // somebody running a script over SSH.
   operations: () => request('/api/operations'),

@@ -53,6 +53,11 @@ def compare(session: Session = Depends(get_session)) -> dict:
 
     their_feats = {f["feature"] for f in theirs["findings"]}
     my_feats = {f["feature"] for f in mine["findings"]}
+    agree_names, contradictions = vir.directional_overlap(
+        mine["findings"], theirs["findings"])
+    by_name = {f["display_name"]: f["feature"]
+               for f in mine["findings"] + theirs["findings"]}
+    agree_names = [by_name[n] for n in agree_names if n in by_name]
 
     return {
         "theirs": theirs,
@@ -68,7 +73,20 @@ def compare(session: Session = Depends(get_session)) -> dict:
         # while both sides were empty and nothing ever rendered
         # them; the first competitor finding put `hashtag_count` on
         # the page in front of the owner.
-        "in_both": _named(their_feats & my_feats),
+        #
+        # And agreement means the SAME DIRECTION. Intersecting on
+        # name alone called caption length and hashtag count
+        # "agreements" while they pointed opposite ways on the two
+        # sides - two of eight, in the strongest claim the product
+        # makes.
+        "in_both": _named(set(agree_names)),
+        "contradicts": contradictions,
+        "contradicts_note": (
+            "Measured on both sides and pointing opposite ways. "
+            "That usually means the pattern is about this account "
+            "rather than about piano videos, which is worth "
+            "knowing before acting on it."
+            if contradictions else ""),
         "only_theirs": _named(their_feats - my_feats),
         "only_mine": _named(my_feats - their_feats),
         "the_gap": _gap(theirs, mine),

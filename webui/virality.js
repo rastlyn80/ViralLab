@@ -33,7 +33,7 @@ export const virality = {
     // every number above it.
     root.innerHTML = `
       <h1>What goes with more views</h1>
-      ${card('Where they agree', agreement(d))}
+      ${card('Where they agree', agreement(d) + contradictions(d))}
       ${note(`<strong>${esc(h.not_causal || '')}</strong>`, 'warn')}
 
       <section class="card">
@@ -79,6 +79,31 @@ function agreement(d) {
     account <i>and</i> on other creators' is the strongest signal this
     page can produce, and it needs findings on both sides. There are
     none on the competitor side, for the reason given below.</p>`;
+}
+
+/**
+ * Measured on both sides and pointing opposite ways.
+ *
+ * Shown, and shown separately. These used to be counted as
+ * agreements — the overlap was computed on the measurement's NAME
+ * and not its direction — so caption length, negative on this
+ * account and positive on 291 other creators, was presented as
+ * the strongest evidence in the product.
+ *
+ * A contradiction is informative: it usually means the pattern is
+ * about this creator rather than about piano videos.
+ */
+function contradictions(d) {
+  const rows = d.contradicts || [];
+  if (!rows.length) return '';
+  return `<div class="not-a-measure">
+    <h3>Measured on both sides, pointing opposite ways</h3>
+    <ul class="plain">${rows.map((x) => `<li>
+      <b>${esc(x.display_name)}</b> &mdash; ${esc(x.yours)} went with
+      doing better on your account, ${esc(x.theirs)} on theirs.
+    </li>`).join('')}</ul>
+    <p class="muted">${esc(d.contradicts_note || '')}</p>
+  </div>`;
 }
 
 /**

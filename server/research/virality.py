@@ -387,6 +387,44 @@ def _describes(feature: str) -> str:
 OUTLIER_Z = 2.0
 
 #: Below this many outliers there is nothing to compare them against.
+def _direction_of(entry: dict) -> str:
+    """One word for which way a result points, whichever analysis
+    produced it.
+
+    `build` says positive/negative; `breakthroughs` says
+    higher/lower. Comparing the two needs them in the same words.
+    """
+    raw = entry.get("direction", "")
+    return {"positive": "higher", "negative": "lower"}.get(raw, raw)
+
+
+def directional_overlap(mine: list[dict], theirs: list[dict]
+                        ) -> tuple[list[str], list[dict]]:
+    """Measurements found on both sides, split by whether they agree.
+
+    Intersecting on NAME alone was wrong and the error was not
+    cosmetic: caption length came out negative on the owner's
+    account and positive on other creators', hashtag count the
+    same, and both were being presented as "held on both sides" -
+    the strongest claim the product makes. Two of eight so-called
+    agreements were contradictions.
+
+    A contradiction is worth seeing, not hiding. It usually means
+    the thing is about this creator rather than about piano videos,
+    which is exactly what a reader needs to know before acting.
+    """
+    a = {d["display_name"]: _direction_of(d) for d in mine}
+    b = {d["display_name"]: _direction_of(d) for d in theirs}
+    agree, disagree = [], []
+    for name in sorted(set(a) & set(b)):
+        if a[name] == b[name]:
+            agree.append(name)
+        else:
+            disagree.append({"display_name": name,
+                             "yours": a[name], "theirs": b[name]})
+    return agree, disagree
+
+
 def measurement_grade(feature: str) -> str:
     """How far a measurement can be trusted: the gate Phase 1 set.
 

@@ -20,6 +20,7 @@ import { labelReview } from './labelreview.js';
 import { opportunities } from './opportunities.js';
 import { creative } from './creative.js';
 import { following } from './following.js';
+import { draft } from './draft.js';
 import { work } from './work.js';
 import { visualProfile } from './profile.js';
 import { virality } from './virality.js';
@@ -58,6 +59,7 @@ const ROUTES = [
   { pattern: /^\/look$/, view: visualProfile, nav: 'look' },
   { pattern: /^\/views$/, view: virality, nav: 'views' },
   { pattern: /^\/make$/, view: creative, nav: 'make' },
+  { pattern: /^\/before$/, view: draft, nav: 'draft' },
   { pattern: /^\/collect$/, view: work, nav: 'work' },
   { pattern: /^\/following$/, view: following,
     nav: 'following' },
@@ -90,6 +92,7 @@ const NAV = [
   { id: 'dashboard', href: '#/', label: 'Home' },
   { id: 'research-hub', href: '#/research', label: 'Research' },
   { id: 'make', href: '#/make', label: 'Make something' },
+  { id: 'draft', href: '#/before', label: 'Before you post' },
   { id: 'work', href: '#/collect', label: 'Collect data' },
 ];
 

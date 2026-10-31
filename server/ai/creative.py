@@ -156,15 +156,16 @@ def build_brief(session: Session) -> Brief:
     # dropped the one measurement that held on both sides, because
     # it sat ninth in his list and the brief takes eight - a display
     # limit deciding what counts as evidence.
-    their_names = ({d["display_name"]
-                    for d in their_breaks.get("differences", [])}
-                   | {d["display_name"]
-                      for d in their_gradient.get("findings", [])})
-    mine_names = ({d["display_name"]
-                   for d in breaks.get("differences", [])}
-                  | {d["display_name"]
-                     for d in gradient.get("findings", [])})
-    brief.agreed = sorted(mine_names & their_names)
+    # Agreement means the same DIRECTION, not the same name. Two
+    # of the first eight "agreements" pointed opposite ways on the
+    # two sides, and the generator was being told they were the
+    # strongest evidence it had.
+    agreed, _contradicts = vir.directional_overlap(
+        list(breaks.get("differences", []))
+        + list(gradient.get("findings", [])),
+        list(their_breaks.get("differences", []))
+        + list(their_gradient.get("findings", [])))
+    brief.agreed = agreed
 
     seen = {f["what"] for f in brief.findings}
     # Anything both sides agree on goes in whatever its rank, then
