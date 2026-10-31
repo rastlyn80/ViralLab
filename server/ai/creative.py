@@ -90,6 +90,13 @@ class Brief:
     #: the most useful thing a suggestion can aim at.
     gaps: list[dict] = field(default_factory=list)
     best_hooks: list[dict] = field(default_factory=list)
+    #: Other creators' openings and captions, where they beat their
+    #: OWN creator's usual run. The half of "best practice" the
+    #: generator could not see: it had his voice and nobody else's,
+    #: so it could only rearrange what he already does.
+    their_openings: list[dict] = field(default_factory=list)
+    their_captions: list[dict] = field(default_factory=list)
+    exemplar_note: dict = field(default_factory=dict)
     repertoire: list[dict] = field(default_factory=list)
     recent: list[str] = field(default_factory=list)
     counts: dict = field(default_factory=dict)
@@ -100,6 +107,11 @@ class Brief:
                 "agreed_by_both": self.agreed,
                 "where_you_go_against_it": self.gaps,
                 "best_hooks": self.best_hooks,
+                "what_worked_for_other_creators": {
+                    "openings": self.their_openings,
+                    "captions": self.their_captions,
+                    **self.exemplar_note,
+                },
                 "repertoire": self.repertoire, "recent": self.recent,
                 "counts": self.counts}
 
@@ -243,6 +255,17 @@ def build_brief(session: Session) -> Brief:
                 "verdict": f["verdict"],
             })
 
+    # What other creators wrote when it worked unusually well for
+    # them. Chosen within the creator, never by views, so a
+    # 400-follower pianist's breakout sits beside a star's.
+    from server.ai import exemplars as ex
+
+    found = ex.gather(session)
+    brief.their_openings = found["openings"]
+    brief.their_captions = found["captions"]
+    brief.exemplar_note = {k: found[k] for k in ("how_chosen", "rule")
+                           if found.get(k)}
+
     own = (select(Video.id).join(Creator, Creator.id == Video.creator_id)
            .where(Creator.is_own_account.is_(True)))
     own_ids = set(session.scalars(own).all())
@@ -292,6 +315,8 @@ def build_brief(session: Session) -> Brief:
     brief.recent = [(c or "")[:120] for (c,) in recent if c]
 
     brief.counts = {
+        "their_openings": len(brief.their_openings),
+        "their_captions": len(brief.their_captions),
         "findings": len(brief.findings),
         "other_creators": len(brief.theirs),
         "agreed_by_both": len(brief.agreed),
@@ -351,6 +376,14 @@ The brief has three kinds of evidence and they are not equal.
   something he already does every time is true and useless. Do not
   treat them as orders - he may have good reasons - and never
   scold him for one.
+* `what_worked_for_other_creators` is other people's openings and
+  captions, each one chosen because it beat ITS OWN creator's
+  usual run. Use them to see what SHAPE works - a contrast, a
+  question, a stunt, a confession. **Never reuse the words.** A
+  suggestion that repeats a competitor's sentence is plagiarism
+  with extra steps and would be obvious to anyone following both
+  accounts. If an example is the reason for a suggestion, say so
+  by describing the shape, not by quoting it.
 
 Say which kind a suggestion draws on. "Your breakthroughs tended
 to name the composer" and "other pianists' breakthroughs tended
