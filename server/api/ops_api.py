@@ -21,6 +21,7 @@ from server.api.deps import get_session
 from server.api.ui import require_ui, require_ui_write
 from server.ops import catalogue as cat
 from server.ops import runner
+from server.ops import schedule as sched
 
 logger = logging.getLogger("virallab.api.ops")
 
@@ -38,8 +39,14 @@ def _row(op) -> dict:
         pct = round(100.0 * (op.done or 0) / op.total, 1)
     return {
         "id": op.id, "kind": op.kind, "status": op.status,
-        "title": (cat.BY_KEY[op.kind].title
-                  if op.kind in cat.BY_KEY else op.kind),
+        # A run of an operation that no longer exists still has a
+        # row. Falling back to the raw key put `collect_own` on the
+        # page the moment that operation was removed, which is the
+        # column-name-in-the-interface problem arriving through the
+        # back door.
+        "title": (cat.BY_KEY[op.kind].title if op.kind in cat.BY_KEY
+                  else op.kind.replace("_", " ").capitalize()
+                  + " (no longer offered)"),
         "params": op.params or {},
         "requested_at": op.requested_at,
         "started_at": op.started_at, "finished_at": op.finished_at,
@@ -61,6 +68,11 @@ def index(session: Session = Depends(get_session)) -> dict:
             {**cat.as_dict(op), "is_running": op.key in running}
             for op in cat.CATALOGUE],
         "history": [_row(r) for r in runner.recent(session)],
+        "automatic": sched.describe(session),
+        "automatic_note": (
+            "These run on their own, once a day. Only work that "
+            "costs nothing is ever automatic - anything that spends "
+            "stays a button you press."),
         "what_this_is": (
             "The platform collects and measures its own data. "
             "Press a button and it runs here, not on somebody's "

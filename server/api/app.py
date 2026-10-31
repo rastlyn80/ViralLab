@@ -182,6 +182,17 @@ async def lifespan(app: FastAPI):
 
     tasks = [asyncio.create_task(_reaper_loop(REAPER_INTERVAL))]
     logger.info("reaper started (every %ss)", REAPER_INTERVAL)
+
+    # The free extractors, nightly. Only free work is on the
+    # schedule and `ops.schedule` refuses at import time if a paid
+    # operation is ever added to it - unattended spending is not
+    # something a ceiling makes acceptable.
+    from server.ops import schedule as ops_schedule
+    tasks.append(asyncio.create_task(
+        ops_schedule.loop(deps.session_factory())))
+    logger.info("operation schedule started (every %ss, %d kinds)",
+                ops_schedule.CHECK_INTERVAL_SECONDS,
+                len(ops_schedule.SCHEDULE))
     if COLLECTION_ENABLED:
         from server.scheduler.collect import daily_collection_loop
         tasks.append(asyncio.create_task(

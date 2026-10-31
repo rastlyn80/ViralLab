@@ -63,6 +63,16 @@ async function draw(root) {
       ${paid.map(choice).join('')}
     </section>
 
+    ${(d.automatic || []).length ? card('Happens on its own', `
+      <p class="sub">${esc(d.automatic_note || '')}</p>
+      <ul class="plain">${d.automatic.map((a) => `<li>
+        <b>${esc(a.title)}</b>
+        <span class="muted">every ${a.every_hours} hours &middot;
+          ${a.last_finished
+    ? `last ran ${new Date(a.last_finished).toLocaleString()}`
+    : 'not run yet'}</span>
+      </li>`).join('')}</ul>`) : ''}
+
     ${history.length ? card('Earlier runs', `
       <ul class="plain">${history.filter((h) => !h.is_live)
     .slice(0, 10).map(past).join('')}</ul>`) : ''}`;

@@ -281,3 +281,25 @@ def test_the_log_survives_in_a_predictable_place():
     p = runner.log_path(17)
     assert p.name == "17.log"
     assert "operations" in str(p)
+
+
+def test_a_removed_operation_does_not_leak_its_key_to_the_page():
+    """`collect_own` appeared on the page the moment it was deleted.
+
+    Its history rows outlive the catalogue entry, and the title
+    fell back to the raw kind - which is the column-name-in-the-
+    interface problem arriving through the back door.
+    """
+    from server.api import ops_api
+
+    class Row:
+        id, kind, status = 1, "collect_own", "failed"
+        params = {}
+        requested_at = started_at = finished_at = None
+        progress_note = error = summary = None
+        done = total = None
+        cost_usd = 0
+
+    title = ops_api._row(Row())["title"]
+    assert "_" not in title
+    assert "no longer offered" in title

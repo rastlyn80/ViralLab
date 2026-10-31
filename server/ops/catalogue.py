@@ -90,19 +90,14 @@ def _script(name: str) -> str:
     return f"{ROOT}/scripts/provision/{name}"
 
 
+#: There is deliberately no "update my own videos" here. The API
+#: already refreshes the owner's accounts in-process every hour
+#: (`scheduler/collect.daily_collection_loop`), and a button doing
+#: the same job through a different code path is how two
+#: collectors start disagreeing about what has been collected. The
+#: one that existed pointed at a one-off back-catalogue script
+#: that takes no arguments, so every scheduled run exited 2.
 CATALOGUE: tuple[Operation, ...] = (
-    Operation(
-        key="collect_own",
-        title="Update my own videos",
-        what_it_does=(
-            "Fetches the latest view counts and any new posts from "
-            "your own TikTok and Instagram accounts."),
-        how_long="a few minutes",
-        needs=("Your accounts stay connected on the Connections page.",),
-        look_at="My videos",
-        build=lambda p: [PYTHON, _script("backfill_surface_metrics.py"),
-                         "--yes"],
-    ),
     Operation(
         key="find_creators",
         title="Find more creators like you",
