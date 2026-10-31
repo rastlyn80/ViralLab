@@ -282,7 +282,7 @@ TikTok retention figure exists in the database from an import.
 |---|---|
 | every publication has a value or an explicit `unknown` | **met** — 385 of 385; 319 resolved, 66 refused with a stated reason (54 have zero total views, 12 have an unattributable gap) |
 | Part 5 re-reported with the covariate | **met** — `docs/benchmarks/6c-visual-density.md` §A.1–A.8 |
-| ≥ 1 TikTok retention figure from an import | **NOT met** — and now known to be blocked by TikTok, not by the owner |
+| ≥ 1 TikTok retention figure from an import | **IMPOSSIBLE, not pending** (2026-10-31) — the owner exported TikTok Studio content analytics on 2026-10-26 and it carries no retention column. `[PRIMARY]` TikTok does not publish the figure to creators in any export this project can reach. A criterion nothing can satisfy should not sit on a list of things to do. |
 
 What was built: ADR 0008 (verification), migration `c81f3a7e04d2`
 (`metrics_snapshots.total_views/facebook_views/crossposted_views`,
@@ -992,6 +992,38 @@ retired. This is the only place a causal claim can be born.
 *Acceptance:* one completed pre-registered experiment with its outcome
 recorded against its prediction, whichever way it went.
 
+#### Status, 2026-10-31 — BUILT AND RUNNING; NO LONGER THE GATE
+
+**Changed by ADR 0011 (2026-10-30), on the owner's decision.** The
+experiment is no longer what the MVP ends with. His objection, in
+his words: *"the suite needs to be based on scientific and
+observational data, not on what happens to me."*
+
+He is substantially right. 22 publications at 4.84 a month is four
+and a half months, to test an effect on view counts that vary
+tenfold between two of his videos for reasons nothing in the
+dataset can see. The likeliest outcome was always "inconclusive",
+and the hedge below - "with its stated power limits" - was the
+polite way of saying so.
+
+Meanwhile the observational side reached something the experiment
+could not: **eight measurements that hold on his account AND
+independently on 291 other creators across two platforms** -
+naming the composer, naming the form, caption length, hashtag
+count, repeating the composer, repeating the kind of piece,
+frame-to-frame change, and own compositions doing worse.
+Replication across independent subjects is evidence.
+
+So: the experiment stays locked and running and is finished when
+it is finished. In exchange the observational bar rose - a
+measurement may be promoted past `Observed` only if it replicates
+on independent creators - and matched pairs were added as the
+nearest thing to control that observation allows.
+
+The ceiling is unchanged. `Validated` is still reachable only
+through this experiment, and nothing else in the product may be
+called causal.
+
 #### Status, 2026-10-28 — BUILT AND RUNNING; acceptance NOT YET MET
 
 The loop is complete and one experiment is **locked and running**.
@@ -1135,9 +1167,14 @@ each read-only. M8 sits on top of M7 and must not precede it, or the
 strategist has nothing graded to say. M9 is where causal claims become
 possible. M10 is a menu, not a sequence.
 
-The MVP still ends where CLAUDE.md §8 says it ends: with the experiment.
-A suite that recommends without having tested one recommendation is the
-failure mode the project was designed to avoid.
+~~The MVP still ends where CLAUDE.md §8 says it ends: with the
+experiment.~~ **Superseded by ADR 0011 (2026-10-30).** The experiment
+stays built, locked and running, and is no longer the gate. The
+failure mode that sentence guarded against - recommending without
+having tested anything - is now guarded instead by **replication**:
+a measurement may be promoted past `Observed` only if it holds on
+the owner's account and independently on the competitor corpus.
+Eight currently do. Nothing may be called causal either way.
 
 ## 8. The parameter catalogue — what could distinguish a video that
 worked from a similar one that did not
