@@ -915,9 +915,21 @@ is acceptable. The design makes that safe:
   opportunities, the owner's library — every item carrying its grade and
   its source ids.
 - **Tools, not memory.** The model answers numeric questions by calling
-  read-only tools (`creator_report`, `compare`, `publication`,
-  `feature_lookup`, `evidence_for`) and must cite the tool result. A number
-  with no tool citation is rendered with a warning and logged.
+  read-only tools (`findings`, `what_im_not_doing`, `creator_report`,
+  `compare`, `publication`, `feature_lookup`, `evidence_for`) and must
+  cite the tool result. A number with no tool citation is rendered with
+  a warning and logged.
+
+  The first two were added 2026-11-01, after the chat was asked what
+  to change about the owner's captions and replied that the caption
+  analysis "is not yet complete" - with caption length a finding on
+  both sides and 8,169 publications carrying caption measurements.
+  It was not inventing a limit; it had five tools and none could see
+  a finding, because `evidence_for` reads `feature_evidence` and the
+  newer analyses never write there. **A chat grounded only in what
+  it can look up will deny whatever it cannot look up, confidently.**
+  That is a worse failure than refusing, and the fix is a tool
+  rather than a prompt.
 - **Refusal rules in the system prompt and enforced in code**: no causal
   language for anything below Validated; no virality promises; withheld
   features answered as Unavailable; no identification of people from
@@ -1007,12 +1019,19 @@ and the hedge below - "with its stated power limits" - was the
 polite way of saying so.
 
 Meanwhile the observational side reached something the experiment
-could not: **eight measurements that hold on his account AND
-independently on 291 other creators across two platforms** -
-naming the composer, naming the form, caption length, hashtag
-count, repeating the composer, repeating the kind of piece,
+could not: ~~eight~~ **six measurements that hold on his account
+AND independently on 291 other creators across two platforms**
+(corrected 2026-10-31 - see §7) - naming the composer, naming the
+form, repeating the composer, repeating the kind of piece,
 frame-to-frame change, and own compositions doing worse.
 Replication across independent subjects is evidence.
+
+Caption length and hashtag count were in this list and should not
+have been. They appear on both sides pointing *opposite* ways, and
+intersecting on name alone counted them as agreements. They are now
+reported as contradictions, which is the more informative result:
+a measurement that reverses between his account and 291 others is
+probably about his audience rather than about piano videos.
 
 So: the experiment stays locked and running and is finished when
 it is finished. In exchange the observational bar rose - a
@@ -1088,17 +1107,18 @@ depends on:
 
 | capability | depends on | grade it can reach |
 |---|---|---|
-| Hook library — own and competitor openings, searchable by feature | M2, M4 | Observed |
+| ✅ Hook library — own and competitor openings, searchable by feature | M2, M4 | Observed |
 | Repertoire planner — which pieces and categories performed, by platform | M1, `performances` | Associated |
 | Format and trend tracker — formats per niche over time, breakthrough alerts | M2, M6 | Observed / Hypothesised |
 | Cadence analysis — posting rhythm vs outcomes, ad-corrected | M1 | Associated |
-| Pre-publish scorecard — a checklist of Validated and Associated features present in a draft, **never a score** | M3, M4, M9 | reflects grades |
-| Caption and overlay assistant — grounded in the owner's own winners | M4, M8 | Hypothesised |
+| ✅ Pre-publish scorecard — a checklist of Validated and Associated features present in a draft, **never a score** | M3, M4, M9 | reflects grades |
+| ✅ Caption and overlay assistant — grounded in the owner's own winners **and other creators'** | M4, M8 | Observed |
 | Shot-list and storyboard assistant — from promoted visual features only | M3 | reflects grades |
 | Audio structure assistant — climax timing, dynamics, onset | M4 (tempo/climax) | Associated |
 | Trend-sound intelligence — TikTok `music` metadata across the cohort | M2 | Observed |
 | Weekly intelligence brief — automated, graded, with what changed | M5, M6 | reflects grades |
 | Content calendar with experiment slots | M9 | utility |
+| ✅ **Did it work?** — the suggestions he marked as posted, scored against his own rolling baseline, with the self-selection caveat stated and a stopping rule fixed before the data | M1, the `suggestions` table | Observed, and weaker than it looks |
 | Multi-profile and agency mode | legal review first (ADR 0007 §Terms) | — |
 | Publishing integration | Phase 12 in the existing plan; after legal review | — |
 
@@ -1174,7 +1194,23 @@ failure mode that sentence guarded against - recommending without
 having tested anything - is now guarded instead by **replication**:
 a measurement may be promoted past `Observed` only if it holds on
 the owner's account and independently on the competitor corpus.
-Eight currently do. Nothing may be called causal either way.
+
+~~Eight currently do.~~ **Six do, corrected 2026-10-31.** The
+count of eight came from intersecting the two sides on measurement
+*name*. Caption length and hashtag count appear on both lists
+pointing in opposite directions - shorter captions and fewer
+hashtags on his account, longer and more on other creators' - and
+were being presented as the project's strongest evidence. Two of
+the eight were contradictions. `virality.directional_overlap` now
+intersects on name *and* direction and reports the disagreements
+separately, which is the more useful half: a measurement that
+points two ways is usually about this account rather than about
+piano videos.
+
+The six: naming a composer, naming the form, repeating a composer
+recently posted, repeating the kind of piece, frame-to-frame visual
+change, and his own compositions doing worse. Nothing may be called
+causal either way.
 
 ## 8. The parameter catalogue — what could distinguish a video that
 worked from a similar one that did not
