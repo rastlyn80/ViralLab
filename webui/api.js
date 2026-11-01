@@ -206,6 +206,7 @@ export const api = {
   judgeSuggestion: (id, body) =>
     request(`/api/creative/saved/${id}`,
       { method: 'POST', body }),
+  didItWork: () => request('/api/creative/did-it-work'),
   creativeGenerate: (body) => request('/api/creative/generate',
     { method: 'POST', body }),
   // A draft: the file goes up as the raw body, the caption in the

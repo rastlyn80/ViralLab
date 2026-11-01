@@ -269,3 +269,25 @@ def judge(suggestion_id: int, body: Verdict,
     session.commit()
     return {"id": row.id, "status": row.status,
             "used_video_id": row.used_video_id}
+
+
+@router.get("/did-it-work", dependencies=[Depends(require_ui)])
+def did_it_work(session: Session = Depends(get_session)) -> dict:
+    """What happened to the suggestions he marked as posted.
+
+    The other half of `used_video_id`. The migration that added the
+    column claimed that attaching a publication turns "did our
+    advice work" into a query; this is the query, and until now the
+    claim was a promise.
+
+    Costs nothing and calls no model. All the honesty about what a
+    good result here does and does not mean lives in
+    `research/did_it_work.py`, which also owns the stopping rule.
+    """
+    from server.research import did_it_work as diw
+
+    out = diw.review(session)
+    out["what_this_is"] = (
+        "The suggestions you marked as posted, each scored against "
+        "the run of publications before it on that account.")
+    return out

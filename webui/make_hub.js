@@ -7,8 +7,12 @@
  * it was cut to four, which is how a sidebar grows back.
  *
  * They belong together anyway. The order is the order of the
- * work: look at what has worked, write something, check it before
- * it goes out.
+ * work: look at what has worked, write something, check it
+ * before it goes out, keep it, and afterwards find out whether
+ * it did any good.
+ *
+ * The last tab is the one that closes the loop. Everything else
+ * here produces advice; that one asks what happened to it.
  *
  * Like the Research hub, each tab renders the existing module
  * against this container. Nothing was rewritten, every old URL
@@ -18,6 +22,7 @@
 
 import { esc, spinner } from './components.js';
 import { creative } from './creative.js';
+import { didItWork } from './did_it_work.js';
 import { draft } from './draft.js';
 import { openings } from './openings.js';
 import { saved } from './saved.js';
@@ -34,6 +39,9 @@ const TABS = [
   ['kept', 'Kept', saved,
     'Everything generated so far. Nothing is lost on a refresh, '
     + 'and a suggestion you post can be linked to what it became.'],
+  ['worked', 'Did it work?', didItWork,
+    'The ones you posted, scored against the run of publications '
+    + 'before each. The honest reading is weaker than it looks.'],
 ];
 
 const DEFAULT_TAB = 'write';
