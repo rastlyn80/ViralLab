@@ -190,3 +190,82 @@ async def check_draft(request: Request, caption: str = "",
     finally:
         if tmp_path is not None:
             tmp_path.unlink(missing_ok=True)
+
+
+class Verdict(BaseModel):
+    status: str = Field(pattern="^(new|kept|discarded|used)$")
+    note: str | None = Field(default=None, max_length=1000)
+    used_video_id: int | None = None
+
+
+@router.get("/saved", dependencies=[Depends(require_ui)])
+def saved(kind: str = "", status: str = "", limit: int = 100,
+          session: Session = Depends(get_session)) -> dict:
+    """Everything the generator has produced, kept.
+
+    The owner's objection: every call cost money and every result
+    lived until the page was refreshed, so he was paying twice for
+    the same thinking and building nothing up.
+    """
+    from sqlalchemy import desc, func, select
+
+    from server.db.models import Suggestion
+
+    stmt = select(Suggestion).order_by(desc(Suggestion.created_at))
+    if kind:
+        stmt = stmt.where(Suggestion.kind == kind)
+    if status:
+        stmt = stmt.where(Suggestion.status == status)
+    rows = list(session.scalars(stmt.limit(max(1, min(400, limit)))).all())
+
+    counts = dict(session.execute(
+        select(Suggestion.status, func.count(Suggestion.id))
+        .group_by(Suggestion.status)).all())
+    spent = session.scalar(
+        select(func.coalesce(func.sum(Suggestion.cost_usd), 0))) or 0
+
+    return {
+        "items": [{
+            "id": r.id, "kind": r.kind, "text": r.text,
+            # Translated on the way out rather than on the way in,
+            # so the rows saved before the wording changed are
+            # readable too.
+            "grounded_in": cr.in_plain_words(r.grounded_in),
+            "body": r.body,
+            "batch": r.batch, "status": r.status, "note": r.note,
+            "created_at": r.created_at,
+            "used_video_id": r.used_video_id,
+            "cost_usd": float(r.cost_usd or 0),
+        } for r in rows],
+        "counts": counts,
+        "total_spent_usd": round(float(spent), 4),
+        "what_this_is": (
+            "Everything the generator has written, kept. Mark the "
+            "ones worth trying; when you post one, say which "
+            "publication it became and the platform can start "
+            "telling you whether its own advice worked."),
+    }
+
+
+@router.post("/saved/{suggestion_id}",
+             dependencies=[Depends(require_ui_write)])
+def judge(suggestion_id: int, body: Verdict,
+          session: Session = Depends(get_session)) -> dict:
+    """Keep it, bin it, or say which publication it became."""
+    from datetime import datetime, timezone
+
+    from server.db.models import Suggestion
+
+    row = session.get(Suggestion, suggestion_id)
+    if row is None:
+        raise HTTPException(404, "no such suggestion")
+    row.status = body.status
+    if body.note is not None:
+        row.note = body.note or None
+    if body.used_video_id is not None:
+        row.used_video_id = body.used_video_id
+        row.used_at = datetime.now(timezone.utc)
+        row.status = "used"
+    session.commit()
+    return {"id": row.id, "status": row.status,
+            "used_video_id": row.used_video_id}

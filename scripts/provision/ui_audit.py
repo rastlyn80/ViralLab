@@ -60,6 +60,7 @@ STATIC_ROUTES: tuple[tuple[str, str], ...] = (
     ("#/before", "Before you post"),
     ("#/make?on=check", "Make / check a draft"),
     ("#/make?on=openings", "Make / openings that worked"),
+    ("#/make?on=kept", "Make / kept"),
     ("#/openings", "Openings that worked"),
     ("#/openings?whose=theirs&device=question",
      "Openings / their questions"),

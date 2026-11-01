@@ -98,6 +98,11 @@ const NAV = [
   { id: 'dashboard', href: '#/', label: 'Home' },
   { id: 'research-hub', href: '#/research', label: 'Research' },
   { id: 'make', href: '#/make', label: 'Make' },
+  // The owner asked for "a chat box where I can ask
+  // specific questions". It existed, built in M8, and the
+  // four-tab redesign had buried it under "Everything
+  // else" - which is the same as not having it.
+  { id: 'strategist', href: '#/ask', label: 'Ask' },
   { id: 'work', href: '#/collect', label: 'Collect data' },
 ];
 
@@ -125,7 +130,6 @@ const MORE = [
   { id: 'competitors', href: '#/competitors',
     label: 'What we cannot do yet' },
   { id: 'ai', href: '#/ai', label: 'AI models and spending' },
-  { id: 'strategist', href: '#/ask', label: 'Ask ViralLab' },
   { id: 'settings', href: '#/settings', label: 'Connections' },
 ];
 

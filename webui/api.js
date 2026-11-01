@@ -200,6 +200,12 @@ export const api = {
   // Openings that worked, to browse. Filters go in the
   // query string so a view is linkable.
   openings: (params) => request(`/api/creative/openings${qs(params)}`),
+  // Kept suggestions, and the verdict on one.
+  savedSuggestions: (params) =>
+    request(`/api/creative/saved${qs(params)}`),
+  judgeSuggestion: (id, body) =>
+    request(`/api/creative/saved/${id}`,
+      { method: 'POST', body }),
   creativeGenerate: (body) => request('/api/creative/generate',
     { method: 'POST', body }),
   // A draft: the file goes up as the raw body, the caption in the

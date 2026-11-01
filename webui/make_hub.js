@@ -20,6 +20,7 @@ import { esc, spinner } from './components.js';
 import { creative } from './creative.js';
 import { draft } from './draft.js';
 import { openings } from './openings.js';
+import { saved } from './saved.js';
 
 const TABS = [
   ['write', 'Write something', creative,
@@ -30,6 +31,9 @@ const TABS = [
   ['openings', 'Openings that worked', openings,
     'Yours and theirs, ranked by how far each beat its own '
     + "creator's usual run."],
+  ['kept', 'Kept', saved,
+    'Everything generated so far. Nothing is lost on a refresh, '
+    + 'and a suggestion you post can be linked to what it became.'],
 ];
 
 const DEFAULT_TAB = 'write';

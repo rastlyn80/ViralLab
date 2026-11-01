@@ -104,6 +104,22 @@ CAUSAL_PATTERNS = (
     # which is a statement about videos that exist. This phrasing
     # turns it into a rule. Deliberately narrow so the brief's own
     # wording - "went with doing better" - keeps passing.
+    # ...but NOT when it is hedged into the past, which is what
+    # the prompt above actually orders the model to write. The
+    # first live answer from the `findings` tool said "videos
+    # with fewer words tended to do better" - a description of
+    # videos that exist, in the exact phrasing rule 1 asks for -
+    # and this line refused it. A rule stated one way and
+    # enforced another produces baffling refusals, which is the
+    # failure `test_the_system_prompt_states_every_rule_the_code
+    # _enforces` exists to catch and did not, because prompt and
+    # pattern disagreed about a hedge rather than about a rule.
+    #
+    # "Fewer emoji performs better" still fails. "Fewer emoji
+    # tended to do better" now passes: it is a report of videos
+    # that were published, not a rule about ones that have not
+    # been.
+    r"(?<!tended to )(?<!tends to )(?<!tend to )"
     r"\b(?:performs?|perform|works?|does|do) better\b",
 )
 
@@ -359,7 +375,122 @@ def _evidence_for(session: Session, *, feature: str,
         for r in rows]}
 
 
+def _findings(session: Session, *, whose: str = "both",
+              **_: Any) -> dict:
+    """Everything the analysis currently concludes.
+
+    Added after the chat was asked what to change about captions
+    and answered that the caption analysis "is not yet complete" -
+    while caption length was a finding on the owner's account AND
+    on 291 other creators, and 8,169 publications carried caption
+    measurements.
+
+    It was not lying. It had five tools, none of which could see a
+    finding: `evidence_for` reads the `feature_evidence` table,
+    which the newer analyses never write to. A chat grounded only
+    in what it can look up will deny whatever it cannot look up,
+    confidently, which is worse than refusing.
+
+    Replication is reported explicitly, because "held on your
+    account" and "held on your account and on 291 others" are
+    different claims and the difference is the whole point.
+    """
+    from server.research import virality as vir
+
+    if whose not in ("both", "mine", "theirs"):
+        # The schema closes the enum, which makes a wrong value a
+        # bug rather than an attack - but silently reading it as
+        # "neither" would return the replication list alone and
+        # look like an empty corpus.
+        raise ValueError("whose must be both, mine or theirs")
+
+    mine = vir.build(session, own=True)
+    mine_breaks = vir.breakthroughs(session, own=True)
+    theirs = vir.build(session, own=False)
+    their_breaks = vir.breakthroughs(session, own=False)
+
+    mine_all = (list(mine["findings"])
+                + list(mine_breaks.get("differences", [])))
+    theirs_all = (list(theirs["findings"])
+                  + list(their_breaks.get("differences", [])))
+    agreed, contradicts = vir.directional_overlap(mine_all, theirs_all)
+
+    def rows(items, source):
+        # `grade` travels with every row because the system prompt
+        # requires the answer to state one. The first live run
+        # omitted it here and the model supplied "Hypothesised" for
+        # two findings that are Observed - it had been told to give
+        # a grade and given no grade to give. A rule the tools
+        # cannot satisfy is a rule the model will satisfy by
+        # inventing.
+        agree = set(agreed)
+        return [{"measurement": d["display_name"],
+                 "direction": vir._direction_of(d),
+                 "measured_on": source,
+                 "grade": d.get("grade", "Observed"),
+                 "also_holds_for_other_creators":
+                     d["display_name"] in agree,
+                 "plain": d.get("plain", "")}
+                for d in items]
+
+    out: dict = {
+        "replicated_on_both": sorted(agreed),
+        "contradicts": contradicts,
+        "every_grade_here_is": (
+            "Observed. Nothing in this project holds a higher grade: "
+            "Associated would need the ad-exposure covariate, which "
+            "exists for nobody but the owner, and Validated would "
+            "need a pre-registered experiment, which has not run. If "
+            "a row says otherwise, use what the row says and not "
+            "this."),
+        "how_to_read": (
+            "A measurement in `replicated_on_both` held on this "
+            "owner's account AND independently on other creators, "
+            "which is the strongest thing this project produces. "
+            "Nothing here is causal. A measurement in "
+            "`contradicts` pointed opposite ways on the two sides, "
+            "which usually means it is about this account rather "
+            "than about piano videos."),
+    }
+    if whose in ("both", "mine"):
+        out["on_your_account"] = rows(mine_all, "your own publications")
+        out["your_publications_analysed"] = mine["n"]
+    if whose in ("both", "theirs"):
+        out["on_other_creators"] = rows(theirs_all, "other creators")
+        out["their_publications_analysed"] = theirs["n"]
+        out["their_creators"] = theirs["creators"]
+    return out
+
+
+def _not_doing(session: Session, **_: Any) -> dict:
+    """Where the owner's recent work runs against the evidence."""
+    from server.research import adherence as adh
+
+    out: dict = {}
+    for source in ("mine", "theirs"):
+        try:
+            check = adh.check(session, against=source)
+        except Exception:                   # noqa: BLE001 - reported
+            logger.exception("adherence unavailable to the strategist")
+            continue
+        out[source] = {
+            "headline": check["summary"]["headline"],
+            "recent_publications_checked": check["recent"],
+            "going_against": [
+                {"measurement": f["display_name"],
+                 "you_do_it_in": f"{f['followed']} of "
+                                 f"{f['measured']} measured",
+                 "grade": f.get("grade", "Observed"),
+                 "plain": f["plain"]}
+                for f in check["findings"]
+                if f["verdict"] == "not following" and f["separates"]],
+        }
+    return out
+
+
 TOOLS: dict[str, Callable[..., Any]] = {
+    "findings": _findings,
+    "what_im_not_doing": _not_doing,
     "creator_report": _creator_report,
     "compare": _compare,
     "publication": _publication,
@@ -368,6 +499,20 @@ TOOLS: dict[str, Callable[..., Any]] = {
 }
 
 TOOL_SCHEMAS = [
+    {"name": "findings",
+     "description": ("Everything the analysis currently concludes: "
+                     "which measurements went with doing better, on "
+                     "the owner's account and on other creators, and "
+                     "which of them replicated on BOTH. Start here "
+                     "for any question about what works."),
+     "input_schema": {"type": "object", "properties": {
+         "whose": {"type": "string",
+                   "enum": ["both", "mine", "theirs"]}}}},
+    {"name": "what_im_not_doing",
+     "description": ("Where the owner's recent publications run "
+                     "against those findings. Use this for 'what "
+                     "should I change'."),
+     "input_schema": {"type": "object", "properties": {}}},
     {"name": "creator_report",
      "description": ("The full report for one creator: every section, "
                      "its basis and its grade."),

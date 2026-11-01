@@ -420,7 +420,48 @@ Reply with JSON only."""
 #: a real structure rather than written as a string literal: the
 #: first version nested three levels of quoting by hand and did not
 #: parse as Python, let alone as a schema.
-_GROUNDED = "which brief item this draws on, or the word taste"
+_GROUNDED = ("which part of the brief this draws on, named in plain "
+             "words a reader would understand, or the word taste")
+
+#: The brief's section names, in English.
+#:
+#: `grounded_in` is shown verbatim on the Kept page, and the model
+#: answers it by quoting the key it read - so "agreed_by_both" and
+#: "where_you_go_against_it" appeared on screen, which the UI audit
+#: caught. `_GROUNDED` now asks for plain words, and this map
+#: repairs anything that still arrives as a key, including the rows
+#: already saved before the wording changed.
+SECTION_NAMES = {
+    "findings": "what works on your own account",
+    "other_creators": "what works for other creators",
+    "agreed_by_both": "held on both you and other creators",
+    "where_you_go_against_it": "where your recent posts go against it",
+    "best_hooks": "openings that worked",
+    "what_worked_for_other_creators": "what worked for other creators",
+    "repertoire": "your repertoire",
+    "recent": "what you posted recently",
+    "counts": "how much was measured",
+}
+
+
+def in_plain_words(grounded: str | None) -> str | None:
+    """A `grounded_in` a reader can read.
+
+    Substring replacement rather than a lookup: the model writes
+    things like "agreed_by_both - naming the composer", and the
+    useful half of that sentence should survive.
+
+    One pass, longest key first. Replacing in sequence let a later
+    key match text an earlier replacement had just written -
+    `where_you_go_against_it` became "where your recent posts go
+    against it", and then `recent` matched inside it.
+    """
+    if not grounded:
+        return grounded
+    keys = sorted(SECTION_NAMES, key=len, reverse=True)
+    pattern = re.compile("|".join(re.escape(k) for k in keys))
+    out = pattern.sub(lambda m: SECTION_NAMES[m.group(0)], grounded)
+    return out.replace("_", " ")
 
 SHAPES = {
     "ideas": json.dumps({"items": [{
@@ -513,6 +554,54 @@ def sift(items: list[dict]) -> tuple[list[dict], list[dict]]:
         for v in found:
             rejected.append({**v, "suggestion": headline[:120]})
     return kept, rejected
+
+
+#: Which field carries the headline, per kind. Lifted out of the
+#: body so a saved suggestion can be read and searched without
+#: unpacking JSON.
+_HEADLINE = ("text", "idea", "caption", "first_line")
+
+
+def headline_of(item: dict) -> str:
+    for field_name in _HEADLINE:
+        value = item.get(field_name)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def save(session: Session, kind: str, items: list[dict], *,
+         model: str = "", cost_usd: float = 0.0) -> str:
+    """Record what was generated. Returns the batch they share.
+
+    The cost is divided across the batch rather than repeated on
+    each row: five suggestions from one 4-cent call cost 4 cents,
+    not 20, and a table that says otherwise will eventually be
+    summed by someone.
+    """
+    import uuid
+
+    from server.db.models import Suggestion
+
+    batch = uuid.uuid4().hex[:12]
+    if not items:
+        return batch
+    share = round(float(cost_usd or 0.0) / len(items), 6)
+    for item in items:
+        headline = headline_of(item)
+        if not headline:
+            continue
+        session.add(Suggestion(
+            kind=kind, body=item, text=headline[:2000],
+            grounded_in=(item.get("grounded_in") or "")[:1000] or None,
+            batch=batch, model=model or None, cost_usd=share))
+    try:
+        session.commit()
+    except Exception:                       # noqa: BLE001 - reported
+        session.rollback()
+        logger.exception("could not save the suggestions; they are "
+                         "still returned to the page")
+    return batch
 
 
 def parse(text: str) -> list[dict]:
@@ -691,7 +780,19 @@ def generate(session: Session, *, kind: str, provider,
         logger.info("creative removed %d of %d %s: %s", len(violations),
                     len(items), kind,
                     ", ".join(sorted({v["kind"] for v in violations})))
+
+    # Keep them. Every call costs money and, before this, every
+    # result lived until the page was refreshed - so the owner was
+    # paying repeatedly for the same thinking and could not build
+    # anything up. The larger loss was that a suggestion nobody
+    # recorded can never be connected to what happened when it was
+    # used, which is the only route to learning whether the advice
+    # is any good.
+    batch = save(session, kind, kept, model=provider.MODEL,
+                 cost_usd=actual)
+
     return {
+        "batch": batch,
         "kind": kind, "items": kept, "blocked": not kept,
         "violations": violations,
         "removed": len(violations),

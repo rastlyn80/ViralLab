@@ -26,6 +26,7 @@ The guarantees, in the order they matter:
 
 from __future__ import annotations
 
+import inspect
 import re
 
 import pytest
@@ -236,8 +237,18 @@ def test_a_violation_carries_the_text_that_tripped_it():
 # 3. the tool surface
 # ---------------------------------------------------------------------------
 
-def test_exactly_the_five_tools_the_blueprint_names():
-    assert set(st.TOOLS) == {"creator_report", "compare", "publication",
+def test_the_tool_surface_is_a_closed_list():
+    """Seven, and adding an eighth is a decision made here first.
+
+    It was five until the chat was asked what to change about the
+    captions and answered that the caption analysis was "not yet
+    complete" - with caption length a finding on both sides. None
+    of the five could see a finding, so `findings` and
+    `what_im_not_doing` were added. The list is asserted whole so
+    that growing it stays deliberate.
+    """
+    assert set(st.TOOLS) == {"findings", "what_im_not_doing",
+                             "creator_report", "compare", "publication",
                              "feature_lookup", "evidence_for"}
 
 
@@ -246,8 +257,14 @@ def test_every_tool_is_declared_to_the_model_with_a_schema():
     assert declared == set(st.TOOLS)
     for s in st.TOOL_SCHEMAS:
         assert s["description"]
-        assert s["input_schema"]["properties"]
-        assert s["input_schema"].get("required")
+        assert "properties" in s["input_schema"]
+        # A tool that takes an argument must say which are required,
+        # so the model cannot omit an id and get a silent default.
+        # A tool that takes nothing has nothing to require.
+        if s["input_schema"]["properties"]:
+            assert (s["input_schema"].get("required")
+                    or all("enum" in spec for spec
+                           in s["input_schema"]["properties"].values())),                 s["name"]
 
 
 def test_no_tool_takes_free_text_that_could_become_a_query():
@@ -259,7 +276,11 @@ def test_no_tool_takes_free_text_that_could_become_a_query():
         for name, spec in s["input_schema"]["properties"].items():
             assert spec["type"] in ("integer", "string"), (s["name"], name)
             if spec["type"] == "string":
-                assert name in ("name", "feature", "outcome"), (
+                # Either a name checked against the catalogue, or an
+                # enum the schema closes. Both end in a value this
+                # code chose; neither can carry a query.
+                assert (name in ("name", "feature", "outcome")
+                        or "enum" in spec), (
                     f"{s['name']}.{name} is free text the model controls")
 
 
@@ -358,3 +379,76 @@ def test_tool_output_survives_a_jsonb_column():
     assert out["amount"] == 1.25
     assert out["nested"][0]["also"].startswith("2026-03-04")
     assert out["fine"] == {"n": 5, "ok": True, "none": None}
+
+
+def test_the_findings_tool_reports_replication_separately():
+    """The distinction the whole project rests on, in the tool's shape.
+
+    "Held on your account" and "held on your account and on other
+    creators independently" are different claims, and a chat that
+    flattens them would overstate the weaker one. So the tool
+    cannot return a finding without also saying whether it
+    replicated, and the replication list is its own key.
+
+    Asserted on the schema and the contract rather than on live
+    data, which belongs to the corpus and not to the test suite.
+    """
+    schema = next(s for s in st.TOOL_SCHEMAS if s["name"] == "findings")
+    assert schema["input_schema"]["properties"]["whose"]["enum"] == [
+        "both", "mine", "theirs"]
+    src = inspect.getsource(st._findings)
+    assert "replicated_on_both" in src
+    assert "also_holds_for_other_creators" in src
+    assert "contradicts" in src
+    # Nothing here is causal, and the tool says so to the model
+    # rather than relying on the system prompt alone.
+    assert "Nothing here is causal" in src
+
+
+def test_the_findings_tool_rejects_a_whose_it_does_not_know():
+    """Reading an unknown value as "neither" would return the
+    replication list alone and read as an empty corpus."""
+    with pytest.raises(ValueError):
+        st._findings(None, whose="everyone")
+
+
+def test_the_findings_tool_hands_the_model_a_grade_to_quote():
+    """Rule 5 of the system prompt orders the answer to state a
+    grade. The first live run of this tool returned rows without
+    one, and the model reported two Observed findings as
+    "Hypothesised" - it obeyed the instruction with the only grade
+    it could produce, which was a guess. A rule the tools cannot
+    satisfy gets satisfied by invention."""
+    assert "grade" in inspect.getsource(st._findings)
+    assert "grade" in inspect.getsource(st._not_doing)
+    assert "5. Always give the grade" in st.SYSTEM
+
+
+@pytest.mark.parametrize("text", [
+    "Fewer emoji performs better",
+    "Shorter captions work better",
+    "Naming the composer does better",
+    "Short captions do better",
+])
+def test_a_rule_about_unpublished_videos_is_still_refused(text):
+    assert any(v.kind == "causal_language" for v in st.review(text, []))
+
+
+@pytest.mark.parametrize("text", [
+    "Videos with fewer words tended to do better.",
+    "Your shorter captions tend to do better",
+    "Naming the form tends to do better",
+    "Captions with fewer hashtags did better than the rest",
+])
+def test_a_report_of_published_videos_is_not(text):
+    """The hedge rule 1 of the system prompt orders, allowed by the
+    code that enforces rule 1.
+
+    The first live answer built on the `findings` tool said "videos
+    with fewer words tended to do better" and was refused - correct
+    phrasing, blocked by the pattern meant to catch "fewer emoji
+    performs better". Prompt and enforcement have to agree about
+    the hedge, not only about the rule.
+    """
+    assert not [v for v in st.review(text, [])
+                if v.kind == "causal_language"]

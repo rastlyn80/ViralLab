@@ -1950,3 +1950,55 @@ class Operation(Base):
               postgresql_where=text(
                   "status in ('queued','running')")),
     )
+
+
+class Suggestion(Base):
+    """One thing the generator produced, kept.
+
+    The owner, after using it: *"I just want to make sure that
+    those ideas are actually saved and retained so we can build up
+    a collection ... otherwise we are just burning credits without
+    retaining"*. Every call cost money and every result lived until
+    the page was refreshed.
+
+    The waste was the smaller problem. A suggestion that is never
+    recorded can never be connected to what happened when it was
+    used, so nothing could ever learn whether its own advice was
+    any good. `used_video_id` is the point of the table: once a
+    suggestion carries a publication, that publication's
+    performance is already measured by everything else here, and
+    "did the advice work" becomes a query rather than a question.
+    """
+
+    __tablename__ = "suggestions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    kind: Mapped[str] = mapped_column(Text)
+    #: Everything the generator returned for this item, kept whole.
+    body: Mapped[dict] = mapped_column(JSONB)
+    #: The headline, lifted out so it can be read and searched
+    #: without unpacking the JSON.
+    text: Mapped[str] = mapped_column(Text)
+    grounded_in: Mapped[str | None] = mapped_column(Text)
+    #: Which generation call produced it. He asked for five and
+    #: judges them as five, so they are read back together.
+    batch: Mapped[str] = mapped_column(Text)
+    model: Mapped[str | None] = mapped_column(Text)
+    cost_usd: Mapped[float] = mapped_column(Numeric(12, 6), default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow)
+    #: His verdict. `new` until he says otherwise.
+    status: Mapped[str] = mapped_column(Text, default="new")
+    note: Mapped[str | None] = mapped_column(Text)
+    used_video_id: Mapped[int | None] = mapped_column(
+        ForeignKey("videos.id", ondelete="SET NULL"))
+    used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint("status in ('new','kept','discarded','used')",
+                        name="ck_suggestions_status"),
+        Index("ix_suggestions_kind_created", "kind", "created_at"),
+        Index("ix_suggestions_status", "status", "created_at"),
+        Index("ix_suggestions_batch", "batch"),
+    )

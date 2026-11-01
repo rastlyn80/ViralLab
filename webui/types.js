@@ -1217,6 +1217,13 @@
  */
 
 /**
+ * @typedef {Object} Verdict
+ * @property {string} status
+ * @property {string|null=} note
+ * @property {number|null=} used_video_id
+ */
+
+/**
  * @typedef {Object} VideoDetail
  * @property {number} id
  * @property {string} platform

@@ -223,3 +223,35 @@ def test_the_briefs_own_wording_still_passes():
         "grounded_in": ("Naming the composer went with doing better "
                         "on both your account and other creators'.")}]})
     assert cr.review(fine) == []
+
+
+def test_every_brief_section_has_a_plain_english_name():
+    """`grounded_in` is shown verbatim on the Kept page, and the
+    model fills it by quoting the brief key it read. The UI audit
+    found "agreed_by_both" and "where_you_go_against_it" on screen,
+    which is exactly the jargon the interface is meant not to
+    have. Any key the model could echo needs a translation."""
+    brief = cr.Brief()
+    assert set(brief.as_dict()) <= set(cr.SECTION_NAMES)
+    for phrase in cr.SECTION_NAMES.values():
+        assert "_" not in phrase
+
+
+def test_a_grounded_in_keeps_the_half_the_model_wrote():
+    out = cr.in_plain_words(
+        "where_you_go_against_it - you name the form in 2 of 12")
+    assert out.startswith("where your recent posts go against it")
+    assert "you name the form in 2 of 12" in out
+    assert "_" not in out
+
+
+def test_replacing_one_section_name_cannot_match_inside_another():
+    """Sequential replacement let `recent` match the text that
+    `where_you_go_against_it` had just produced."""
+    assert cr.in_plain_words("where_you_go_against_it") == (
+        "where your recent posts go against it")
+
+
+def test_a_grounded_in_that_is_not_a_section_name_is_left_alone():
+    assert cr.in_plain_words("taste") == "taste"
+    assert cr.in_plain_words(None) is None

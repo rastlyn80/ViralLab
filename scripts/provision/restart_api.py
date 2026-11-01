@@ -51,7 +51,7 @@ _COUNT = (r"ps -eo args= | grep -cE "
           r"'^[^ ]*python[0-9.]* -m uvicorn server\.api\.app'")
 
 
-def count(client, pattern: str = PATTERN) -> int:
+def count(client) -> int:
     _, out, _ = client.exec_command(_COUNT)
     try:
         return int(out.read().decode().strip() or 0)
@@ -104,7 +104,13 @@ def main() -> int:
     # a failure - which is the kind of false alarm that teaches you
     # to ignore the check.
     listening = wait_for(lambda: listeners(client), 1, seconds=45)
-    running = count(client)
+    # And settle rather than read once. A restart that was clean
+    # reported "2 processes" on a single sample, and by the time it
+    # could be inspected by hand there was one - the count is taken
+    # the instant the port opens, which is the noisiest moment
+    # there is. A genuine double-start still fails, ten seconds
+    # later; a departing process no longer does.
+    running = wait_for(lambda: count(client), 1, seconds=10)
 
     print(f"uvicorn processes: {running}; listeners on 8443: {listening}")
     if running != 1 or listening != 1:
