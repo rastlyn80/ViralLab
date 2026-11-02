@@ -86,3 +86,32 @@ def test_the_rule_about_copying_travels_with_the_examples():
     note = ex.gather.__doc__ or ""
     src = ex.__doc__ or ""
     assert "never" in src.lower() and "shape" in src.lower()
+
+
+def test_an_example_without_a_link_says_why_rather_than_nothing():
+    """The owner: "all the examples that are referenced actually
+    have a link so I can ... see what people did."
+
+    Two cases cannot be linked and neither is a bug: an Instagram
+    post collected outside the official API has no shortcode, and
+    a shortcode cannot be computed from a media id; and the
+    owner's own TikTok creator row holds the Display API's
+    `open_id` rather than a username. A silent blank reads as an
+    oversight, and a guessed URL that 404s reads as "the post was
+    deleted". The reason is the only honest third option.
+    """
+    import inspect
+
+    src = inspect.getsource(ex._attach_links)
+    assert "no_link_because" in src
+    assert "why_missing" in src
+    # One bulk lookup, not one per row.
+    assert "pl.bulk" in src
+
+
+def test_the_library_reports_how_many_examples_can_be_opened():
+    """So a page that is mostly unlinkable says so instead of
+    looking broken."""
+    import inspect
+
+    assert '"linked"' in inspect.getsource(ex.library)

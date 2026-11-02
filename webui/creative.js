@@ -20,7 +20,7 @@
  */
 
 import { api } from './api.js';
-import { card, esc, note, spinner } from './components.js';
+import { card, esc, note, postLink, spinner } from './components.js';
 
 const KINDS = [
   ['ideas', 'Video ideas'],
@@ -55,7 +55,7 @@ export const creative = {
             <h3>Your own best openings (${b.best_hooks.length})</h3>
             <ul class="plain">${b.best_hooks.map((h) => `<li>
               <span class="muted">${h.views.toLocaleString()}</span>
-              &mdash; ${esc(h.on_screen)}
+              &mdash; ${esc(h.on_screen)} ${watch(h)}
             </li>`).join('') || '<li class="muted">None yet.</li>'}</ul>
           </div>
         </div>
@@ -85,6 +85,7 @@ export const creative = {
           <p class="muted">Measured on other pianists, whose audience
             is not yours. Worth trying, not established for you.</p>`
     : ''}
+        ${theirExamples(b)}
         <p class="muted">Repertoire it can draw on:
           ${b.repertoire.map((r) => `${esc(r.composer)}`).join(', ')}.</p>
         <details><summary>What it will not do</summary>
@@ -199,4 +200,52 @@ function item(kind, it) {
     ${it.shot ? `<p><b>Shot:</b> ${esc(it.shot)}</p>` : ''}
     ${it.why_now ? `<p class="muted">${esc(it.why_now)}</p>` : ''}
     ${ground}</div>`;
+}
+
+
+/**
+ * A link to the post an example came from, or an honest absence.
+ *
+ * The owner, after using the generator: *"all the examples that
+ * are referenced actually have a link so I can actually take
+ * inspiration from references that are referenced there. And can
+ * see what people did."* He is right, and the omission was worse
+ * than inconvenient — the on-screen text is half of a hook. The
+ * other half is what is happening behind the words, and no
+ * transcription carries that.
+ */
+function watch(x) {
+  if (x.url) {
+    return postLink(x.url, x.platform, { label: 'Watch' });
+  }
+  return x.no_link_because
+    ? `<span class="chip" title="${esc(x.no_link_because)}">no link</span>`
+    : '';
+}
+
+/**
+ * What other creators did, shown rather than only summarised.
+ *
+ * The brief has carried these since the generator was allowed to
+ * see other creators' work, and the page never rendered them —
+ * so the interface claimed suggestions were grounded in other
+ * pianists' openings while showing none of them.
+ */
+function theirExamples(b) {
+  const t = b.what_worked_for_other_creators || {};
+  const openings = t.openings || [];
+  const captions = t.captions || [];
+  if (!openings.length && !captions.length) return '';
+  const row = (x) => `<li>${esc(x.text)}
+    <span class="muted">&mdash; ${esc(x.handle || '')},
+      better than ${esc(x.did_better_than || '')}</span>
+    ${watch(x)}</li>`;
+  return `
+    <h3>What worked for other creators</h3>
+    ${openings.length ? `<p class="muted">Openings</p>
+      <ul class="plain">${openings.map(row).join('')}</ul>` : ''}
+    ${captions.length ? `<p class="muted">Captions</p>
+      <ul class="plain">${captions.map(row).join('')}</ul>` : ''}
+    <p class="muted">${esc(t.how_chosen || '')}
+      ${esc(t.rule || '')}</p>`;
 }

@@ -42,7 +42,7 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger("virallab.ai.exemplars")
@@ -191,6 +191,12 @@ def _is_language(body: str) -> bool:
 
 def _rows(session: Session, stmt, *, feature: str | None,
           limit: int, min_len: int) -> list[dict]:
+    """The best few examples, each with a link to the actual post.
+
+    `_attach_links` is defined further down; the name resolves at
+    call time, so the order here is about reading rather than
+    about imports.
+    """
     params = {"min_pr": MIN_PERCENTILE, "min_cat": MIN_PER_CREATOR,
               "max_per": MAX_PER_CREATOR, "limit": limit,
               "min_len": min_len}
@@ -210,7 +216,10 @@ def _rows(session: Session, stmt, *, feature: str | None,
             "did_better_than": f"{round(r.pr * 100)}% of that "
                                f"creator's own videos",
             "platform": r.platform,
+            "handle": r.handle,
+            "video_id": int(r.video_id),
         })
+    _attach_links(session, out)
     return out
 
 
@@ -328,9 +337,19 @@ def library(session: Session, *, whose: str = "all",
             "handle": "you" if r.is_own_account else r.handle,
             "beat": round(r.pr * 100),
             "devices": devices or ["plain label"],
+            # The query has carried this since the library was
+            # written and the row threw it away, so every example
+            # was a quotation you could not check. The owner:
+            # "all the examples that are referenced actually have
+            # a link so I can ... see what people did". Reading the
+            # words without the video is the wrong half - the hook
+            # is what is on screen while they are said.
+            "video_id": int(r.video_id),
         })
         if len(rows) >= limit:
             break
+
+    _attach_links(session, rows)
 
     counts: dict[str, int] = {}
     for row in rows:
@@ -338,6 +357,7 @@ def library(session: Session, *, whose: str = "all",
             counts[d] = counts.get(d, 0) + 1
     return {
         "openings": rows,
+        "linked": sum(1 for r in rows if r.get("url")),
         "devices": dict(sorted(counts.items(), key=lambda kv: -kv[1])),
         "how_ordered": (
             "Best first, where best means how far it beat its OWN "
@@ -347,3 +367,40 @@ def library(session: Session, *, whose: str = "all",
             "Other people's words. Learn the shape; never reuse the "
             "sentence."),
     }
+
+
+def _attach_links(session: Session, rows: list[dict]) -> None:
+    """Put a public URL on every example that can have one.
+
+    One bulk lookup for the whole page rather than one per row -
+    `permalink.bulk` exists for exactly this.
+
+    A row that cannot be linked carries the reason instead of
+    nothing. Two cases are known and neither is a bug: an Instagram
+    post collected without the official API has no shortcode and a
+    shortcode cannot be computed, and the owner's own TikTok creator
+    row stores the Display API's `open_id` rather than a username,
+    so a URL built from it would 404 on all 236 of his TikTok
+    publications. A link that 404s is worse than an absent one: the
+    reader concludes the post was deleted.
+    """
+    from server.collectors import permalink as pl
+    from server.db.models import Creator, Video
+
+    ids = [r["video_id"] for r in rows if r.get("video_id")]
+    if not ids:
+        return
+    urls = pl.bulk(session, ids)
+    missing = [i for i in ids if i not in urls]
+    why: dict[int, str | None] = {}
+    if missing:
+        for video, creator in session.execute(
+                select(Video, Creator)
+                .join(Creator, Creator.id == Video.creator_id)
+                .where(Video.id.in_(missing))).all():
+            why[video.id] = pl.why_missing(video, creator)
+    for row in rows:
+        vid = row.get("video_id")
+        row["url"] = urls.get(vid)
+        if not row["url"]:
+            row["no_link_because"] = why.get(vid)

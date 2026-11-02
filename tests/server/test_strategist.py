@@ -248,7 +248,8 @@ def test_the_tool_surface_is_a_closed_list():
     that growing it stays deliberate.
     """
     assert set(st.TOOLS) == {"findings", "what_im_not_doing",
-                             "creator_report", "compare", "publication",
+                             "when_you_post", "creator_report",
+                             "compare", "publication",
                              "feature_lookup", "evidence_for"}
 
 
@@ -258,13 +259,17 @@ def test_every_tool_is_declared_to_the_model_with_a_schema():
     for s in st.TOOL_SCHEMAS:
         assert s["description"]
         assert "properties" in s["input_schema"]
-        # A tool that takes an argument must say which are required,
-        # so the model cannot omit an id and get a silent default.
-        # A tool that takes nothing has nothing to require.
-        if s["input_schema"]["properties"]:
-            assert (s["input_schema"].get("required")
-                    or all("enum" in spec for spec
-                           in s["input_schema"]["properties"].values())),                 s["name"]
+        # A tool whose argument identifies a ROW must say it is
+        # required, so the model cannot omit an id and get a silent
+        # default row. Arguments that merely narrow an answer -
+        # `whose`, `weekday`, `hour` - are optional on purpose:
+        # "when should I post" is a real question with no day in
+        # it, and forcing one would invent the day.
+        props = s["input_schema"]["properties"]
+        if props and not s["input_schema"].get("required"):
+            for name, spec in props.items():
+                assert "enum" in spec or spec["type"] == "integer", (
+                    f"{s['name']}.{name} is optional and unconstrained")
 
 
 def test_no_tool_takes_free_text_that_could_become_a_query():

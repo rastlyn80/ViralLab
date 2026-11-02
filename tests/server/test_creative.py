@@ -255,3 +255,33 @@ def test_replacing_one_section_name_cannot_match_inside_another():
 def test_a_grounded_in_that_is_not_a_section_name_is_left_alone():
     assert cr.in_plain_words("taste") == "taste"
     assert cr.in_plain_words(None) is None
+
+
+def test_the_model_never_sees_a_link():
+    """Examples carry a URL so the owner can watch them. The
+    prompt must not: a nineteen-digit TikTok id in the context is
+    a string the model may helpfully paste into a caption, and a
+    generated caption carrying somebody else's post URL is a
+    failure with no upside."""
+    b = cr.Brief()
+    b.best_hooks = [{"on_screen": "hi", "views": 1, "video_id": 7,
+                     "url": "https://www.tiktok.com/@x/video/123"}]
+    b.their_openings = [{"text": "t", "video_id": 8,
+                         "url": "https://example.test/p",
+                         "no_link_because": None}]
+    b.their_captions = [{"text": "c", "video_id": 9, "url": "u"}]
+
+    shown = b.as_dict()
+    assert shown["best_hooks"][0]["url"]
+    assert shown["what_worked_for_other_creators"]["openings"][0]["url"]
+
+    sent = b.for_the_model()
+    import json
+    blob = json.dumps(sent)
+    for key in cr.LINK_KEYS:
+        assert f'"{key}"' not in blob, key
+    assert "tiktok.com" not in blob
+    # And the example itself still survives the stripping.
+    assert sent["best_hooks"][0]["on_screen"] == "hi"
+    assert sent["what_worked_for_other_creators"]["openings"][0][
+        "text"] == "t"

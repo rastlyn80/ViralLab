@@ -15,7 +15,7 @@
  */
 
 import { api } from './api.js';
-import { esc, note, spinner } from './components.js';
+import { esc, note, postLink, spinner } from './components.js';
 
 export const didItWork = {
   title: 'Did it work?',
@@ -75,9 +75,10 @@ function one(e) {
     </p>
     <p class="muted">${esc(e.kind)}
       ${e.grounded_in ? `&middot; from ${esc(e.grounded_in)}` : ''}
-      &middot; posted as video ${e.video_id}
       ${e.posted_at ? `&middot; ${
     esc(new Date(e.posted_at).toLocaleDateString())}` : ''}
+      &middot; ${e.url ? postLink(e.url, e.platform, { label: 'Watch it' })
+    : `video ${e.video_id}`}
     </p>
   </div>`;
 }

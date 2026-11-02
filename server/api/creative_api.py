@@ -291,3 +291,18 @@ def did_it_work(session: Session = Depends(get_session)) -> dict:
         "The suggestions you marked as posted, each scored against "
         "the run of publications before it on that account.")
     return out
+
+
+@router.get("/when-to-post", dependencies=[Depends(require_ui)])
+def when_to_post(session: Session = Depends(get_session)) -> dict:
+    """What his publications did by time of day and day of week.
+
+    Free, and read-only. BLUEPRINT M10's cadence analysis, minus
+    the gap-between-posts half, which `virality.BASELINE_DISTANCE`
+    shows is confounded with the trailing baseline it is scored
+    against.
+    """
+    from server.research import memo, timing
+
+    return memo.remember("creative.when_to_post",
+                         lambda: timing.build(session), session=session)

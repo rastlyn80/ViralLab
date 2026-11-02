@@ -488,8 +488,26 @@ def _not_doing(session: Session, **_: Any) -> dict:
     return out
 
 
+def _when_you_post(session: Session, *, weekday: str = "",
+                   hour: int | None = None, **_: Any) -> dict:
+    """What his record says about posting at a given time.
+
+    Added after he asked, on a Monday afternoon, what time to post
+    in the UK, and the chat said it had "no access to information
+    about posting times or their relationship to performance".
+    `posted_at` is populated on all 9,142 publications. Same shape
+    of failure as the captions: the data was there, no tool could
+    see it, and the model reported its own blind spot as the
+    project's.
+    """
+    from server.research import timing
+
+    return timing.advice(session, weekday=weekday, hour=hour)
+
+
 TOOLS: dict[str, Callable[..., Any]] = {
     "findings": _findings,
+    "when_you_post": _when_you_post,
     "what_im_not_doing": _not_doing,
     "creator_report": _creator_report,
     "compare": _compare,
@@ -499,6 +517,21 @@ TOOLS: dict[str, Callable[..., Any]] = {
 }
 
 TOOL_SCHEMAS = [
+    {"name": "when_you_post",
+     "description": (
+         "What the owner's own publications did by part of the day "
+         "and day of the week, in HIS local time. Use this for any "
+         "question about when to post. Pass the weekday and the hour "
+         "he mentions. The result carries why it is not a "
+         "recommendation and why it cannot be checked against other "
+         "creators - say both."),
+     "input_schema": {"type": "object", "properties": {
+         "weekday": {"type": "string",
+                     "enum": ["Monday", "Tuesday", "Wednesday",
+                              "Thursday", "Friday", "Saturday",
+                              "Sunday"]},
+         "hour": {"type": "integer",
+                  "description": "0-23, his local time"}}}},
     {"name": "findings",
      "description": ("Everything the analysis currently concludes: "
                      "which measurements went with doing better, on "

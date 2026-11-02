@@ -20,7 +20,7 @@
  */
 
 import { api } from './api.js';
-import { esc, note, spinner } from './components.js';
+import { esc, note, postLink, spinner } from './components.js';
 
 const WHOSE = [
   ['all', 'Everyone'],
@@ -63,6 +63,10 @@ export const openings = {
       ${d.openings.length ? `<section class="card">
         ${d.openings.map(one).join('')}
         <p class="muted">${esc(d.rule || '')}</p>
+        <p class="muted">${d.linked} of ${d.openings.length} can be
+          opened on the platform. The rest are Instagram posts
+          collected without the official API, which never gave us
+          the shortcode a permalink needs.</p>
       </section>`
     : note(`Nothing matches that. Openings can only be read from
         videos whose on-screen text has been measured.`, 'warn')}`;
@@ -79,5 +83,9 @@ function one(o) {
       &middot; ${esc(o.platform === 'tiktok' ? 'TikTok' : 'Instagram')}
       &middot; ${o.devices.map((x) => esc(x)).join(', ')}
     </p>
+    <p class="muted">${o.url
+    ? postLink(o.url, o.platform, { label: 'Watch this one' })
+    : `<span class="chip">no link${o.no_link_because
+      ? ` &mdash; ${esc(o.no_link_because)}` : ''}</span>`}</p>
   </div>`;
 }

@@ -74,6 +74,15 @@ EXAMPLES = 8
 RECENT = 12
 
 
+#: Keys that exist for the reader and must never reach the prompt.
+#: See `Brief.for_the_model`.
+LINK_KEYS = ("url", "video_id", "no_link_because")
+
+
+def _unlinked(item: dict) -> dict:
+    return {k: v for k, v in item.items() if k not in LINK_KEYS}
+
+
 @dataclass
 class Brief:
     """Everything the generator is allowed to know."""
@@ -100,6 +109,29 @@ class Brief:
     repertoire: list[dict] = field(default_factory=list)
     recent: list[str] = field(default_factory=list)
     counts: dict = field(default_factory=dict)
+
+    def for_the_model(self) -> dict:
+        """The brief with the links taken out.
+
+        Examples now carry a URL so the owner can watch what he is
+        being shown - he asked for that, and a quotation you cannot
+        check is half an example. The model must not see them. A
+        nineteen-digit TikTok id inside a prompt is a string the
+        model may helpfully paste into a caption, and a generated
+        caption carrying somebody else's post URL is a failure with
+        no upside.
+
+        So the link lives on the brief the interface renders and
+        not on the one the prompt carries. Same object, two views,
+        one place where they diverge.
+        """
+        out = self.as_dict()
+        theirs = out.get("what_worked_for_other_creators") or {}
+        for key in ("openings", "captions"):
+            theirs[key] = [_unlinked(item)
+                           for item in theirs.get(key) or []]
+        out["best_hooks"] = [_unlinked(h) for h in out["best_hooks"]]
+        return out
 
     def as_dict(self) -> dict:
         return {"findings": self.findings,
@@ -276,7 +308,7 @@ def build_brief(session: Session) -> Brief:
     # good hooks in general, they are hooks that worked here.
     rows = session.execute(
         select(VideoFeature.value_text, MetricsSnapshot.views,
-               Video.caption)
+               Video.caption, Video.id)
         .join(Video, Video.id == VideoFeature.video_id)
         .join(MetricsSnapshot, MetricsSnapshot.video_id == Video.id)
         .where(VideoFeature.feature == "ocr_text",
@@ -286,7 +318,7 @@ def build_brief(session: Session) -> Brief:
                func.length(VideoFeature.value_text) > 15)
         .order_by(desc(MetricsSnapshot.views)).limit(EXAMPLES * 3)).all()
     seen_text: set[str] = set()
-    for text, views, caption in rows:
+    for text, views, caption, video_id in rows:
         clean = _tidy(text)
         key = clean[:40].lower()
         if not clean or key in seen_text:
@@ -294,9 +326,14 @@ def build_brief(session: Session) -> Brief:
         seen_text.add(key)
         brief.best_hooks.append({"on_screen": clean,
                                  "views": int(views),
-                                 "caption": (caption or "")[:140]})
+                                 "caption": (caption or "")[:140],
+                                 "video_id": int(video_id)})
         if len(brief.best_hooks) >= EXAMPLES:
             break
+    # His own, so the link is to his own post - useful for a
+    # different reason than a competitor's: "which video was that?"
+    # is a question the on-screen text alone rarely answers.
+    ex._attach_links(session, brief.best_hooks)
 
     comp = session.execute(
         select(VideoFeature.value_text, func.count(VideoFeature.id))
@@ -715,7 +752,7 @@ def generate(session: Session, *, kind: str, provider,
 
     ask = (f"Produce {count} {kind}, as JSON with the top-level "
            f'key "items":\n{SHAPES[kind]}\n\n'
-           f"BRIEF:\n{json.dumps(brief.as_dict(), indent=1)[:9000]}")
+           f"BRIEF:\n{json.dumps(brief.for_the_model(), indent=1)[:9000]}")
     if note:
         ask += f"\n\nThe owner adds: {note[:400]}"
 

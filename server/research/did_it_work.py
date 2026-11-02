@@ -163,6 +163,12 @@ def review(session: Session) -> dict:
     # pulls in the provider layer, and a research module should not
     # need one to be importable.
     from server.ai.creative import in_plain_words
+    from server.collectors import permalink as pl
+
+    # One lookup for the page. A suggestion that became a
+    # publication should link to it: "did it work" is a question
+    # you answer by watching the thing, not only by reading a z.
+    urls = pl.bulk(session, [r[4] for r in rows]) if rows else {}
 
     used: list[dict] = []
     waiting: list[dict] = []
@@ -174,6 +180,7 @@ def review(session: Session) -> dict:
             "grounded_in": in_plain_words(grounded),
             "video_id": vid, "external_id": ext,
             "platform": platform,
+            "url": urls.get(vid),
             "posted_at": posted,
             "suggested_at": created,
         }
