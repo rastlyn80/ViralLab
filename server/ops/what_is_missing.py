@@ -34,7 +34,7 @@ import logging
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from server.db.models import Creator, Video, VideoFeature
+from server.db.models import Creator, Video
 #: A creator under this cannot be scored against themselves.
 #: Imported from the analysis rather than restated, so the page and
 #: the findings can never disagree about who counts.
@@ -42,10 +42,6 @@ from server.research.virality import MIN_PER_CREATOR
 
 logger = logging.getLogger("virallab.ops.what_is_missing")
 
-#: Measurements that only exist if somebody watched the video.
-#: Everything else - captions, hashtags, posting time - comes free
-#: with the publication record.
-A_VISUAL_FEATURE = "vision_shot_distance"
 
 
 def _counts(session: Session) -> list[dict]:
@@ -72,21 +68,29 @@ def _watched(session: Session) -> dict:
     The widest gap in the corpus and the least obvious one, because
     every other measurement is populated: a video has a caption, a
     posting time and a hashtag count the moment it is collected,
-    and has no colour, framing or movement until a model watches
+    and has no colour, framing or movement until something watches
     it. So the caption findings rest on thousands of videos and the
     visual ones on a few hundred, and nothing on the page said so.
+
+    "Analysed" is `competitor_archive.analysed_ids`, which derives
+    it from the stage list that does the work. This counted one
+    feature name - `vision_shot_distance` - which belongs to the
+    paid model pass only, so it reported 470 when the real figure
+    was 1,362: every video measured by the free deterministic
+    stages was invisible to it. A number on this page that is
+    wrong by a factor of three is worse than no number.
     """
+    from server.collectors.competitor_archive import analysed_ids
+
     total = session.scalar(
         select(func.count(Video.id))
         .join(Creator, Creator.id == Video.creator_id)
         .where(Creator.is_own_account.is_(False))) or 0
     seen = session.scalar(
-        select(func.count(func.distinct(VideoFeature.video_id)))
-        .join(Video, Video.id == VideoFeature.video_id)
+        select(func.count(Video.id))
         .join(Creator, Creator.id == Video.creator_id)
         .where(Creator.is_own_account.is_(False),
-               VideoFeature.feature == A_VISUAL_FEATURE,
-               VideoFeature.status == "ok")) or 0
+               Video.id.in_(analysed_ids(session)))) or 0
     return {"publications": int(total), "watched": int(seen)}
 
 

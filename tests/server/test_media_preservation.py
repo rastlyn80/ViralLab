@@ -456,3 +456,36 @@ def test_the_download_add_on_price_is_recorded_not_guessed():
     # And the reservation still over-reserves rather than under.
     src = inspect.getsource(cm.acquire)
     assert "0.05 * len(todo)" in src
+
+
+def test_a_batch_idempotency_key_fits_the_column():
+    """It was the video ids joined with commas, which was fine
+    while `max_files` defaulted to one. The first real batch of
+    forty produced a 213-character key and Postgres refused it:
+    `value too long for type character varying(200)`. Nothing was
+    charged — the insert failed before the run started — but the
+    pass died on its first cycle."""
+    from server.collectors.competitor_media import _key
+
+    class V:
+        def __init__(self, i):
+            self.id = i
+
+    for n in (1, 40, 500, 5000):
+        key = _key([V(i) for i in range(1, n + 1)])
+        assert len(key) <= 200, (n, len(key))
+
+
+def test_the_key_is_the_same_whatever_order_the_videos_arrive_in():
+    """Same set, same key, or a retry re-bills for work already
+    paid for."""
+    from server.collectors.competitor_media import _key
+
+    class V:
+        def __init__(self, i):
+            self.id = i
+
+    ids = [7, 3, 99, 12]
+    assert (_key([V(i) for i in ids])
+            == _key([V(i) for i in reversed(ids)]))
+    assert _key([V(1), V(2)]) != _key([V(1), V(3)])

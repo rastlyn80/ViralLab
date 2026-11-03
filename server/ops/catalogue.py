@@ -330,6 +330,29 @@ CATALOGUE: tuple[Operation, ...] = (
                          f"{p['usd_per_round'] / 100:.2f}"],
     ),
     Operation(
+        key="buy_competitor_frames",
+        title="Look at competitors' videos (the paid way)",
+        what_it_does=(
+            "The same job as the free one, except the data provider "
+            "fetches each video instead of this server. That matters "
+            "because TikTok stopped serving this server at the end of "
+            "October, so the free version collects nothing."),
+        how_long="about a minute for every forty videos",
+        costs_money=True,
+        cost_note=(
+            "Measured at $0.003 a video, so a hundred is about "
+            "thirty cents. It stops before the ceiling you set."),
+        needs=("Room left on your data provider's own monthly limit.",),
+        look_at="What goes with more views",
+        params=(
+            Param("target", "How many videos to look at", 100, 20, 2000),
+            Param("max_usd", "Stop after spending (dollars)", 3, 1, 20),
+        ),
+        build=lambda p: [PYTHON, _script("paid_visual_pass.py"),
+                         "--target", str(p["target"]),
+                         "--max-usd", str(p["max_usd"]), "--yes"],
+    ),
+    Operation(
         key="look_at_my_videos",
         title="Look closely at my own videos",
         what_it_does=(

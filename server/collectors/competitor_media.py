@@ -197,6 +197,30 @@ def _assert_competitor(session: Session, video: Video) -> None:
             f"media_preservation, which retains rather than quarantines")
 
 
+def _key(todo: list[Video]) -> str:
+    """An idempotency key for this exact set of publications.
+
+    It was the ids joined with commas, which is readable and was
+    fine while `max_files` defaulted to one. The first real batch
+    of forty produced a 213-character key and Postgres refused it:
+    `value too long for type character varying(200)`. Nothing was
+    charged - the insert failed before the run started - but the
+    pass died on its first cycle.
+
+    A digest of the sorted ids instead. Same set, same key,
+    whatever order they arrive in and however many there are,
+    which is the only property the budget layer needs. The count
+    and the first id stay in front so a row is still recognisable
+    by eye in the ledger.
+    """
+    import hashlib
+
+    ids = sorted(v.id for v in todo)
+    digest = hashlib.sha256(
+        ",".join(str(i) for i in ids).encode()).hexdigest()[:16]
+    return f"competitor_media:{len(ids)}:{ids[0]}:{digest}"
+
+
 def acquire(session: Session, *, videos: list[Video], token: str,
             media_root: Path | None = None,
             client: httpx.Client | None = None,
@@ -267,7 +291,7 @@ def acquire(session: Session, *, videos: list[Video], token: str,
     reservation = budget.reserve(
         session, provider="apify", estimated_usd=estimate,
         category=CATEGORY,
-        idempotency_key=f"competitor_media:{','.join(str(v.id) for v in todo)}",
+        idempotency_key=_key(todo),
         detail={"actor": ACTOR, "videos": [v.id for v in todo],
                 "method_version": METHOD_VERSION})
     session.commit()

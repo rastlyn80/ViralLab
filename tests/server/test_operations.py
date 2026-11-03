@@ -859,3 +859,37 @@ def test_the_blocked_reason_keeps_its_first_letter():
     code = [ln for ln in src.splitlines()
             if not ln.strip().startswith("#")]
     assert not [ln for ln in code if "lstrip" in ln]
+
+
+def test_coverage_is_counted_by_the_stages_that_do_the_work():
+    """"Analysed" was `vision_shot_distance`, one feature name,
+    which belongs to the paid model pass only. Every video
+    measured by the free deterministic stages was invisible to
+    it, so the Collect page reported 470 when the real figure was
+    1,362 — wrong by a factor of three, in the number that tells
+    him whether collecting is worth doing.
+
+    The stage list lives in `features/competitor.py` and
+    `analysed_ids` derives it from there, so the thing that
+    measures coverage and the thing that decides what to fetch
+    cannot drift apart.
+    """
+    import inspect
+
+    from server.ops import what_is_missing as wim
+
+    # Asserted against the module, not its text: the docstring
+    # records what the old count was and should keep doing so.
+    assert not hasattr(wim, "A_VISUAL_FEATURE")
+    assert "analysed_ids(session)" in inspect.getsource(wim._watched)
+
+
+def test_the_paid_pass_counts_the_same_way():
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[2] / "scripts" / "provision"
+           / "paid_visual_pass.py").read_text(encoding="utf-8")
+    assert "analysed_ids" in src
+    # The wrong way, which reported 41 freshly analysed videos as
+    # still missing.
+    assert "like 'vision_%'" not in src
