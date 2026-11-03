@@ -433,3 +433,26 @@ def test_backfill_hashes_ignores_competitors(session, creator, competitor,
     assert mp.backfill_hashes(session) == 0
     v = session.query(Video).filter_by(external_id="theirs").one()
     assert v.media_sha256 is None
+
+
+def test_the_download_add_on_price_is_recorded_not_guessed():
+    """`acquire` told whoever read it to run it once and read the
+    bill. That happened on 2026-11-03: $0.003 a video, from
+    Apify's own settled charge.
+
+    It decides a real argument. TikTok stopped serving this
+    server at the end of October, so the free `yt-dlp` route is
+    refused on its first request and collects nothing. This route
+    is unaffected — the provider fetches the file — and at that
+    price the whole TikTok backlog is about $17.
+    """
+    import inspect
+
+    from server.collectors import competitor_media as cm
+
+    doc = inspect.getdoc(cm.acquire) or ""
+    assert "MEASURED 2026-11-03: $0.003 a video" in doc
+    assert "[PRIMARY]" in doc
+    # And the reservation still over-reserves rather than under.
+    src = inspect.getsource(cm.acquire)
+    assert "0.05 * len(todo)" in src

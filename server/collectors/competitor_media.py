@@ -205,8 +205,27 @@ def acquire(session: Session, *, videos: list[Video], token: str,
     """Fetch competitor media for up to `max_files` publications.
 
     `max_files` defaults to **one** on purpose. The per-file price of the
-    download add-on has never been measured, and the first thing anyone
+    download add-on had never been measured, and the first thing anyone
     should do with this function is run it once and read the bill.
+
+    **MEASURED 2026-11-03: $0.003 a video.** `[PRIMARY]`, from Apify's
+    own settled charge for a single-file run — video 9822, a 992 KB
+    mp4, delivered and registered with its six-hour deadline. The
+    estimate above reserves $0.05 a file, which is 17x the measured
+    price and stays as it is: reserving too much is recoverable.
+
+    That number matters because it decides an argument. TikTok
+    stopped serving this server at the end of October, so
+    `competitor_archive.py` - the free `yt-dlp` route ADR 0010 added -
+    is refused on its first request and collects nothing. **This route
+    is unaffected**, because our server never talks to TikTok: the
+    provider fetches the file and we collect it from them. At $0.003,
+    the entire backlog of 5,577 unmeasured TikTok publications is about
+    $17.
+
+    So the honest position is no longer "the free route is free and
+    this one costs money". It is "the free route is blocked and this
+    one works", at a price worth naming out loud.
     """
     from server.discovery.apify import ApifyClient
 
