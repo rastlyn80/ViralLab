@@ -131,20 +131,22 @@ CAPS_TIKTOK = ProviderCapabilities(
     supported_queries=(QueryKind.CREATOR, QueryKind.KEYWORD,
                        QueryKind.HASHTAG),
     follower_count=True, creator_bio=True, creator_verified=True,
-    # Tracks ACTOR_TIKTOK_DEFAULT, which is the rounded actor as of
-    # 2026-10-26. Claiming exact counts while the actor in use rounds them
-    # would be a capability lie, and callers branch on this.
-    view_count=True, views_rounded=True, saves_count=True,
+    # Tracks ACTOR_TIKTOK_DEFAULT, which is the EXACT actor again as
+    # of 2026-11-03. Claiming exact counts while the actor in use
+    # rounds them would be a capability lie, and callers branch on
+    # this - so this line moves with that one, never separately.
+    view_count=True, views_rounded=False, saves_count=True,
     shares_count=True, music_metadata=True, media_url=True,
     full_history=True,
     coverage_notes=(
-        "IN USE 2026-10-26: clockworks/free-tiktok-scraper. It rounds "
-        "large counts to ~3 significant figures, which blurs outlier "
-        "boundaries; every row carries counts_rounded=True.",
-        "apidojo/tiktok-scraper returns exact counts and a direct mp4 URL "
-        "and would be preferred, but as of 2026-10-26 it answers every "
+        "IN USE 2026-11-03: apidojo/tiktok-scraper. Exact counts, a "
+        "direct mp4 URL, and $0.30 per 1,000 against $3.00.",
+        "It was down from 2026-10-26 to 2026-11-03, answering every "
         "query with {'noResults': true} sentinels while still billing "
-        "$0.0030 a run. See ACTOR_TIKTOK_DEFAULT for the re-check trigger.",
+        "$0.0030 a run, and clockworks/free-tiktok-scraper was used "
+        "instead. Publications collected in that window carry "
+        "counts_rounded=True and are coarser than the ones either "
+        "side of it.",
     ))
 
 CAPS_INSTAGRAM = ProviderCapabilities(
@@ -395,6 +397,25 @@ def creator_from_apidojo(item: dict) -> DiscoveredCreator | None:
 
 
 def publication_from_apidojo(item: dict) -> DiscoveredPublication | None:
+    """The exact-count TikTok actor, `apidojo/tiktok-scraper`.
+
+    Re-verified 2026-11-03 against a freshly recorded response
+    (`tests/fixtures/discovery/tiktok_exact_emiliopiano.json`).
+    Every field this reads is still where it was in Phase 0A - the
+    schema has not drifted in the eight days the actor spent
+    returning nothing.
+
+    Worth saying because the opposite was assumed. Reading the
+    live response beside `publication_from_clockworks` makes the
+    two look unrelated - `views` against `playCount`, `title`
+    against `text`, `channel` against `authorMeta` - and it is
+    easy to conclude from that that THIS parser is the stale one.
+    It is not; they are two different actors.
+
+    What this one gives that the actor in use does not: exact
+    counts (283,083,856 where the other says 283,100,000), a
+    direct mp4 URL, and a tenth of the price.
+    """
     if not item.get("id"):
         return None
     ch = item.get("channel") or {}
@@ -404,7 +425,10 @@ def publication_from_apidojo(item: dict) -> DiscoveredPublication | None:
         platform=Platform.TIKTOK,
         external_id=str(item["id"]),
         creator_username=str(ch.get("username", "")).lstrip("@").lower(),
-        published_at=_epoch(item.get("uploadedAt")),
+        # The ISO string first: it carries the zone explicitly, and
+        # the epoch is the fallback for a row that omits it.
+        published_at=(_iso(item.get("uploadedAtFormatted"))
+                      or _epoch(item.get("uploadedAt"))),
         caption=item.get("title"),
         hashtags=[str(h).lstrip("#").lower()
                   for h in (item.get("hashtags") or []) if isinstance(h, str)],
@@ -592,7 +616,25 @@ NORMALISERS = {
 #: **Re-check trigger.** Try `ACTOR_TIKTOK_EXACT` again before any large
 #: TikTok collection; if it returns real rows, switch back and restore
 #: `views_rounded=False` in `CAPS_TIKTOK`. A one-line change in each.
-ACTOR_TIKTOK_DEFAULT = ACTOR_TIKTOK_ROUNDED
+#:
+#: **TRIGGERED AND TAKEN, 2026-11-03.** `apidojo/tiktok-scraper` answers
+#: again: three runs against `@emiliopiano` returned real publications,
+#: `status: SUCCEEDED`, exact counts (283,083,856 where the rounded actor
+#: says 283,100,000) and a working mp4 URL. The response is recorded at
+#: `tests/fixtures/discovery/tiktok_exact_emiliopiano.json` and
+#: `publication_from_apidojo` parses it unchanged - the schema did not
+#: drift while the actor was down.
+#:
+#: So the switch is made, and it is a straight improvement: a tenth of
+#: the price and counts that do not blur the outlier boundary the
+#: performance strata depend on (CLAUDE.md §3.12).
+#:
+#: **What to watch.** The sentinel failure was silent - `SUCCEEDED`,
+#: `exitCode: 0`, ten rows of `{"noResults": true}`, billed each time.
+#: If TikTok collection suddenly returns nothing, suspect this line
+#: before suspecting the query, and `ACTOR_TIKTOK_ROUNDED` is the
+#: one-line way back.
+ACTOR_TIKTOK_DEFAULT = ACTOR_TIKTOK_EXACT
 
 
 def actor_for(query: DiscoveryQuery) -> str:

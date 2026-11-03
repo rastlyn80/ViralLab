@@ -8,6 +8,7 @@ value it did not receive.
 
 from __future__ import annotations
 
+import pathlib
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -551,3 +552,80 @@ def test_the_clockworks_parser_keeps_the_cover_url():
     assert len(with_cover) == len(parsed), (
         "every fixture item carries videoMeta.coverUrl")
     assert all(p.thumbnail_url.startswith("http") for p in with_cover)
+
+
+# ---------------------------------------------------------------------------
+# the exact-count actor, back in use 2026-11-03
+# ---------------------------------------------------------------------------
+
+RECORDED_APIDOJO = (pathlib.Path(__file__).resolve().parents[1] / "fixtures"
+                    / "provider_responses"
+                    / "tiktok_exact_emiliopiano.json")
+
+
+def _apidojo_items():
+    import json
+
+    return json.loads(RECORDED_APIDOJO.read_text(encoding="utf-8"))
+
+
+def test_the_exact_actor_parses_its_recorded_response():
+    """Recorded live on 2026-11-03, after eight days of the actor
+    answering every query with `{"noResults": true}` sentinels
+    while still billing.
+
+    The parser needed no change: reading the live response beside
+    `publication_from_clockworks` makes the two look unrelated -
+    `views` against `playCount`, `title` against `text` - and it
+    is easy to conclude the wrong one is stale. They are two
+    different actors and both were correct.
+    """
+    items = _apidojo_items()
+    assert len(items) == 5
+    rows = [apify.publication_from_apidojo(i) for i in items]
+    assert all(r is not None for r in rows)
+    for r in rows:
+        assert r.external_id
+        assert r.creator_username == "emiliopiano"
+        assert r.published_at is not None
+        assert r.views and r.views > 0
+        assert r.duration_s and r.duration_s > 0
+
+
+def test_its_counts_are_exact_and_say_so():
+    """The whole reason to prefer it. The rounded actor expands
+    the on-screen figure - 283.1M becomes 283,100,000 - which
+    blurs the outlier boundary the performance strata rest on
+    (CLAUDE.md §3.12). This one returned 283,083,856.
+    """
+    rows = [apify.publication_from_apidojo(i) for i in _apidojo_items()]
+    assert all(r.counts_rounded is False for r in rows)
+    # A figure that has been rounded to three significant figures
+    # ends in a long run of zeros. None of these do.
+    assert any(r.views % 1000 for r in rows)
+
+
+def test_the_capability_flag_tracks_the_actor_in_use():
+    """`views_rounded` is what callers branch on. Claiming exact
+    counts while the actor in use rounds them is a capability
+    lie, so the two move together or not at all."""
+    rounded_actor = apify.ACTOR_TIKTOK_DEFAULT == apify.ACTOR_TIKTOK_ROUNDED
+    assert apify.CAPS_TIKTOK.views_rounded is rounded_actor
+
+
+def test_the_actor_in_use_is_the_cheaper_one():
+    assert apify.ACTOR_TIKTOK_DEFAULT == apify.ACTOR_TIKTOK_EXACT
+    assert (apify.COST_PER_1K_USD[apify.ACTOR_TIKTOK_EXACT]
+            < apify.COST_PER_1K_USD[apify.ACTOR_TIKTOK_ROUNDED])
+
+
+def test_a_raw_recorded_response_in_the_fixture_directory_is_skipped():
+    """The recorded response is a bare list; the fixture adapter's
+    own files are envelopes with a `platform` key. One landing in
+    the wrong directory broke every fixture-mode search with
+    `'list' object has no attribute 'get'`."""
+    import inspect
+
+    from server.discovery import fixture as fx
+
+    assert "isinstance(d, dict)" in inspect.getsource(fx.FixtureDiscoveryAdapter._load)

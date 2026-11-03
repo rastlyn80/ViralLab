@@ -64,6 +64,15 @@ class FixtureDiscoveryAdapter(ApifyDiscoveryAdapter):
                 d = json.loads(p.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 continue
+            if not isinstance(d, dict):
+                # A file in this directory that is not one of our
+                # envelopes. A raw provider response recorded for
+                # parser tests is a bare list and belongs in
+                # `tests/fixtures/provider_responses/`, but one
+                # landing here should be skipped rather than
+                # crashing every fixture-mode search with
+                # `'list' object has no attribute 'get'`.
+                continue
             if (d.get("platform") == query.platform.value
                     and d.get("kind") == query.kind.value
                     and str(d.get("value", "")).lower() == want_value):
