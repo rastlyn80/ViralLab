@@ -162,8 +162,10 @@ function choice(o) {
 function needs(n) {
   if (!n.creators_followed) return '';
   const jobs = (n.next || []).map((j) => `<li>
-    <b>${esc(j.do)}</b>${j.worth === 'high'
-    ? ' <span class="chip ok">worth it now</span>' : ''}
+    <b>${esc(j.do)}</b>${j.worth === 'blocking'
+    ? ' <span class="chip warn">nothing paid can run</span>'
+    : (j.worth === 'high' ? ' <span class="chip ok">worth it now</span>'
+      : '')}
     <br><span class="muted">${esc(j.because)}</span>
   </li>`).join('');
   return `<section class="card">
@@ -177,7 +179,13 @@ function needs(n) {
     </p>
     <p class="muted">${esc(n.how_to_read || '')}</p>
     <ul class="plain">${jobs}</ul>
-  </section>`;
+  </section>
+  ${n.provider && n.provider.exhausted ? note(`<b>Collecting is
+    paused.</b> Your data provider has reached the monthly limit set
+    on your own account there &mdash;
+    $${n.provider.used_usd} of $${n.provider.limit_usd} used. Every
+    button below that costs money will fail until you raise it or
+    their month resets. Nothing has been charged.`, 'warn') : ''}`;
 }
 
 function running(h) {

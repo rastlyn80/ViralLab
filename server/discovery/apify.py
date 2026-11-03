@@ -44,7 +44,8 @@ import httpx
 from server.discovery.base import (DiscoveredCreator, DiscoveredPublication,
                                    DiscoveryAdapter, DiscoveryError,
                                    DiscoveryQuery, DiscoveryResult, Platform,
-                                   ProviderCapabilities, QueryKind)
+                                   ProviderCapabilities,
+                                   ProviderOutOfCredit, QueryKind)
 
 logger = logging.getLogger("virallab.discovery.apify")
 
@@ -167,6 +168,28 @@ CAPS_INSTAGRAM = ProviderCapabilities(
     ))
 
 
+#: How Apify words an exhausted account. Matched on the machine
+#: -readable `type` first and the prose second, because the prose
+#: is theirs to change.
+#:
+#: `[PRIMARY]` observed 2026-11-03 on a live 403:
+#:   {"error": {"type": "platform-feature-disabled",
+#:              "message": "Monthly usage hard limit exceeded"}}
+OUT_OF_CREDIT_MARKERS = (
+    "platform-feature-disabled",
+    "monthly usage hard limit",
+    "usage hard limit exceeded",
+    "monthly-usage-hard-limit",
+)
+
+
+def _is_out_of_credit(status: int, body: str) -> bool:
+    if status not in (402, 403):
+        return False
+    low = body.lower()
+    return any(marker in low for marker in OUT_OF_CREDIT_MARKERS)
+
+
 class ApifyClient:
     """Thin HTTP client: run, poll, abort, fetch. Bounded everywhere."""
 
@@ -209,9 +232,18 @@ class ApifyClient:
                         provider="apify")
                 elif r.status_code >= 400:
                     # 4xx other than 429 will not become true by waiting.
+                    body = r.text[:300]
+                    if _is_out_of_credit(r.status_code, body):
+                        raise ProviderOutOfCredit(
+                            "Apify has stopped serving this account: its "
+                            "own monthly spending limit is reached. "
+                            "Nothing was collected and nothing was "
+                            "charged. Raise the limit in the Apify "
+                            "console or wait for it to reset.",
+                            provider="apify")
                     raise DiscoveryError(
                         f"apify {r.status_code} on {method} {path}: "
-                        f"{r.text[:300]}", permanent=True, provider="apify")
+                        f"{body}", permanent=True, provider="apify")
                 else:
                     if not r.content:
                         return {}
@@ -617,6 +649,49 @@ class ApifyDiscoveryAdapter(DiscoveryAdapter):
                  max_items_cap: int = MAX_ITEMS_HARD_CAP):
         self.client = client or ApifyClient(token)
         self.max_items_cap = max_items_cap
+
+    def allowance(self) -> dict:
+        """What the provider says is left, before anything is spent.
+
+        One free call to `users/me/limits`, which is not metered.
+        It exists so a button can say "the provider is out of
+        credit" instead of starting work that cannot succeed, and
+        so the Collect page can show it before he presses.
+
+        Never raises. A provider that cannot be asked is reported
+        as unknown rather than as broken: not knowing the
+        allowance is not a reason to refuse to work.
+        """
+        try:
+            data = self.client._request("GET", "users/me/limits")
+        except Exception as exc:            # noqa: BLE001 - reported
+            logger.warning("could not read the apify allowance: %s", exc)
+            return {"known": False, "why": str(exc)[:200]}
+        if not isinstance(data, dict):
+            return {"known": False, "why": "unexpected response shape"}
+        body = data.get("data") or data
+        limits = body.get("limits") or {}
+        current = body.get("current") or {}
+        cap = limits.get("maxMonthlyUsageUsd")
+        used = current.get("monthlyUsageUsd")
+        if cap is None or used is None:
+            return {"known": False,
+                    "why": "the response carried no monthly usage figure"}
+        left = round(float(cap) - float(used), 4)
+        return {
+            "known": True,
+            "limit_usd": round(float(cap), 2),
+            "used_usd": round(float(used), 2),
+            "remaining_usd": left,
+            "exhausted": left <= 0,
+            # Their month, not ours. Apify's cycle does not start
+            # on the first: our own ledger showed $0 spent in
+            # November while their meter read $19.37, and both
+            # were right.
+            "note": ("This is Apify's own limit on your account and "
+                     "their own billing month, which is not the "
+                     "calendar month this project counts in."),
+        }
 
     def capabilities(self, platform: Platform) -> ProviderCapabilities:
         return (CAPS_TIKTOK if platform is Platform.TIKTOK

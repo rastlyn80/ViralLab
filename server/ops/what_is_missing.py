@@ -90,6 +90,34 @@ def _watched(session: Session) -> dict:
     return {"publications": int(total), "watched": int(seen)}
 
 
+def provider_allowance() -> dict:
+    """What the data provider says is left on the account.
+
+    Shown because every paid button goes through Apify, and when
+    Apify stops serving the account they all fail the same way.
+    The owner met this as "Study a creator you name - Did not
+    finish, exited with code 1", under advice to check the
+    spelling of a handle that was perfectly correct.
+
+    One unmetered call, cached by the page's own refresh rate. It
+    never raises and never blocks: a provider that cannot be asked
+    is reported as unknown, because not knowing is not a reason to
+    hide the buttons.
+    """
+    import os
+
+    token = os.environ.get("APIFY_TOKEN")
+    if not token:
+        return {"known": False, "why": "no provider token is configured"}
+    try:
+        from server.discovery.apify import ApifyDiscoveryAdapter
+
+        return ApifyDiscoveryAdapter(token).allowance()
+    except Exception as exc:               # noqa: BLE001 - reported
+        logger.warning("could not read the provider allowance: %s", exc)
+        return {"known": False, "why": str(exc)[:200]}
+
+
 def summary(session: Session) -> dict:
     """What to do next, in the order it is worth doing."""
     try:
@@ -103,6 +131,24 @@ def summary(session: Session) -> dict:
     deep = sum(p["deep_enough"] for p in platforms)
     thin = total - deep
     jobs: list[dict] = []
+
+    allowance = provider_allowance()
+    if allowance.get("exhausted"):
+        # First, and on its own, because nothing else on the list
+        # can run until this is cleared.
+        jobs.append({
+            "do": "Raise the limit on your Apify account",
+            "run": None,
+            "because": (
+                f"Apify has stopped serving this account - it has "
+                f"used ${allowance.get('used_usd')} of its "
+                f"${allowance.get('limit_usd')} monthly limit. Every "
+                f"button below that costs money will fail until that "
+                f"is raised or their billing month resets. Nothing "
+                f"has been charged here: this project has spent "
+                f"nothing with them this month."),
+            "worth": "blocking",
+        })
 
     if thin:
         jobs.append({
@@ -156,6 +202,7 @@ def summary(session: Session) -> dict:
     })
 
     return {
+        "provider": allowance,
         "creators_followed": total,
         "creators_that_count": deep,
         "creators_too_thin": thin,

@@ -53,6 +53,7 @@ from sqlalchemy.orm import sessionmaker  # noqa: E402
 from server.budget import budget_state  # noqa: E402
 from server.db.models import Creator, Video  # noqa: E402
 from server.discovery.apify import ApifyDiscoveryAdapter  # noqa: E402
+from server.discovery.base import ProviderOutOfCredit  # noqa: E402
 from server.research.service import research_creator  # noqa: E402
 
 #: Both platforms allow letters, digits, underscore and period.
@@ -111,6 +112,28 @@ def main() -> int:
         from server.discovery.base import (DiscoveryQuery, Platform,
                                            QueryKind)
 
+        # Asked before anything is attempted, because an exhausted
+        # account refuses every call identically and the refusal
+        # used to reach him as "the handle may be misspelled".
+        allowance = adapter.allowance()
+        if allowance.get("exhausted"):
+            print(json.dumps({
+                "handle": handle, "platform": args.platform,
+                "status": "provider_out_of_credit",
+                "allowance": allowance,
+                "message": (
+                    f"Apify has stopped serving this account: it has "
+                    f"used ${allowance['used_usd']} of its "
+                    f"${allowance['limit_usd']} monthly limit. Nothing "
+                    f"was collected and nothing was charged."),
+                "what_to_check": (
+                    "This is a limit on your Apify account, not on "
+                    "anything here, and not a problem with the handle. "
+                    "Raise it in the Apify console or wait for their "
+                    "billing month to reset."),
+            }, indent=2, default=str))
+            return 1
+
         estimate = adapter.estimate_usd(DiscoveryQuery(
             kind=QueryKind.CREATOR, value=handle,
             platform=Platform(args.platform), limit=args.posts))
@@ -121,6 +144,7 @@ def main() -> int:
             "already_known": existing is not None,
             "publications_already_held": have,
             "estimate_usd": estimate,
+            "provider_allowance": allowance,
             "budget_before": budget_state(s),
         }
         if not args.yes:
@@ -132,8 +156,18 @@ def main() -> int:
             print(json.dumps(plan, indent=2, default=str))
             return 0
 
-        out = research_creator(s, adapter, platform=args.platform,
-                               handle=handle, limit=args.posts)
+        try:
+            out = research_creator(s, adapter, platform=args.platform,
+                                   handle=handle, limit=args.posts)
+        except ProviderOutOfCredit as exc:
+            # The race: the allowance was fine a second ago and the
+            # limit was reached by something else mid-call.
+            s.commit()
+            plan.update({"status": "provider_out_of_credit",
+                         "message": str(exc),
+                         "billed_usd": 0.0})
+            print(json.dumps(plan, indent=2, default=str))
+            return 1
         s.commit()
         plan.update({
             "status": out.status,
@@ -145,13 +179,25 @@ def main() -> int:
             "budget_after": budget_state(s),
         })
         if out.status == "failed":
-            # Said plainly rather than buried: the commonest cause
-            # is a private or renamed account, and the owner can fix
-            # that in a second if he is told which it was.
-            plan["what_to_check"] = (
-                "The handle may be spelled differently, the account "
-                "may have been renamed, or it may not be public. "
-                "Only publicly visible accounts are collected.")
+            # Said plainly rather than buried. The handle advice is
+            # only given when the handle could plausibly be the
+            # fault: it was printed under an "Apify monthly usage
+            # hard limit exceeded" once, which sent him looking in
+            # the one place the problem was not.
+            low = (out.message or "").lower()
+            if any(m in low for m in ("hard limit", "usage limit",
+                                      "feature-disabled")):
+                plan["what_to_check"] = (
+                    "This looks like a limit on your Apify account "
+                    "rather than anything to do with the handle. "
+                    "Raise it in the Apify console or wait for their "
+                    "billing month to reset.")
+            else:
+                plan["what_to_check"] = (
+                    "The handle may be spelled differently, the "
+                    "account may have been renamed, or it may not be "
+                    "public. Only publicly visible accounts are "
+                    "collected.")
         print(json.dumps(plan, indent=2, default=str))
         return 0 if out.status != "failed" else 1
 

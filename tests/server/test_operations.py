@@ -578,3 +578,81 @@ def test_reconcile_deletes_a_live_row_that_never_reached_the_runner(
     assert deleted == [phantom]
     assert commits == [1]
     assert phantom.status == "queued"      # not rewritten on the way out
+
+
+# ---------------------------------------------------------------------------
+# an exhausted provider is not a bad handle
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("status,body", [
+    (403, '{"error":{"type":"platform-feature-disabled",'
+          '"message":"Monthly usage hard limit exceeded"}}'),
+    (402, "monthly usage hard limit"),
+    (403, "MONTHLY-USAGE-HARD-LIMIT"),
+])
+def test_an_exhausted_account_is_recognised(status, body):
+    """Observed live 2026-11-03: Apify answered the owner's first
+    use of "Study a creator you name" with this, and the product
+    told him the handle might be misspelled or the account
+    private. Both wrong, and the advice sent him looking in the
+    one place the fault was not."""
+    from server.discovery.apify import _is_out_of_credit
+
+    assert _is_out_of_credit(status, body)
+
+
+@pytest.mark.parametrize("status,body", [
+    (404, "actor not found"),
+    (403, "forbidden: bad token"),
+    (400, "monthly usage hard limit"),     # wrong status, not this
+    (500, "monthly usage hard limit"),
+])
+def test_other_refusals_are_not_mistaken_for_it(status, body):
+    """Over-matching would hide a genuinely bad handle behind
+    "the provider is out of credit", which is the same mistake in
+    the other direction."""
+    from server.discovery.apify import _is_out_of_credit
+
+    assert not _is_out_of_credit(status, body)
+
+
+def test_running_out_of_credit_is_its_own_kind_of_error():
+    """A bad handle is about ONE query: skip it and carry on. An
+    exhausted account is about EVERY query: stop at once. The same
+    morning this was found, a cohort pass made the identical
+    refused call 51 times because nothing told the loop to stop.
+    """
+    from server.discovery.base import DiscoveryError, ProviderOutOfCredit
+
+    err = ProviderOutOfCredit("out", provider="apify")
+    assert isinstance(err, DiscoveryError)
+    assert err.permanent is True
+    assert err.provider == "apify"
+
+
+def test_the_handle_advice_is_withheld_when_the_handle_is_not_the_fault():
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[2] / "scripts" / "provision"
+           / "follow_creator.py").read_text(encoding="utf-8")
+    assert "hard limit" in src
+    assert "limit on your Apify account" in src
+    # And it asks before it tries, so the common case never gets
+    # as far as a confusing failure.
+    assert "adapter.allowance()" in src
+    assert src.index("adapter.allowance()") < src.index("research_creator(s")
+
+
+def test_the_allowance_check_never_raises():
+    """Not knowing the allowance is not a reason to refuse to
+    work, so a provider that cannot be asked is reported as
+    unknown and the buttons stay."""
+    import inspect
+
+    from server.discovery.apify import ApifyDiscoveryAdapter
+    from server.ops import what_is_missing as wim
+
+    src = inspect.getsource(ApifyDiscoveryAdapter.allowance)
+    assert '"known": False' in src
+    assert "except Exception" in src
+    assert "except Exception" in inspect.getsource(wim.provider_allowance)

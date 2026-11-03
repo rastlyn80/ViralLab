@@ -62,6 +62,30 @@ class DiscoveryError(RuntimeError):
         self.provider = provider
 
 
+class ProviderOutOfCredit(DiscoveryError):
+    """The account has hit its own spending limit at the provider.
+
+    Separated from an ordinary permanent refusal because the two
+    need opposite responses and read nothing alike to the owner.
+
+    A bad handle is about ONE query: skip it, carry on with the
+    rest, tell him to check the spelling. An exhausted account is
+    about EVERY query: stop immediately, and tell him the provider
+    is closed until the limit resets or he raises it.
+
+    Conflating them cost a real afternoon. He pressed "Study a
+    creator you name", Apify answered 403 "Monthly usage hard
+    limit exceeded", and the product told him the handle might be
+    misspelled or the account private. Both wrong, and the advice
+    sent him looking in the one place the fault was not. The same
+    morning a cohort pass made the same refused call 51 times in a
+    row, because nothing told the loop to stop.
+    """
+
+    def __init__(self, message: str, *, provider: str | None = None):
+        super().__init__(message, permanent=True, provider=provider)
+
+
 @dataclass(frozen=True)
 class ProviderCapabilities:
     """What a provider actually returns, per platform.
