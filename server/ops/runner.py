@@ -305,7 +305,7 @@ def reconcile(session: Session) -> int:
     to be running forever would block its kind from ever being
     started again.
     """
-    closed = 0
+    closed = removed = 0
     for row in live(session):
         if row.pid and _alive(row.pid):
             # Still working. Leave it alone.
@@ -325,17 +325,64 @@ def reconcile(session: Session) -> int:
             logger.info("operation %s is still running as pid %s; "
                         "left alone", row.id, row.pid)
             continue
+        if row.started_at is None and row.pid is None:
+            # It never ran. Not history - a false record.
+            #
+            # 7,141 of these accumulated in three days. A second
+            # copy of the server had been started by hand, so the
+            # systemd unit could never bind its port; uvicorn runs
+            # the lifespan BEFORE it binds, so each doomed process
+            # started the schedule, queued a run, and died twelve
+            # seconds later without executing it. Marking those
+            # "the app restarted while this was running" was wrong
+            # twice over: nothing was running, and the row buried
+            # the thousand real runs underneath it.
+            #
+            # Deleting is the honest record of a thing that did not
+            # happen. The cause is fixed in `restart_api.py` and
+            # `schedule.SETTLE_SECONDS`; this is the clean-up, and
+            # it runs every startup so the table heals itself.
+            session.delete(row)
+            removed += 1
+            continue
         row.status = "failed"
         row.finished_at = datetime.now(timezone.utc)
         row.error = ("the app restarted while this was running and "
                      "the process is gone")
         row.progress_note = "Interrupted"
         closed += 1
-    if closed:
+    removed += _sweep_phantoms(session)
+    if closed or removed:
         session.commit()
-        logger.warning("closed %d operation(s) whose process had gone",
-                       closed)
+        logger.warning("closed %d operation(s) whose process had gone, "
+                       "removed %d that never started", closed, removed)
     return closed
+
+
+def _sweep_phantoms(session: Session) -> int:
+    """Delete rows for runs that provably never began.
+
+    `started_at` is the first thing `_run` writes, before the
+    subprocess exists. A row with neither that nor a pid, already
+    marked failed, is one the runner never reached — there is no
+    log, no exit code and no work. Keeping it only hides the runs
+    that did happen.
+
+    Separate from the loop above because the loop only sees rows
+    that are still live, and three days of these were already
+    closed by the time the cause was found.
+    """
+    rows = list(session.scalars(
+        select(Operation).where(
+            Operation.started_at.is_(None),
+            Operation.pid.is_(None),
+            Operation.status == "failed")).all())
+    for row in rows:
+        session.delete(row)
+    if rows:
+        logger.warning("removed %d operation row(s) that never started",
+                       len(rows))
+    return len(rows)
 
 
 def _alive(pid: int) -> bool:

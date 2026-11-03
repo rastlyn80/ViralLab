@@ -53,6 +53,24 @@ logger = logging.getLogger("virallab.ops.schedule")
 #: days, and cheap enough to be uninteresting.
 CHECK_INTERVAL_SECONDS = 3600
 
+#: How long to wait before the FIRST look, so a process that is
+#: about to die does not start anything.
+#:
+#: This cost 8,181 junk rows. `virallab-api.service` restarts on
+#: failure every ten seconds, and a second copy of the server had
+#: been started by hand, so systemd's copy could never bind the
+#: port. uvicorn runs the lifespan BEFORE it binds, so each doomed
+#: process ran this loop, ticked immediately, queued a
+#: `read_repertoire`, failed to bind, and died about twelve
+#: seconds later - leaving a row nothing would ever run. 24,255
+#: times.
+#:
+#: The settling delay is the cheap half of the fix: a process that
+#: cannot bind is gone long before a minute. The other half is
+#: `restart_api.py` no longer starting a second server by hand.
+#: Neither alone is sufficient, which is why both are here.
+SETTLE_SECONDS = 90
+
 
 class Paid(RuntimeError):
     """A paid operation was put on the schedule."""
@@ -167,15 +185,21 @@ def describe(session: Session) -> list[dict]:
 
 
 async def loop(session_factory,
-               check_interval_seconds: int = CHECK_INTERVAL_SECONDS
-               ) -> None:
+               check_interval_seconds: int = CHECK_INTERVAL_SECONDS,
+               settle_seconds: int = SETTLE_SECONDS) -> None:
     """Look every hour, start what is due, never raise.
 
     A scheduler that dies on one bad tick is worse than none,
     because the page keeps saying work is automatic.
+
+    It waits `settle_seconds` before the first look. See the note
+    on that constant: a server that cannot bind its port still
+    runs this, and a tick in a process with twelve seconds to live
+    leaves a queued row that nothing will ever pick up.
     """
     import asyncio
 
+    await asyncio.sleep(settle_seconds)
     while True:
         try:
             with session_factory() as session:

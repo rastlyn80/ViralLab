@@ -13,6 +13,7 @@ write, and nothing is handed to a shell.
 
 from __future__ import annotations
 
+import datetime as dt
 import inspect
 import re
 
@@ -213,10 +214,15 @@ def test_reconcile_leaves_a_live_operation_alone(monkeypatch):
             self.id, self.pid = 1, pid
             self.status, self.error = "running", None
             self.finished_at = self.progress_note = None
+            # Set, because this one really did start. A row
+            # without it never reached the runner at all and is
+            # deleted rather than closed.
+            self.started_at = dt.datetime(2026, 11, 3, 12, 0)
 
     live_row = Row(pid=4242)
     monkeypatch.setattr(runner, "live", lambda s, kind=None: [live_row])
     monkeypatch.setattr(runner, "_alive", lambda pid: True)
+    monkeypatch.setattr(runner, "_sweep_phantoms", lambda s: 0)
 
     class S:
         def commit(self):
@@ -233,11 +239,13 @@ def test_reconcile_closes_an_operation_whose_process_is_gone(monkeypatch):
             self.id, self.pid = 2, 999999
             self.status, self.error = "running", None
             self.finished_at = self.progress_note = None
+            self.started_at = dt.datetime(2026, 11, 3, 12, 0)
 
     dead = Row()
     commits = []
     monkeypatch.setattr(runner, "live", lambda s, kind=None: [dead])
     monkeypatch.setattr(runner, "_alive", lambda pid: False)
+    monkeypatch.setattr(runner, "_sweep_phantoms", lambda s: 0)
 
     class S:
         def commit(self):
@@ -475,3 +483,98 @@ def test_every_suggested_job_names_a_real_button():
     assert runs
     for key in runs:
         cat.get(key)                     # KeyError if it is not real
+
+
+# ---------------------------------------------------------------------------
+# the 8,181 rows for work that never ran
+# ---------------------------------------------------------------------------
+
+def test_the_schedule_waits_before_its_first_look():
+    """A server that cannot bind its port still runs the lifespan.
+
+    `virallab-api.service` restarts every ten seconds on failure,
+    and a second copy of the server had been started by hand, so
+    systemd's copy could never bind. uvicorn runs the application
+    lifespan BEFORE binding, so each doomed process started this
+    schedule, ticked at once, queued a `read_repertoire`, and died
+    about twelve seconds later. 24,255 times, leaving 7,141 rows
+    of work nothing would ever run — and the owner found it as a
+    button greyed out saying "Already running".
+
+    A settling delay longer than a doomed process lives is the
+    cheap half of the fix. `restart_api.py` going through systemd
+    is the other half. Neither alone is enough.
+    """
+    from server.ops import schedule as sched
+
+    assert sched.SETTLE_SECONDS >= 60
+    src = inspect.getsource(sched.loop)
+    assert "await asyncio.sleep(settle_seconds)" in src
+    # Before the loop, not inside it.
+    assert src.index("sleep(settle_seconds)") < src.index("while True")
+
+
+def test_the_restart_script_goes_through_systemd():
+    """Two ways to start a server is how this happened. The manual
+    path survives only for a machine with no unit, and says so."""
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[2] / "scripts" / "provision"
+           / "restart_api.py").read_text(encoding="utf-8")
+    assert "systemctl restart" in src
+    assert "def unit_exists" in src
+    # And it notices the loop rather than measuring one healthy
+    # second: a unit restarting every ten seconds looks active.
+    assert "NRestarts" in src
+
+
+def test_a_run_that_never_started_is_removed_not_marked_failed():
+    """`started_at` is the first thing the runner writes, before
+    the subprocess exists. A row without it has no log, no exit
+    code and no work — calling it "the app restarted while this
+    was running" is wrong twice: nothing was running, and the row
+    buries the runs that did happen."""
+    src = inspect.getsource(runner.reconcile)
+    assert "row.started_at is None and row.pid is None" in src
+    assert "session.delete(row)" in src
+    sweep = inspect.getsource(runner._sweep_phantoms)
+    assert "Operation.started_at.is_(None)" in sweep
+    assert "Operation.pid.is_(None)" in sweep
+    # Only rows already judged failed. A live queued row belongs
+    # to a thread that may be about to write `started_at`.
+    assert 'Operation.status == "failed"' in sweep
+
+
+def test_reconcile_deletes_a_live_row_that_never_reached_the_runner(
+        monkeypatch):
+    """The 7,141. `start()` commits the row, then the thread writes
+    `started_at`. A process that died between the two leaves a row
+    for work that has no log, no exit code and no process — and
+    "the app restarted while this was running" is wrong twice
+    over, because nothing was running."""
+    class Row:
+        def __init__(self):
+            self.id, self.pid = 3, None
+            self.status, self.error = "queued", None
+            self.finished_at = self.progress_note = None
+            self.started_at = None
+
+    phantom = Row()
+    deleted, commits = [], []
+    monkeypatch.setattr(runner, "live", lambda s, kind=None: [phantom])
+    monkeypatch.setattr(runner, "_alive", lambda pid: False)
+    monkeypatch.setattr(runner, "_sweep_phantoms", lambda s: 0)
+
+    class S:
+        def delete(self, row):
+            deleted.append(row)
+
+        def commit(self):
+            commits.append(1)
+
+    # Nothing was "closed" — it is not history, so it is not
+    # counted as an interrupted run either.
+    assert runner.reconcile(S()) == 0
+    assert deleted == [phantom]
+    assert commits == [1]
+    assert phantom.status == "queued"      # not rewritten on the way out
