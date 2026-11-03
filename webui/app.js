@@ -25,6 +25,7 @@ import { makeHub } from './make_hub.js';
 import { openings } from './openings.js';
 import { work } from './work.js';
 import { visualProfile } from './profile.js';
+import { guide } from './guide.js';
 import { virality } from './virality.js';
 import { strategist } from './strategist.js';
 import {
@@ -72,6 +73,7 @@ const ROUTES = [
   { pattern: /^\/next$/, view: opportunities, nav: 'next' },
   { pattern: /^\/ask$/, view: strategist, nav: 'strategist' },
   { pattern: /^\/review\/labels$/, view: labelReview, nav: 'labelreview' },
+  { pattern: /^\/guide$/, view: guide, nav: 'guide' },
   { pattern: /^\/glossary$/, view: glossary, nav: 'glossary' },
   { pattern: /^\/features$/, view: featureCatalogue,
     nav: 'features' },
@@ -96,6 +98,12 @@ const ROUTES = [
  */
 const NAV = [
   { id: 'dashboard', href: '#/', label: 'Home' },
+  // Fifth, and the four-item rule still holds: that rule
+  // was about findings pages whose names differed only by
+  // their verb, so he opened three to find one answer. A
+  // guide is the opposite problem. He said "I'm back to
+  // square one" and there was nowhere to send him.
+  { id: 'guide', href: '#/guide', label: 'Guide' },
   { id: 'research-hub', href: '#/research', label: 'Research' },
   { id: 'make', href: '#/make', label: 'Make' },
   // The owner asked for "a chat box where I can ask

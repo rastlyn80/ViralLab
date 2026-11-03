@@ -45,6 +45,7 @@ STATIC_ROUTES: tuple[tuple[str, str], ...] = (
     ("#/library", "Content library"),
     ("#/review/masters", "Master links"),
     ("#/review/pairs", "Cross-platform review"),
+    ("#/guide", "Guide"),
     ("#/discover", "Discover creators"),
     ("#/research", "Creator research"),
     ("#/collections", "Collections"),
