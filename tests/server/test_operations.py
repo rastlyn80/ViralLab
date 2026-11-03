@@ -656,3 +656,35 @@ def test_the_allowance_check_never_raises():
     assert '"known": False' in src
     assert "except Exception" in src
     assert "except Exception" in inspect.getsource(wim.provider_allowance)
+
+
+def test_every_paid_script_asks_the_provider_before_it_spends():
+    """One of three had the check, which is the same as none: the
+    owner does not know which button goes through which script.
+
+    `follow_creator` got it when the fault was found. The other
+    two are the ones that failed earlier the same day — and
+    `build_cohort` is the loop that made the identical refused
+    call 51 times, because a permanent refusal about the ACCOUNT
+    was indistinguishable from one about a handle.
+    """
+    from pathlib import Path
+
+    provision = Path(__file__).resolve().parents[2] / "scripts" / "provision"
+    for name in ("follow_creator.py", "build_cohort.py",
+                 "discover_niche.py"):
+        src = (provision / name).read_text(encoding="utf-8")
+        assert "allowance()" in src, name
+        assert "provider_out_of_credit" in src, name
+
+
+def test_the_cohort_loop_stops_rather_than_trying_the_next_creator():
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[2] / "scripts" / "provision"
+           / "build_cohort.py").read_text(encoding="utf-8")
+    at = src.index("except ProviderOutOfCredit")
+    # `break`, not `continue`: every remaining creator would get
+    # the identical refusal.
+    assert "break" in src[at:at + 700]
+    assert "continue" not in src[at:at + 700]
