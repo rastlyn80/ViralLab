@@ -334,14 +334,17 @@ CATALOGUE: tuple[Operation, ...] = (
         title="Look at competitors' videos (the paid way)",
         what_it_does=(
             "The same job as the free one, except the data provider "
-            "fetches each video instead of this server. That matters "
-            "because TikTok stopped serving this server at the end of "
-            "October, so the free version collects nothing."),
+            "fetches each video instead of this server. **Use the "
+            "free one first.** This is the fallback for if TikTok "
+            "ever does refuse this server - it said so on one "
+            "individual post on 3 November, and on nothing else."),
         how_long="about a minute for every forty videos",
         costs_money=True,
         cost_note=(
             "Measured at $0.003 a video, so a hundred is about "
-            "thirty cents. It stops before the ceiling you set."),
+            "thirty cents. It stops before the ceiling you set. "
+            "The free button does the same work for nothing, so "
+            "only reach for this if that one is being refused."),
         needs=("Room left on your data provider's own monthly limit.",),
         look_at="What goes with more views",
         params=(

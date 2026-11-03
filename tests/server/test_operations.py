@@ -893,3 +893,15 @@ def test_the_paid_pass_counts_the_same_way():
     # The wrong way, which reported 41 freshly analysed videos as
     # still missing.
     assert "like 'vision_%'" not in src
+
+
+def test_the_paid_download_button_does_not_claim_the_free_one_is_dead():
+    """It said "TikTok stopped serving this server at the end of
+    October, so the free version collects nothing" — written from
+    a misread error, left on screen after the misread was found,
+    and pointing the owner at a paid button for work that is
+    free."""
+    op = cat.get("buy_competitor_frames")
+    words = (op.what_it_does + " " + op.cost_note).lower()
+    assert "collects nothing" not in words
+    assert "free one first" in words or "free button" in words
