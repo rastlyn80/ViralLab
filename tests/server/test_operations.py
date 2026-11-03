@@ -726,3 +726,136 @@ def test_the_deploy_refuses_to_ship_one():
     gitattributes = (Path(__file__).resolve().parents[2]
                      / ".gitattributes").read_text(encoding="utf-8")
     assert "*.sh text eol=lf" in gitattributes
+
+
+# ---------------------------------------------------------------------------
+# "I've tried to run more researches and I'm not sure they're working"
+# ---------------------------------------------------------------------------
+
+def test_a_pass_the_platform_blocked_is_not_reported_as_finished():
+    """He pressed "Watch other creators' videos" five times. Each
+    run took ten seconds, collected nothing because TikTok was
+    rate-limiting us, exited 0, and the page said "Finished".
+
+    An exit code is not an outcome. A collection pass that stops
+    politely because it is being throttled has done none of its
+    work, and saying so is the difference between a tool he can
+    trust and one he has to audit by reading timings.
+    """
+    out = ("=== cycle 1 of 10 ===\n"
+           "=== stopping: blocked: the platform asked us to "
+           "slow down ===\n=== pass complete ===")
+    status, note, error = runner._outcome(out, 0)
+    assert status == "partial"
+    assert "Stopped early" in note
+    assert "slow down" in note
+    # Not an error: nothing is broken and nothing is ours to fix.
+    assert error is None
+
+
+def test_a_pass_with_nothing_left_to_do_is_finished():
+    """The other early stop is a complete pass with an empty
+    result. Calling that a failure would train him to ignore the
+    warning that matters."""
+    out = ("=== cycle 1 of 3 ===\n"
+           "=== stopping: done: nothing left to fetch ===\n"
+           "=== pass complete ===")
+    status, note, error = runner._outcome(out, 0)
+    assert status == "ok"
+    assert "nothing left to fetch" in note
+    assert error is None
+
+
+def test_a_pass_that_ran_every_cycle_is_plainly_finished():
+    status, note, error = runner._outcome(
+        "=== cycle 1 of 2 ===\n=== cycle 2 of 2 ===\n"
+        "=== pass complete ===", 0)
+    assert (status, note, error) == ("ok", "Finished", None)
+
+
+def test_a_non_zero_exit_still_fails_whatever_the_log_says():
+    """The log marker must not be able to turn a crash into a
+    success - a script can print anything on its way down."""
+    status, note, error = runner._outcome(
+        "=== stopping: done: nothing left to fetch ===", 2)
+    assert status == "failed"
+    assert error == "exited with code 2"
+
+
+def test_the_last_verdict_wins():
+    """A pass that stops in a later cycle should report that
+    cycle's reason, not the first one it happened to print."""
+    out = ("=== stopping: done: nothing left to fetch ===\n"
+           "=== stopping: blocked: the platform asked us to "
+           "slow down ===")
+    assert runner._outcome(out, 0)[0] == "partial"
+
+
+def test_the_script_and_the_runner_agree_on_the_words():
+    """The verdict is written by the shell script and read by the
+    runner. They are in different languages and different files,
+    so the contract is asserted rather than assumed."""
+    from pathlib import Path
+
+    sh = (Path(__file__).resolve().parents[2] / "scripts" / "provision"
+          / "competitor_visual_pass.sh").read_text(encoding="utf-8")
+    assert "=== stopping: blocked:" in sh
+    assert "=== stopping: done:" in sh
+    for line in sh.splitlines():
+        if "=== stopping:" in line and "echo" in line:
+            assert runner.STOPPED_EARLY.search(line), line
+
+
+def test_a_job_that_cannot_currently_work_says_so_before_it_is_pressed():
+    """He pressed "Watch other creators' videos" five times and
+    each run ended in ten seconds saying "Finished". The page
+    should have told him before the first press, not left him to
+    infer it from timings."""
+    import inspect
+
+    from server.ops import what_is_missing as wim
+
+    src = inspect.getsource(wim)
+    assert "blocked_because" in src
+    assert "cannot run" in src
+    # Read from the run history, never by making another request:
+    # asking the platform whether it will talk to us is itself a
+    # request, and the route is conditioned on not knocking after
+    # being told to stop.
+    check = inspect.getsource(wim._collection_is_blocked)
+    assert "Operation" in check
+    assert "requests" not in check and "httpx" not in check
+
+
+def test_the_acquirer_result_is_not_truncated_out_of_the_log():
+    """The pass printed the acquirer's output through `tail -24`,
+    and the acquirer prints a long audit AFTER its result — so
+    the only lines saying what happened were the ones cut."""
+    from pathlib import Path
+
+    sh = (Path(__file__).resolve().parents[2] / "scripts" / "provision"
+          / "competitor_visual_pass.sh").read_text(encoding="utf-8")
+    # The comment above the fix names the old pipeline, so
+    # match the pipeline itself rather than the number.
+    assert 'echo "$out" | tail' not in sh
+    assert 'echo "$out"\n' in sh
+
+
+def test_the_blocked_reason_keeps_its_first_letter():
+    """`lstrip` takes a SET of characters, not a prefix, so
+    "Stopped early — the platform asked us to slow down" came out
+    as "he platform asked us to slow down" — it ate the leading t
+    because t is in "Stopped". Invisible until you read it."""
+    note = "Stopped early \u2014 the platform asked us to slow down"
+    assert note.removeprefix("Stopped early \u2014 ").startswith("the")
+
+    import inspect
+
+    from server.ops import what_is_missing as wim
+
+    src = inspect.getsource(wim._collection_is_blocked)
+    assert "removeprefix" in src
+    # Code only: the comment above the fix names the old call.
+    code = [ln for ln in src.splitlines()
+            if not ln.strip().startswith("#")]
+    assert not [ln for ln in code if "lstrip" in ln]

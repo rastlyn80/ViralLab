@@ -161,12 +161,20 @@ function choice(o) {
  */
 function needs(n) {
   if (!n.creators_followed) return '';
+  const chip = (w) => {
+    if (w === 'blocking') {
+      return ' <span class="chip warn">nothing paid can run</span>';
+    }
+    if (w === 'cannot run') {
+      return ' <span class="chip warn">cannot run yet</span>';
+    }
+    return w === 'high' ? ' <span class="chip ok">worth it now</span>' : '';
+  };
   const jobs = (n.next || []).map((j) => `<li>
-    <b>${esc(j.do)}</b>${j.worth === 'blocking'
-    ? ' <span class="chip warn">nothing paid can run</span>'
-    : (j.worth === 'high' ? ' <span class="chip ok">worth it now</span>'
-      : '')}
+    <b>${esc(j.do)}</b>${chip(j.worth)}
     <br><span class="muted">${esc(j.because)}</span>
+    ${j.blocked_because
+    ? `<br><span class="warn">${esc(j.blocked_because)}</span>` : ''}
   </li>`).join('');
   return `<section class="card">
     <h2>Where the evidence is thin</h2>
@@ -202,20 +210,32 @@ function running(h) {
 
 const OUTCOME = {
   ok: 'Finished',
-  partial: 'Finished early',
+  partial: 'Stopped early',
   failed: 'Did not finish',
   cancelled: 'Stopped by you',
 };
 
+/**
+ * One past run, with what actually happened to it.
+ *
+ * `progress_note` is shown for anything that did not simply
+ * finish, because "Stopped early" on its own tells him nothing
+ * he can act on. The run that prompted this took ten seconds,
+ * collected nothing because the platform was throttling us, and
+ * said "Finished" — five times in a row.
+ */
 function past(h) {
   const when = h.finished_at
     ? new Date(h.finished_at).toLocaleString() : '';
+  const why = h.error || (h.status === 'ok' ? '' : h.progress_note);
   return `<li>
-    <b>${esc(h.title)}</b> &mdash; ${esc(OUTCOME[h.status] || h.status)}
+    <b>${esc(h.title)}</b> &mdash; <span class="${
+  h.status === 'partial' ? 'warn' : ''}">${
+  esc(OUTCOME[h.status] || h.status)}</span>
     <span class="muted">${esc(when)}</span>
     ${h.cost_usd ? `<span class="muted">· cost $${
   h.cost_usd.toFixed(4)}</span>` : ''}
-    ${h.error ? `<br><span class="muted">${esc(h.error)}</span>` : ''}
+    ${why ? `<br><span class="muted">${esc(why)}</span>` : ''}
   </li>`;
 }
 

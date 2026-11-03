@@ -118,6 +118,38 @@ def provider_allowance() -> dict:
         return {"known": False, "why": str(exc)[:200]}
 
 
+def _collection_is_blocked(session: Session) -> str | None:
+    """Whether the last attempt to fetch video was refused.
+
+    Read from the run history rather than by making another
+    request: asking the platform whether it will talk to us is
+    itself a request, and the whole route is conditioned on not
+    knocking when we have been told to stop.
+    """
+    from server.db.models import Operation
+
+    row = session.scalars(
+        select(Operation)
+        .where(Operation.kind.in_(("watch_competitors",
+                                   "watch_competitors_closely")),
+               Operation.status.in_(("ok", "partial")))
+        .order_by(Operation.id.desc()).limit(1)).first()
+    if row is None or row.status != "partial":
+        return None
+    # `removeprefix`, not `lstrip`. lstrip takes a SET of
+    # characters, so "Stopped early — the platform..." came out as
+    # "he platform..." - it ate the leading t because t is in
+    # "Stopped". A classic, and invisible until you read the
+    # sentence.
+    note = (row.progress_note or "").removeprefix("Stopped early — ")
+    return (f"The last attempt stopped before collecting anything: "
+            f"{note}. "
+            f"TikTok has been refusing this server since the end of "
+            f"October, and that is where almost all of these videos "
+            f"are. Pressing it again will not help until that "
+            f"changes.")
+
+
 def summary(session: Session) -> dict:
     """What to do next, in the order it is worth doing."""
     try:
@@ -165,20 +197,29 @@ def summary(session: Session) -> dict:
         })
 
     unwatched = vision["publications"] - vision["watched"]
+    blocked = _collection_is_blocked(session)
     if unwatched > 0:
-        jobs.append({
+        job = {
             "do": "Look at competitors' videos",
             "run": "watch_competitors",
             "because": (
                 f"{vision['watched']} of {vision['publications']} "
                 f"other creators' publications have ever been "
-                f"watched. Captions, hashtags and posting times "
+                f"looked at. Captions, hashtags and posting times "
                 f"arrive with the post; how a video is framed, lit "
                 f"and cut does not. So findings about what people "
                 f"SAY rest on thousands of videos and findings "
                 f"about what they SHOW rest on a few hundred."),
             "worth": "high" if vision["watched"] < 1000 else "medium",
-        })
+        }
+        if blocked:
+            # Said here rather than discovered by pressing it. The
+            # owner pressed this five times, each run ended in ten
+            # seconds saying "Finished", and he had to ask whether
+            # anything was working. It was not.
+            job["blocked_because"] = blocked
+            job["worth"] = "cannot run"
+        jobs.append(job)
 
     jobs.append({
         "do": "Study a creator you name",

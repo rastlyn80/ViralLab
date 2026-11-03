@@ -127,6 +127,38 @@ def _update(row_id: int, **fields) -> None:
         s.commit()
 
 
+#: How a pass reports that it ended before doing its work.
+#: `=== stopping: blocked: <reason> ===` or `done: <reason>`.
+#:
+#: Exit code alone is not the outcome. A collection pass that is
+#: rate-limited by the platform stops politely and exits 0, which
+#: the runner called "ok" and the page showed as "Finished". The
+#: owner pressed "Watch other creators' videos" five times; each
+#: run took ten seconds, collected nothing, and told him it had
+#: worked. "I'm not sure they're working" is how he put it, and
+#: he was right.
+STOPPED_EARLY = re.compile(r"=== stopping: (blocked|done): (.+?) ===")
+
+
+def _outcome(output: str, code: int) -> tuple[str, str, str | None]:
+    """Status, note and reason, from the exit code AND the log.
+
+    `blocked` becomes `partial`: the pass ran, did not finish its
+    work, and the reason is not a fault of ours. `done` stays
+    `ok` - there was nothing left to do, which is a complete pass
+    with an empty result.
+    """
+    if code != 0:
+        return "failed", "Stopped", f"exited with code {code}"
+    hits = STOPPED_EARLY.findall(output)
+    if hits:
+        verdict, reason = hits[-1]
+        if verdict == "blocked":
+            return "partial", f"Stopped early — {reason}", None
+        return "ok", f"Finished — {reason}", None
+    return "ok", "Finished", None
+
+
 def _tail(text: str) -> str:
     if len(text) <= LOG_LIMIT:
         return text
@@ -222,11 +254,12 @@ def _run(row_id: int, kind: str, params: dict) -> None:
         memo.clear()
     except Exception:                       # noqa: BLE001 - reported
         logger.exception("could not clear the remembered analyses")
+    status, note, error = _outcome(output, code)
     _update(row_id,
-            status="ok" if code == 0 else "failed",
-            error=None if code == 0 else f"exited with code {code}",
+            status=status,
+            error=error,
             finished_at=datetime.now(timezone.utc),
-            progress_note="Finished" if code == 0 else "Stopped",
+            progress_note=note,
             cost_usd=_cost_of(summary),
             summary=summary, log=_tail(output))
 

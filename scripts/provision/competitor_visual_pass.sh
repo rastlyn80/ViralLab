@@ -51,7 +51,14 @@ for i in $(seq 1 "$CYCLES"); do
   echo "=== cycle $i of $CYCLES ==="
   out="$(.venv/bin/python scripts/provision/acquire_competitor_free.py \
          --max "$BATCH" --yes 2>&1)"
-  echo "$out" | tail -24
+  # The whole thing, not `tail -24`. The acquirer prints a long
+  # transient-media audit AFTER its result, so the tail showed
+  # the audit and cut off the only lines that said what
+  # happened - `attempted`, `acquired`, `rate_limited`,
+  # `stopped_reason`. The owner asked why a pass "finished" in
+  # ten seconds and the log could not answer. The runner
+  # truncates anyway.
+  echo "$out"
 
   # Paid, opt-in, and before the release.
   if [ "$VISION_USD" != "0" ]; then
@@ -64,12 +71,19 @@ for i in $(seq 1 "$CYCLES"); do
   # the fetch was wasted.
   .venv/bin/python scripts/provision/analyse_competitor_media.py 2>&1 | tail -14
 
+  # The verdict, not just the reason. The runner reads the word
+  # before the colon and reports accordingly: `blocked` is a pass
+  # that did not get to do its job, `done` is one with nothing
+  # left to do. Both exit 0, and for a fortnight both were
+  # reported to the owner as "Finished" - so five presses of
+  # "Watch other creators' videos" each took ten seconds,
+  # collected nothing, and said they had worked.
   if echo "$out" | grep -q "rate-limited"; then
-    echo "=== stopping: the platform asked us to slow down ==="
+    echo "=== stopping: blocked: the platform asked us to slow down ==="
     break
   fi
   if echo "$out" | grep -q '"attempted": 0'; then
-    echo "=== stopping: nothing left to fetch ==="
+    echo "=== stopping: done: nothing left to fetch ==="
     break
   fi
 done
