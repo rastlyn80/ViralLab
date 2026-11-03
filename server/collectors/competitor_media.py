@@ -197,6 +197,15 @@ def _assert_competitor(session: Session, video: Video) -> None:
             f"media_preservation, which retains rather than quarantines")
 
 
+#: `[PRIMARY, measured 2026-11-03]` What Apify settled for the
+#: download add-on: $0.107 for 34 files, $0.126 for 41, $0.003 for
+#: a single file. Per file DELIVERED; a batch where the actor
+#: returns no media for most of its videos costs the same and
+#: yields less, so the figure to plan with is the one in
+#: `paid_visual_pass.py`, which divides by what actually arrived.
+MEASURED_USD_PER_FILE = 0.0031
+
+
 def _key(todo: list[Video]) -> str:
     """An idempotency key for this exact set of publications.
 
@@ -285,9 +294,17 @@ def acquire(session: Session, *, videos: list[Video], token: str,
     if media_root is not None:
         transient.assert_outside_media_root(root, media_root)
 
-    # Estimate generously: the add-on price is unmeasured, and reserving
-    # too little is the failure that cannot be undone.
-    estimate = round(0.05 * len(todo) + 0.05, 4)
+    # Generous, but no longer blind. $0.05 a file was a guess made
+    # when the price was unmeasured; at the measured $0.0031 it is
+    # sixteen times the real charge, and the effect was not
+    # caution but a false ceiling - a run stopped at $1.02 of
+    # actual spend because its RESERVATIONS had reached the $3.00
+    # category cap.
+    #
+    # Four times the measured price, plus a floor. Still the
+    # recoverable direction, without pretending to spend money it
+    # will not.
+    estimate = round(max(0.05, 4 * MEASURED_USD_PER_FILE * len(todo)), 4)
     reservation = budget.reserve(
         session, provider="apify", estimated_usd=estimate,
         category=CATEGORY,

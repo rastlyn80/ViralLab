@@ -489,3 +489,56 @@ def test_the_key_is_the_same_whatever_order_the_videos_arrive_in():
     assert (_key([V(i) for i in ids])
             == _key([V(i) for i in reversed(ids)]))
     assert _key([V(1), V(2)]) != _key([V(1), V(3)])
+
+
+def test_the_reservation_estimate_follows_the_measured_price():
+    """$0.05 a file was a guess made when the price was unknown.
+    At the measured $0.0031 it is sixteen times the real charge,
+    and the effect was not caution but a false ceiling: a run
+    stopped at $1.02 of actual spend because its RESERVATIONS had
+    reached the $3.00 category cap."""
+    import inspect
+
+    from server.collectors import competitor_media as cm
+
+    assert cm.MEASURED_USD_PER_FILE == 0.0031
+    src = inspect.getsource(cm.acquire)
+    assert "MEASURED_USD_PER_FILE" in src
+    # Still over-reserving, which is the recoverable direction.
+    assert "4 * MEASURED_USD_PER_FILE" in src
+
+
+def test_the_paid_pass_stops_cleanly_when_the_cap_refuses():
+    """The first long run died at cycle 11 in a traceback, where
+    it should have printed the 152 videos it had already got."""
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[2] / "scripts" / "provision"
+           / "paid_visual_pass.py").read_text(encoding="utf-8")
+    assert "except SpendRefused" in src
+    assert "stopped_because" in src
+
+
+def test_the_paid_pass_gives_up_when_the_success_rate_collapses():
+    """Measured on that run: 25, 23, 17, 17, 17, 17, 15, 11, 6, 4
+    acquired per batch of forty. The provider's own access
+    degrades under sustained use, and the empty-batch guard never
+    fired because the rate never reached zero — so the tail paid
+    nearly a full batch price for a sixth of the videos."""
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[2] / "scripts" / "provision"
+           / "paid_visual_pass.py").read_text(encoding="utf-8")
+    assert "MIN_SUCCESS_RATE = 0.25" in src
+    assert "rate < MIN_SUCCESS_RATE" in src
+
+
+def test_the_paid_pass_keeps_every_failure_reason():
+    """It kept two per cycle, so a run with 240 failures could
+    account for 20 of them."""
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[2] / "scripts" / "provision"
+           / "paid_visual_pass.py").read_text(encoding="utf-8")
+    assert "why_the_rest_did_not_arrive" in src
+    assert "out.errors[:2]" not in src

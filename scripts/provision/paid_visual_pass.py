@@ -61,6 +61,7 @@ from sqlalchemy import create_engine, func, select  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 from server.budget import budget_state  # noqa: E402
+from server.config import SpendRefused  # noqa: E402
 from server.collectors import competitor_media as cm  # noqa: E402
 from server.db.models import Creator, TransientMedia, Video  # noqa: E402
 from server.research.virality import MIN_PER_CREATOR  # noqa: E402
@@ -82,6 +83,35 @@ BATCH = 40
 #: Three empty batches in a row and it gives up rather than
 #: spending the ceiling on refusals.
 EMPTY_BATCHES_BEFORE_GIVING_UP = 3
+
+#: The share of a batch that must come back with media for the run
+#: to be worth continuing.
+#:
+#: MEASURED on the first long run, 2026-11-03. Success per batch
+#: of forty went 25, 23, 17, 17, 17, 17, 15, 11, 6, 4 - a clean
+#: decline, because the provider's own access to TikTok degrades
+#: under sustained use. A batch is billed for the run as well as
+#: the files, so the tail of that run paid nearly as much per
+#: batch for a sixth of the videos.
+#:
+#: `EMPTY_BATCHES_BEFORE_GIVING_UP` never fired: the rate
+#: collapsed without ever reaching zero. Stopping at a quarter
+#: keeps the productive part of a run and abandons the part that
+#: is mostly paying for refusals.
+#:
+#: **Whether it recovers is not known.** The first version of this
+#: note said "an hour later it starts high again", which was a
+#: guess written as a fact. A second run half an hour after the
+#: first opened at 4 of 40 - exactly where the first one ended -
+#: so the degradation is not a per-run effect that resets. It may
+#: be a daily allowance on the actor, or the platform refusing the
+#: provider in turn. Nobody has measured it, and the only way to
+#: find out is to try tomorrow and write down what happens.
+#:
+#: The single reason, for all 35 failures of that batch: "the
+#: actor returned no mediaUrls; the download add-on may not have
+#: run".
+MIN_SUCCESS_RATE = 0.25
 
 
 def _unanalysed(session):
@@ -197,52 +227,79 @@ def main() -> int:
     spent = 0.0
     empty = 0
     cycles: list[dict] = []
+    # Every distinct reason, counted. The first version kept two
+    # errors per cycle, so a run with 240 failures could account
+    # for 20 of them and the question "why did most of that batch
+    # not arrive" had no answer anywhere in the log.
+    reasons: dict[str, int] = {}
+    stopped = None
     started = time.monotonic()
 
     while done < target:
         if spent + BATCH * MEASURED_USD_PER_VIDEO > args.max_usd:
-            cycles.append({"stopped": (
-                f"the next batch would pass the ${args.max_usd} "
-                f"ceiling for this run")})
+            stopped = (f"the next batch would pass the ${args.max_usd} "
+                       f"ceiling for this run")
             break
 
         want = min(BATCH, target - done)
         with Session() as s:
             videos = _needs_looking_at(s, want)
             if not videos:
-                cycles.append({"stopped": "nothing left that needs it"})
+                stopped = "nothing left that needs it"
                 break
             print(f"=== cycle {len(cycles) + 1}: "
                   f"{len(videos)} publication(s) ===", flush=True)
-            out = cm.acquire(s, videos=videos, token=token,
-                             max_files=want)
+            try:
+                out = cm.acquire(s, videos=videos, token=token,
+                                 max_files=want)
+            except SpendRefused as exc:
+                # The cap doing its job. Not an error, and it must
+                # not end the run in a traceback: the first long
+                # pass died here at cycle 11 and printed a stack
+                # trace where it should have printed what it had
+                # achieved.
+                s.rollback()
+                stopped = f"the spending cap stopped this run: {exc}"
+                break
             s.commit()
             billed = float(getattr(out, "billed_usd", 0.0) or 0.0)
 
         spent += billed
         got = out.acquired
+        for err in out.errors:
+            why = str(err.get("error", "unknown"))[:120]
+            reasons[why] = reasons.get(why, 0) + 1
         analysed = _analyse()
+        rate = got / len(videos) if videos else 0.0
         cycles.append({
             "requested": out.requested, "acquired": got,
             "failed": out.failed,
+            "success_rate": round(rate, 3),
             "skipped_already_held": out.skipped_already_held,
             "billed_usd": round(billed, 4),
             "analysed": analysed.get("analysed"),
-            "errors": out.errors[:2],
         })
         print(json.dumps(cycles[-1], indent=1, default=str), flush=True)
 
         if not got:
             empty += 1
             if empty >= EMPTY_BATCHES_BEFORE_GIVING_UP:
-                cycles.append({"stopped": (
-                    f"{empty} batches in a row acquired nothing; "
-                    f"stopping rather than spending the ceiling on "
-                    f"refusals")})
+                stopped = (f"{empty} batches in a row acquired "
+                           f"nothing; stopping rather than spending "
+                           f"the ceiling on refusals")
                 break
         else:
             empty = 0
             done += got
+            if rate < MIN_SUCCESS_RATE:
+                stopped = (
+                    f"only {got} of {len(videos)} came back with "
+                    f"media. Below {MIN_SUCCESS_RATE:.0%} a batch is "
+                    f"mostly paying for refusals, so this stops "
+                    f"rather than spending the ceiling. Whether the "
+                    f"provider recovers, and how long it takes, has "
+                    f"not been measured - try again tomorrow.")
+                break
 
     with Session() as s:
         after = budget_state(s)
@@ -252,6 +309,11 @@ def main() -> int:
         "result": {
             "looked_at": done,
             "spent_usd": round(spent, 4),
+            "usd_per_video_looked_at": (
+                round(spent / done, 5) if done else None),
+            "stopped_because": stopped or "reached the target",
+            "why_the_rest_did_not_arrive": dict(
+                sorted(reasons.items(), key=lambda kv: -kv[1])[:6]),
             "cycles": cycles,
             "seconds": round(time.monotonic() - started, 1),
             "publications_still_without_a_visual_measurement": still,
