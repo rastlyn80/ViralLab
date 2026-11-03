@@ -2002,3 +2002,47 @@ class Suggestion(Base):
         Index("ix_suggestions_status", "status", "created_at"),
         Index("ix_suggestions_batch", "batch"),
     )
+
+
+class MediaAttempt(Base):
+    """What happened the last time we tried to fetch this video.
+
+    Candidate selection used to exclude only what we were holding
+    and what was already analysed. The outcome of an attempt lived
+    in the result object of the run that made it and was then
+    thrown away, so a publication TikTok serves without a video
+    rendition was picked again on every pass - first every time,
+    because the candidate query had no `ORDER BY` - misread as a
+    throttle, and the pass stopped. Five runs in a row attempted
+    one video, collected nothing, and reported a platform refusal
+    that was not happening.
+
+    One row per publication, upserted. `try_again_after` is NULL
+    when the answer is settled: asking again cannot change a
+    deleted video or one the platform serves without pixels, and
+    doing it anyway is the behaviour ADR 0010 rests on not doing.
+    """
+
+    __tablename__ = "media_attempts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_id: Mapped[int] = mapped_column(
+        ForeignKey("videos.id", ondelete="CASCADE"), unique=True)
+    #: Which route asked. The free path and the provider fail for
+    #: different reasons, and a refusal on one says nothing about
+    #: the other.
+    route: Mapped[str] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(32))
+    detail: Mapped[str | None] = mapped_column(Text)
+    attempts: Mapped[int] = mapped_column(Integer, default=1)
+    first_tried_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow)
+    last_tried_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow)
+    try_again_after: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
+
+    __table_args__ = (
+        Index("ix_media_attempts_retry", "try_again_after"),
+        Index("ix_media_attempts_status", "status"),
+    )

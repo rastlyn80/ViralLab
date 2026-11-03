@@ -160,6 +160,10 @@ class SyncStatus:
     NOT_OWNED = "not_owned"
     PRIVATE = "private"
     UNAVAILABLE = "unavailable"
+    #: TikTok answered, and offered no video stream for this
+    #: publication - only an audio track. A fact about the
+    #: publication, not about us. See `_classify`.
+    NO_VIDEO_OFFERED = "no_video_offered"
     GEO_BLOCKED = "geo_blocked"
     RATE_LIMITED = "rate_limited"
     TOOL_MISSING = "tool_missing"
@@ -443,18 +447,47 @@ def _classify(stderr: str, returncode: int) -> tuple[str, str]:
     """
     s = (stderr or "").lower()
     pairs = [
-        # MEASURED 2026-10-30: when this server had made a couple
-        # of thousand logged-out requests, TikTok stopped offering
-        # a video stream at all and served an audio-only format,
-        # and one reply said the IP was blocked outright. That is a
-        # throttle wearing a different hat, and calling it "failed"
-        # sent the collector back for more - which is the one
-        # behaviour the politeness argument in ADR 0010 cannot
-        # survive. It is classed as rate-limited so the pass stops.
-        (("requested format is not available",
-          "your ip address is blocked"), SyncStatus.RATE_LIMITED),
+        # An explicit refusal, and the only kind of it. Nothing
+        # else belongs in this tuple.
+        (("your ip address is blocked",), SyncStatus.RATE_LIMITED),
         (("http error 429", "too many requests", "rate-limit",
           "rate limit"), SyncStatus.RATE_LIMITED),
+        # CORRECTED 2026-11-03, and the correction matters more
+        # than the original note did.
+        #
+        # "requested format is not available" used to sit in the
+        # tuple above, beside the IP block, on the reasoning that
+        # audio-only was "a throttle wearing a different hat". The
+        # consequence was that a single publication offering no
+        # video stream stopped the whole pass and was reported to
+        # the owner as "the platform rate-limited the pass" - and
+        # from there, by me, as "TikTok has blocked this server
+        # since the end of October".
+        #
+        # None of that was true. MEASURED 2026-11-03 on this same
+        # server, logged out, within a minute of each other:
+        #
+        #   @parisigirolamo/7693523041166429492  720p h265, exit 0
+        #   @parisigirolamo/7693878795908025606  720p h265, exit 0
+        #   @parisigirolamo/7694029217012485397  720p h265, exit 0
+        #   @tonyannn/7673140804273081613        audio only
+        #   @dafkisy/7677882849558547720         audio only
+        #
+        # TikTok is serving this server perfectly well. Some
+        # publications simply come back with one m4a track and no
+        # video rendition. That is per-publication, and treating
+        # it as a platform state meant every pass died on its
+        # first bad candidate - always the same candidate, because
+        # `candidates()` has no ordering and no memory of
+        # outcomes - in about ten seconds, having collected
+        # nothing.
+        #
+        # So it gets its own status, it does not stop the pass,
+        # and `acquire` watches the RATE of it instead: many in a
+        # row is evidence of a platform-wide change and still
+        # stops. One is a fact about one video.
+        (("requested format is not available",
+          "no video formats found"), SyncStatus.NO_VIDEO_OFFERED),
         (("private video", "is private", "login required",
           "sign in to confirm", "requires authentication",
           "this post is private"), SyncStatus.PRIVATE),
@@ -464,8 +497,7 @@ def _classify(stderr: str, returncode: int) -> tuple[str, str]:
         (("video unavailable", "has been removed", "item doesn't exist",
           "could not find", "http error 404", "content isn't available",
           "video not found", "deleted"), SyncStatus.UNAVAILABLE),
-        (("unsupported url", "unable to extract",
-          "no video formats found"), SyncStatus.FAILED),
+        (("unsupported url", "unable to extract"), SyncStatus.FAILED),
     ]
     for needles, status in pairs:
         for needle in needles:
@@ -615,7 +647,22 @@ def fetch_one(target: UrlTarget, dest: Path, *,
     else:
         # No --username, no --netrc, no browser cookie import. A public
         # fetch has no credentials available to it.
-        cmd += ["--no-cookies"]
+        #
+        # Said explicitly rather than relied upon. `--no-cookies`
+        # alone left room for a yt-dlp config file on the host to
+        # add a cookie jar or a login, which would make the
+        # logged-out guarantee a property of the machine rather
+        # than of this code. ADR 0010 rule 1 says the condition is
+        # a property of the code, so the flags now say so: no
+        # config file, no netrc.
+        #
+        # Browser cookies are disabled by ABSENCE, not by a flag:
+        # yt-dlp has no "off" value for `--cookies-from-browser`,
+        # and a first attempt at passing one empty was caught by
+        # `test_public_fetch_passes_no_cookies`, which asserts
+        # the string appears nowhere in the command. That test was
+        # right and the flag was wrong.
+        cmd += ["--no-cookies", "--ignore-config", "--no-netrc"]
     cmd.append(target.url)
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True,

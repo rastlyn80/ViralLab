@@ -53,16 +53,18 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from sqlalchemy import or_ as sa_or
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from server.collectors import permalink, transient
 from server.collectors.tiktok_archive import (SyncStatus, fetch_one,
                                               normalise_url, tool_available)
-from server.db.models import Creator, TransientMedia, Video
+from server.db.models import (Creator, MediaAttempt,
+                              TransientMedia, Video)
 
 logger = logging.getLogger("virallab.collectors.competitor_archive")
 
@@ -88,11 +90,85 @@ RETRYABLE = frozenset({
     SyncStatus.RATE_LIMITED, SyncStatus.TIMEOUT, SyncStatus.FAILED,
 })
 
+#: How many publications in a row may offer no video stream before
+#: the pass stops anyway.
+#:
+#: One is a fact about one video: TikTok answers, and hands over an
+#: m4a track and no video rendition. Measured 2026-11-03, three
+#: publications sampled a minute apart served 720p h265 while two
+#: others served audio only, so it is plainly per-publication.
+#:
+#: A long unbroken run of them is a different thing - it is what a
+#: platform-wide change would look like from here, and it is the
+#: shape the 30 October incident had. So the rate is watched even
+#: though the single case is not. Stopping at six costs at most
+#: six polite requests and keeps the ADR 0010 argument intact.
+NO_VIDEO_IN_A_ROW_BEFORE_STOPPING = 6
+
+#: How long before a transient failure is worth another go.
+#: Hours, because this is research with no deadline and the
+#: alternative is asking somebody else's servers the same question
+#: every few minutes.
+RETRY_AFTER = {
+    SyncStatus.RATE_LIMITED: timedelta(hours=6),
+    SyncStatus.TIMEOUT: timedelta(hours=2),
+    SyncStatus.FAILED: timedelta(hours=12),
+    # Settled. A publication the platform serves without pixels
+    # today could in principle gain a rendition, but asking daily
+    # on the chance is exactly the knocking ADR 0010 rules out.
+    # A week, and `redo=True` for anyone who means it.
+    SyncStatus.NO_VIDEO_OFFERED: timedelta(days=7),
+}
+
+#: Outcomes that will not change by asking again: the video is
+#: gone, or private, or there is no URL to ask with. `None` in
+#: `try_again_after` means exactly this.
+TERMINAL = frozenset({
+    SyncStatus.UNAVAILABLE, SyncStatus.PRIVATE, SyncStatus.GEO_BLOCKED,
+    SyncStatus.BAD_URL, SyncStatus.NOT_OWNED,
+})
+
+
+def remember(session: Session, video_id: int, status: str,
+             detail: str | None, *, route: str = "yt-dlp",
+             now: datetime | None = None) -> None:
+    """Record how this attempt went, so the next pass can skip it.
+
+    Upserted, not appended: what matters is the last outcome and
+    how many times we have asked, not a history nobody reads.
+    """
+    stamp = now or datetime.now(timezone.utc)
+    wait = None if status in TERMINAL else RETRY_AFTER.get(status)
+    row = session.scalar(select(MediaAttempt).where(
+        MediaAttempt.video_id == video_id))
+    if row is None:
+        row = MediaAttempt(video_id=video_id, route=route,
+                           first_tried_at=stamp, attempts=0)
+        session.add(row)
+    row.route = route
+    row.status = status
+    row.detail = (detail or "")[:1000] or None
+    row.attempts = (row.attempts or 0) + 1
+    row.last_tried_at = stamp
+    row.try_again_after = (stamp + wait) if wait else None
+
+
+def _asked_too_recently(now: datetime):
+    """Publications it is not yet polite to ask about again."""
+    return select(MediaAttempt.video_id).where(
+        MediaAttempt.status != SyncStatus.OK,
+        sa_or(MediaAttempt.try_again_after.is_(None),
+              MediaAttempt.try_again_after > now))
+
 
 @dataclass
 class AcquireResult:
     attempted: int = 0
     acquired: int = 0
+    #: TikTok answered and offered no video rendition. Counted
+    #: separately from `unavailable` because the publication is
+    #: there and public - we simply cannot measure its pixels.
+    no_video_offered: int = 0
     skipped_have_it: int = 0
     unavailable: int = 0
     rate_limited: int = 0
@@ -151,7 +227,8 @@ def analysed_ids(session: Session):
 
 def candidates(session: Session, *, limit: int,
                creator_id: int | None = None,
-               redo: bool = False
+               redo: bool = False,
+               now: datetime | None = None
                ) -> list[tuple[Video, Creator]]:
     """Competitor publications we can reach and do not already hold.
 
@@ -185,8 +262,21 @@ def candidates(session: Session, *, limit: int,
                    Video.id.not_in(have)))
     if not redo:
         stmt = stmt.where(Video.id.not_in(analysed_ids(session)))
+        # Skip what we have already asked about and been told
+        # about. Without this the same publication came back
+        # first on every pass - and with no ORDER BY it really
+        # was the same one - so a video TikTok serves without a
+        # rendition stopped five consecutive runs after one
+        # attempt each.
+        stmt = stmt.where(
+            Video.id.not_in(_asked_too_recently(
+                now or datetime.now(timezone.utc))))
     if creator_id is not None:
         stmt = stmt.where(Video.creator_id == creator_id)
+    # Deterministic, and oldest first. An unordered query is not
+    # random - Postgres returns whatever the plan produces, which
+    # is stable enough to hand back the same rows forever.
+    stmt = stmt.order_by(Video.id)
 
     out: list[tuple[Video, Creator]] = []
     for video, creator in session.execute(stmt).all():
@@ -220,7 +310,20 @@ def acquire_one(session: Session, video: Video,
     dest = transient.path_for(video.id)
     # Deliberately no `cookies=`. See the module docstring: the
     # absence is the control.
-    out = fetch_one(target, dest)
+    # `transcode=False`, and that is a measurement decision not a
+    # performance one.
+    #
+    # The default re-encodes anything a browser cannot play, so
+    # the owner can watch it in his own dashboard. Competitor
+    # media is never shown to him - it is quarantined, measured
+    # and deleted - so the re-encode buys nothing here and costs
+    # something real: it rewrites the pixels before the features
+    # are derived, which means contrast, colour and motion get
+    # measured on an H.264 approximation of an HEVC original.
+    # Our own videos would be measured on their originals. That
+    # is a difference between the two halves of the corpus
+    # introduced by a playback convenience.
+    out = fetch_one(target, dest, transcode=False)
     if out.status != SyncStatus.OK:
         # The reason travels with the status. It was computed and
         # dropped, so a run that fetched nothing reported eleven
@@ -258,13 +361,16 @@ def acquire(session: Session, *, max_videos: int = DEFAULT_MAX_PER_RUN,
 
     todo = candidates(session, limit=max_videos,
                       creator_id=creator_id, redo=redo)
+    no_video_run = 0
     for i, (video, creator) in enumerate(todo):
         if i:
             sleeper(pause_s)
         res.attempted += 1
         status, detail = acquire_one(session, video, creator)
+        remember(session, video.id, status, detail)
         if status == SyncStatus.OK:
             res.acquired += 1
+            no_video_run = 0
             session.commit()
             continue
         if status == SyncStatus.RATE_LIMITED:
@@ -272,10 +378,39 @@ def acquire(session: Session, *, max_videos: int = DEFAULT_MAX_PER_RUN,
             # Stop the whole run rather than keep knocking. Being
             # told to slow down and continuing anyway is the thing
             # §2.3 forbids in spirit whatever the retry count says.
+            #
+            # `detail` is carried now. It used to be dropped here,
+            # so the result said "the platform rate-limited the
+            # pass" and nothing anywhere recorded which message
+            # had produced that - which is how a per-video format
+            # failure was read, for four days, as an IP block.
+            res.failures.append({"video_id": video.id, "status": status,
+                                 "why": detail})
             res.stopped_reason = (
-                "the platform rate-limited the pass; stopped rather "
-                "than continuing to request")
+                f"the platform refused the pass and it stopped rather "
+                f"than continuing to request: {detail}")
+            session.commit()
             break
+        if status == SyncStatus.NO_VIDEO_OFFERED:
+            # Not a refusal. TikTok answered and offered no video
+            # rendition for this one publication, so skip it and
+            # carry on - unless it keeps happening, which would
+            # look like something changing underneath us.
+            res.no_video_offered += 1
+            no_video_run += 1
+            res.refusals.append({"video_id": video.id, "status": status,
+                                 "why": detail})
+            if no_video_run >= NO_VIDEO_IN_A_ROW_BEFORE_STOPPING:
+                res.stopped_reason = (
+                    f"{no_video_run} publications in a row offered no "
+                    f"video stream. One is normal; this many in a row "
+                    f"is what a platform-wide change would look like, "
+                    f"so the pass stopped rather than carry on "
+                    f"requesting.")
+                session.commit()
+                break
+            continue
+        no_video_run = 0
         if status in RETRYABLE:
             res.failures.append({"video_id": video.id, "status": status,
                                  "why": detail})
@@ -283,6 +418,7 @@ def acquire(session: Session, *, max_videos: int = DEFAULT_MAX_PER_RUN,
             res.unavailable += 1
             res.refusals.append({"video_id": video.id, "status": status,
                                  "why": detail})
+    session.commit()
     return res
 
 

@@ -94,6 +94,16 @@ def test_it_waits_longer_than_the_own_account_path():
     assert ca.DEFAULT_MAX_PER_RUN <= 100
 
 
+class _Noop:
+    """A session for tests that drive the loop, not the database."""
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+
 def test_being_rate_limited_stops_the_whole_run(monkeypatch):
     """Continuing to knock after being told to slow down is the
     thing §2.3 forbids in spirit, whatever a retry counter says."""
@@ -103,15 +113,22 @@ def test_being_rate_limited_stops_the_whole_run(monkeypatch):
         id = 1
 
     monkeypatch.setattr(ca, "tool_available", lambda: (True, ""))
+    monkeypatch.setattr(ca, "remember", lambda *a, **k: None)
     monkeypatch.setattr(ca, "candidates",
                         lambda *a, **k: [(FakeVideo(), None)] * 5)
     monkeypatch.setattr(ca, "acquire_one",
                         lambda *a, **k: (ca.SyncStatus.RATE_LIMITED, ""))
-    res = ca.acquire(None, max_videos=5, sleeper=seen.append)
+    res = ca.acquire(_Noop(), max_videos=5, sleeper=seen.append)
 
     assert res.attempted == 1, "stopped after the first refusal"
     assert res.rate_limited == 1
-    assert "rate-limited" in res.stopped_reason
+    assert "refused" in res.stopped_reason
+    # The message that caused it travels with the result. It used
+    # to be dropped, so nothing recorded WHICH refusal this was -
+    # which is how a per-video format failure was read as an IP
+    # block for four days.
+    assert res.failures and res.failures[0]["status"] == (
+        ca.SyncStatus.RATE_LIMITED)
 
 
 def test_a_missing_tool_stops_before_anything_is_attempted(monkeypatch):
@@ -128,11 +145,12 @@ def test_it_pauses_between_fetches_but_not_before_the_first(monkeypatch):
         id = 1
 
     monkeypatch.setattr(ca, "tool_available", lambda: (True, ""))
+    monkeypatch.setattr(ca, "remember", lambda *a, **k: None)
     monkeypatch.setattr(ca, "candidates",
                         lambda *a, **k: [(FakeVideo(), None)] * 3)
     monkeypatch.setattr(ca, "acquire_one",
                         lambda *a, **k: (ca.SyncStatus.UNAVAILABLE, "gone"))
-    ca.acquire(None, max_videos=3, pause_s=7.0, sleeper=waits.append)
+    ca.acquire(_Noop(), max_videos=3, pause_s=7.0, sleeper=waits.append)
     assert waits == [7.0, 7.0]
 
 
@@ -262,20 +280,35 @@ def test_terminal_refusals_are_kept_apart_from_retryable_failures():
     assert "refusals" in res.as_dict()
 
 
-def test_being_served_audio_only_is_treated_as_throttling():
-    """MEASURED 2026-10-30: a throttle wearing a different hat.
+def test_an_explicit_refusal_is_the_only_thing_called_throttling():
+    """CORRECTED 2026-11-03, and the correction is the point.
 
-    After roughly two thousand logged-out requests TikTok stopped
-    offering any video stream and served an audio-only format, and
-    one reply said the IP was blocked outright. Classed as a plain
-    failure, the collector went back for more - which is the one
-    behaviour ADR 0010's politeness argument cannot survive.
+    This test used to assert that "requested format is not
+    available" meant the same as "your IP address is blocked", on
+    the 30 October reading that audio-only was "a throttle
+    wearing a different hat". The consequence was that one
+    publication offering no video stream stopped the whole pass
+    and was reported as a platform refusal - and from there, in
+    conversation, as "TikTok has blocked this server since the
+    end of October".
+
+    It had not. MEASURED on the same server, logged out, within a
+    minute of each other: three publications served 720p h265 and
+    exited 0, while two served audio only. Per publication, not
+    per server.
     """
+    status, _ = ta._classify(
+        "ERROR: [TikTok] 123: Your IP address is blocked", 1)
+    assert status == ta.SyncStatus.RATE_LIMITED
+    status, _ = ta._classify("HTTP Error 429: Too Many Requests", 1)
+    assert status == ta.SyncStatus.RATE_LIMITED
+
+
+def test_no_video_stream_is_a_fact_about_the_video_not_about_us():
     for message in ("ERROR: Requested format is not available",
-                    "ERROR: [TikTok] 123: Your IP address is blocked "
-                    "from accessing this post"):
-        status, _detail = ta._classify(message, 1)
-        assert status == ta.SyncStatus.RATE_LIMITED, message
+                    "ERROR: no video formats found"):
+        status, _ = ta._classify(message, 1)
+        assert status == ta.SyncStatus.NO_VIDEO_OFFERED, message
 
 
 def test_a_genuinely_missing_video_is_still_not_throttling():
@@ -284,3 +317,173 @@ def test_a_genuinely_missing_video_is_still_not_throttling():
     assert status == ta.SyncStatus.UNAVAILABLE
     status, _ = ta._classify("ERROR: This post is private", 1)
     assert status == ta.SyncStatus.PRIVATE
+
+
+def test_one_video_without_a_stream_does_not_stop_the_pass(monkeypatch):
+    """The bug that made the free route look dead.
+
+    `candidates()` has no ordering, so the same publication came
+    back first on every run. It offered audio only, that was
+    classed as a throttle, and the pass stopped - in about ten
+    seconds, having collected nothing, five times in a row.
+    """
+    class FakeVideo:
+        def __init__(self, i):
+            self.id = i
+
+    outcomes = iter([
+        (ca.SyncStatus.NO_VIDEO_OFFERED, "no video rendition"),
+        (ca.SyncStatus.OK, ""),
+        (ca.SyncStatus.NO_VIDEO_OFFERED, "no video rendition"),
+        (ca.SyncStatus.OK, ""),
+    ])
+    monkeypatch.setattr(ca, "tool_available", lambda: (True, ""))
+    monkeypatch.setattr(ca, "remember", lambda *a, **k: None)
+    monkeypatch.setattr(ca, "candidates",
+                        lambda *a, **k: [(FakeVideo(i), None)
+                                         for i in range(4)])
+    monkeypatch.setattr(ca, "acquire_one",
+                        lambda *a, **k: next(outcomes))
+
+    class S:
+        def commit(self):
+            pass
+
+    res = ca.acquire(S(), max_videos=4, sleeper=lambda *_: None)
+    assert res.attempted == 4
+    assert res.acquired == 2
+    assert res.no_video_offered == 2
+    assert not res.stopped_reason
+
+
+def test_a_long_run_of_them_does_stop_it(monkeypatch):
+    """One is a fact about one video. Six in a row is what a
+    platform-wide change looks like from here, and the politeness
+    argument in ADR 0010 does not survive ignoring that."""
+    class FakeVideo:
+        def __init__(self, i):
+            self.id = i
+
+    monkeypatch.setattr(ca, "tool_available", lambda: (True, ""))
+    monkeypatch.setattr(ca, "remember", lambda *a, **k: None)
+    monkeypatch.setattr(ca, "candidates",
+                        lambda *a, **k: [(FakeVideo(i), None)
+                                         for i in range(20)])
+    monkeypatch.setattr(
+        ca, "acquire_one",
+        lambda *a, **k: (ca.SyncStatus.NO_VIDEO_OFFERED, "audio only"))
+
+    class S:
+        def commit(self):
+            pass
+
+    res = ca.acquire(S(), max_videos=20, sleeper=lambda *_: None)
+    assert res.attempted == ca.NO_VIDEO_IN_A_ROW_BEFORE_STOPPING
+    assert "in a row" in res.stopped_reason
+
+
+def test_the_run_of_them_resets_on_a_success(monkeypatch):
+    """Otherwise a corpus with one bad video in six stops early
+    for no reason."""
+    class FakeVideo:
+        def __init__(self, i):
+            self.id = i
+
+    pattern = [ca.SyncStatus.NO_VIDEO_OFFERED] * 5 + [ca.SyncStatus.OK]
+    outcomes = iter([(s, "") for s in pattern * 3])
+    monkeypatch.setattr(ca, "tool_available", lambda: (True, ""))
+    monkeypatch.setattr(ca, "remember", lambda *a, **k: None)
+    monkeypatch.setattr(ca, "candidates",
+                        lambda *a, **k: [(FakeVideo(i), None)
+                                         for i in range(18)])
+    monkeypatch.setattr(ca, "acquire_one", lambda *a, **k: next(outcomes))
+
+    class S:
+        def commit(self):
+            pass
+
+    res = ca.acquire(S(), max_videos=18, sleeper=lambda *_: None)
+    assert res.attempted == 18
+    assert res.acquired == 3
+    assert not res.stopped_reason
+
+
+# ---------------------------------------------------------------------------
+# remembering what happened, so the same video is not re-asked forever
+# ---------------------------------------------------------------------------
+
+class _Recorder:
+    """Enough session to watch `remember` without a database."""
+
+    def __init__(self, existing=None):
+        self.existing = existing
+        self.added = []
+
+    def scalar(self, *_a, **_k):
+        return self.existing
+
+    def add(self, row):
+        self.added.append(row)
+        self.existing = row
+
+
+def test_a_settled_outcome_is_never_asked_about_again():
+    """A deleted or private video will not become available by
+    being asked about daily, and asking anyway is the behaviour
+    ADR 0010's politeness argument rests on not doing."""
+    for status in (ca.SyncStatus.UNAVAILABLE, ca.SyncStatus.PRIVATE,
+                   ca.SyncStatus.GEO_BLOCKED, ca.SyncStatus.BAD_URL):
+        s = _Recorder()
+        ca.remember(s, 7, status, "gone")
+        assert s.added[0].try_again_after is None, status
+
+
+def test_a_transient_failure_comes_back_later_not_immediately():
+    s = _Recorder()
+    ca.remember(s, 7, ca.SyncStatus.RATE_LIMITED, "429")
+    row = s.added[0]
+    assert row.try_again_after is not None
+    assert row.try_again_after > row.last_tried_at
+
+
+def test_no_video_offered_waits_a_week():
+    """Settled in practice but not in principle: a publication
+    could gain a rendition. Asking daily on the chance is the
+    knocking the route is conditioned on not doing."""
+    s = _Recorder()
+    ca.remember(s, 7, ca.SyncStatus.NO_VIDEO_OFFERED, "audio only")
+    row = s.added[0]
+    gap = row.try_again_after - row.last_tried_at
+    assert gap.days >= 6
+
+
+def test_the_reason_is_kept():
+    """Dropping it is how "requested format is not available" was
+    read as an IP block for four days."""
+    s = _Recorder()
+    ca.remember(s, 7, ca.SyncStatus.NO_VIDEO_OFFERED,
+                "ERROR: Requested format is not available")
+    assert "Requested format" in s.added[0].detail
+
+
+def test_asking_twice_counts_twice():
+    s = _Recorder()
+    ca.remember(s, 7, ca.SyncStatus.TIMEOUT, "slow")
+    first = s.added[0]
+    assert first.attempts == 1
+    ca.remember(s, 7, ca.SyncStatus.TIMEOUT, "slow again")
+    assert first.attempts == 2
+    assert len(s.added) == 1, "upserted, not appended"
+
+
+def test_candidate_selection_skips_what_was_just_asked_about():
+    """The fix for the top finding of the external audit: the
+    outcome of an attempt lived in the result object of the run
+    that made it and was then discarded."""
+    import inspect
+
+    src = inspect.getsource(ca.candidates)
+    assert "_asked_too_recently" in src
+    # And an explicit order, because an unordered query is not a
+    # random one - it hands back the same rows forever.
+    assert "order_by(Video.id)" in src

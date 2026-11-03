@@ -262,3 +262,46 @@ def test_cookie_jar_is_shredded(tmp_path):
     jar.write_text("# Netscape HTTP Cookie File\nsecret\n", encoding="utf-8")
     tta._shred(jar)
     assert not jar.exists()
+
+
+def test_a_public_fetch_ignores_host_configuration(monkeypatch):
+    """`--no-cookies` alone left the logged-out guarantee as a
+    property of the MACHINE: a yt-dlp config file on the host
+    could add a cookie jar or a login and the code would never
+    know. ADR 0010 rule 1 says the condition is a property of the
+    code, so the command says so."""
+    seen = {}
+
+    def fake_run(cmd, **kwargs):
+        seen["cmd"] = cmd
+        raise AssertionError("stop before downloading")
+
+    monkeypatch.setattr(tta.shutil, "which", lambda name: "/usr/bin/yt-dlp")
+    monkeypatch.setattr(tta, "tool_available", lambda: (True, "test"))
+    monkeypatch.setattr(tta.subprocess, "run", fake_run)
+
+    tta.fetch_one(
+        tta.UrlTarget(url="https://www.tiktok.com/@o/video/111111",
+                      handle="o", video_id="111111"),
+        Path("/tmp/does-not-matter.mp4"))
+    cmd = seen["cmd"]
+    assert "--ignore-config" in cmd
+    assert "--no-netrc" in cmd
+    # And still none of the things that would carry a credential.
+    assert not any("cookies-from-browser" in str(a) for a in cmd)
+    assert not any(str(a).startswith("--username") for a in cmd)
+
+
+def test_competitor_media_is_measured_on_the_original_pixels():
+    """The default re-encodes anything a browser cannot play, so
+    the owner can watch it. Competitor media is never shown to
+    him — quarantined, measured, deleted — so the re-encode buys
+    nothing and rewrites the pixels before the features are
+    derived. His own videos would be measured on their originals;
+    other people's on an H.264 approximation."""
+    import inspect
+
+    from server.collectors import competitor_archive as ca
+
+    src = inspect.getsource(ca.acquire_one)
+    assert "transcode=False" in src
