@@ -286,7 +286,12 @@ def test_a_public_fetch_ignores_host_configuration(monkeypatch):
         Path("/tmp/does-not-matter.mp4"))
     cmd = seen["cmd"]
     assert "--ignore-config" in cmd
-    assert "--no-netrc" in cmd
+    assert "--no-config-locations" in cmd
+    # Not `--no-netrc`: it does not exist in yt-dlp, and guessing
+    # it made every fetch exit with "no such option". Netrc is off
+    # unless `--netrc` turns it on, and `--ignore-config` stops a
+    # config file doing that.
+    assert not any(str(a).startswith("--netrc") for a in cmd)
     # And still none of the things that would carry a credential.
     assert not any("cookies-from-browser" in str(a) for a in cmd)
     assert not any(str(a).startswith("--username") for a in cmd)

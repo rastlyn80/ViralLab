@@ -1,5 +1,34 @@
 # Research brief: getting TikTok video files at volume, lawfully
 
+> ## WITHDRAWN, 2026-11-03, a few hours after it was written
+>
+> **The central premise was wrong.** This brief says TikTok is
+> refusing our server. It is not, and never was.
+>
+> The collector's classifier filed `requested format is not
+> available` under the same outcome as `your IP address is
+> blocked`. Some publications are served with an audio track and
+> no video rendition; one of those stopped the whole pass, was
+> reported as a platform refusal, and — because the candidate
+> query had no ordering and no memory of outcomes — it was the
+> *same* publication on every run.
+>
+> Measured after fixing it: **29 of 30 sampled publications offer
+> a video stream, 0 refused**, and a real pass acquired 5 of 10
+> with `rate_limited: 0`, the rest skipped as "no video offered"
+> with their reason recorded.
+>
+> So questions 1, 2, 4 and 5 are moot: the free route works and
+> there is nothing to route around. **Question 6 is still worth
+> asking** — whether the free cover frame carries enough signal
+> to make downloading worthwhile at all. Question 3 is still a
+> live policy question but no longer an urgent one.
+>
+> Kept rather than deleted, because an external audit found the
+> classifier bug by reading the source, and the record of how a
+> wrong premise survived four days of being repeated is worth
+> more than a tidy directory.
+
 **Written 2026-11-03.** Everything below the line marked *measured*
 was observed directly on the dates given. Everything else is
 flagged as unknown. Please keep that distinction in your answer:

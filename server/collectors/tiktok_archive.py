@@ -654,15 +654,23 @@ def fetch_one(target: UrlTarget, dest: Path, *,
         # logged-out guarantee a property of the machine rather
         # than of this code. ADR 0010 rule 1 says the condition is
         # a property of the code, so the flags now say so: no
-        # config file, no netrc.
+        # config file, and no custom config locations either.
         #
-        # Browser cookies are disabled by ABSENCE, not by a flag:
-        # yt-dlp has no "off" value for `--cookies-from-browser`,
-        # and a first attempt at passing one empty was caught by
-        # `test_public_fetch_passes_no_cookies`, which asserts
-        # the string appears nowhere in the command. That test was
-        # right and the flag was wrong.
-        cmd += ["--no-cookies", "--ignore-config", "--no-netrc"]
+        # Netrc and browser cookies are disabled by ABSENCE, not
+        # by a flag. yt-dlp 2026.07.04 has `--netrc` to turn netrc
+        # ON and no switch to turn it off; likewise there is no
+        # "off" value for `--cookies-from-browser`. Two guesses
+        # were wrong here before the flags were read: an empty
+        # `--cookies-from-browser`, caught by
+        # `test_public_fetch_passes_no_cookies`, and `--no-netrc`,
+        # which does not exist and made every fetch exit with
+        # "no such option".
+        #
+        # `--ignore-config` and `--no-config-locations` are what
+        # actually close the hole: neither a user config nor a
+        # portable one can switch those defaults back on.
+        cmd += ["--no-cookies", "--ignore-config",
+                "--no-config-locations"]
     cmd.append(target.url)
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True,
