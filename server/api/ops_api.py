@@ -14,12 +14,15 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from typing import Annotated
+
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from server.api.deps import get_session
 from server.api.ui import require_ui, require_ui_write
 from server.ops import catalogue as cat
+from server.ops import what_is_missing as missing
 from server.ops import runner
 from server.ops import schedule as sched
 
@@ -30,7 +33,20 @@ router = APIRouter(prefix="/api/operations", tags=["operations"])
 
 class Run(BaseModel):
     kind: str = Field(max_length=64)
-    params: dict[str, int] = Field(default_factory=dict)
+    #: Numbers and short strings. It was `dict[str, int]`, which
+    #: was right while every parameter was a bounded integer and
+    #: silently wrong the moment one was not: the first handle
+    #: came back as a Pydantic `int_parsing` error naming a field
+    #: the owner never saw, and the button could not have worked
+    #: for any input at all.
+    #:
+    #: The length cap is the only validation here on purpose.
+    #: Deciding what a value may be belongs to the catalogue, which
+    #: owns the pattern and the bounds; this layer only refuses a
+    #: megabyte. Two places that both half-validate is how one of
+    #: them drifts.
+    params: dict[str, int | Annotated[str, Field(max_length=200)]] = (
+        Field(default_factory=dict))
 
 
 def _row(op) -> dict:
@@ -73,6 +89,7 @@ def index(session: Session = Depends(get_session)) -> dict:
             "These run on their own, once a day. Only work that "
             "costs nothing is ever automatic - anything that spends "
             "stays a button you press."),
+        "needs": missing.summary(session),
         "what_this_is": (
             "The platform collects and measures its own data. "
             "Press a button and it runs here, not on somebody's "
@@ -96,6 +113,13 @@ def run(body: Run, session: Session = Depends(get_session)) -> dict:
         row = runner.start(session, body.kind, body.params)
     except KeyError:
         raise HTTPException(404, "no such operation") from None
+    except ValueError as exc:
+        # A `Words` parameter that does not match its pattern. The
+        # message is written for the owner - "Their handle does not
+        # look right" - so it is passed through rather than
+        # replaced with a generic 400, which would tell him nothing
+        # about which field to fix.
+        raise HTTPException(400, str(exc)) from None
     except runner.AlreadyRunning as exc:
         raise HTTPException(409, str(exc)) from None
     return _row(row)

@@ -1092,7 +1092,7 @@
 /**
  * @typedef {Object} Run
  * @property {string} kind
- * @property {Object<string, number>=} params
+ * @property {Object<string, number|string>=} params
  */
 
 /**

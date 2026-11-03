@@ -14,6 +14,7 @@ write, and nothing is handed to a shell.
 from __future__ import annotations
 
 import inspect
+import re
 
 import pytest
 
@@ -303,3 +304,174 @@ def test_a_removed_operation_does_not_leak_its_key_to_the_page():
     title = ops_api._row(Row())["title"]
     assert "_" not in title
     assert "no longer offered" in title
+
+
+# ---------------------------------------------------------------------------
+# the first parameter that is not a number
+# ---------------------------------------------------------------------------
+
+def test_a_handle_can_be_pasted_in_any_of_the_ways_people_paste_one():
+    """He will paste "@name", a profile link, or type the handle.
+    Three error messages for one intention is bad manners."""
+    for raw, want in [
+        ("@Some.Pianist", "Some.Pianist"),
+        ("https://www.tiktok.com/@emiliopiano?lang=en", "emiliopiano"),
+        ("https://www.instagram.com/someone/", "someone"),
+        ("plainhandle", "plainhandle"),
+    ]:
+        argv = cat.argv("follow_creator", {"handle": raw})
+        assert argv[argv.index("--handle") + 1] == want, raw
+
+
+@pytest.mark.parametrize("bad", [
+    "; rm -rf /", "", "a", "x" * 40, "has space", "../../etc/passwd",
+    "/etc/passwd", "name;other", "$(whoami)", "a&b",
+])
+def test_anything_that_is_not_a_handle_is_refused_not_repaired(bad):
+    """Numbers are clamped because "collect 100000" has an obvious
+    right answer. A handle does not: the nearest valid one is not
+    what he meant, and a value quietly reinterpreted is the bug
+    this type exists to prevent.
+
+    `../../etc/passwd` is in this list because the first version
+    returned `passwd` - it took the last path segment of anything
+    with a slash in it. Nothing bad followed, since it reached a
+    creator lookup and failed, but it is exactly the quiet
+    reinterpretation the class was written against.
+    """
+    with pytest.raises(ValueError):
+        cat.argv("follow_creator", {"handle": bad})
+
+
+def test_a_words_pattern_must_be_anchored_at_both_ends():
+    """`re.match` anchors the start only, so a pattern without `$`
+    would accept anything BEGINNING with a valid handle - which
+    fences nothing. Checked at import for the whole catalogue;
+    checked here for the check."""
+    loose = cat.Words("h", "H", pattern=r"^[a-z]+")
+    op = cat.Operation(key="x", title="x", what_it_does="x",
+                       how_long="x", build=lambda p: [],
+                       params=(loose,))
+    original = cat.CATALOGUE
+    try:
+        cat.CATALOGUE = original + (op,)
+        with pytest.raises(ValueError, match="anchored at both ends"):
+            cat._validate()
+    finally:
+        cat.CATALOGUE = original
+    cat._validate()                      # the real one still passes
+
+
+def test_a_choice_falls_back_rather_than_raising():
+    """A platform that is not one of ours is a bug in our own
+    page, not something he typed. Falling back to the default
+    beats showing him a validation error about a dropdown."""
+    argv = cat.argv("follow_creator",
+                    {"handle": "someone", "platform": "myspace"})
+    assert argv[argv.index("--platform") + 1] == "tiktok"
+
+
+def test_the_page_is_told_how_to_draw_every_parameter():
+    """`kind` is derived from the type rather than declared, so a
+    new parameter cannot reach the interface without the
+    interface knowing what control to render."""
+    for op in cat.CATALOGUE:
+        for p in cat.as_dict(op)["params"]:
+            assert p["kind"] in ("number", "text", "choice"), p
+            if p["kind"] == "number":
+                assert "minimum" in p and "maximum" in p
+            if p["kind"] == "choice":
+                assert p["options"]
+
+
+def test_every_operation_points_at_a_script_that_exists():
+    """A button whose script is missing fails when it is pressed,
+    on a machine where the file plainly exists locally - which is
+    how `collect_own` spent weeks exiting 2.
+
+    `scripts/provision` was not in the deploy at all until
+    2026-11-03; scripts were uploaded by hand, one at a time. It
+    is now, and `deploy.py` refuses to sync while this is false.
+    """
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    src = (root / "server" / "ops" / "catalogue.py").read_text(
+        encoding="utf-8")
+    names = set(re.findall(r'_script\("([^"]+)"\)', src))
+    assert names, "no operation runs a script; the pattern has drifted"
+    for name in sorted(names):
+        assert (root / "scripts" / "provision" / name).exists(), name
+
+
+def test_the_request_model_accepts_the_parameters_the_catalogue_declares():
+    """It was `dict[str, int]`, which was right while every
+    parameter was a bounded integer and silently wrong the moment
+    one was not. The first handle came back as a Pydantic
+    `int_parsing` error naming a field the owner never saw, and
+    the button could not have worked for any input.
+
+    Asserted against the catalogue rather than against a literal,
+    so a future string parameter is covered the day it is added.
+    """
+    from server.api.ops_api import Run
+
+    for op in cat.CATALOGUE:
+        params = {}
+        for p in cat.as_dict(op)["params"]:
+            params[p["key"]] = (p["default"] if p["kind"] != "number"
+                                else p["default"])
+        parsed = Run(kind=op.key, params=params)
+        assert set(parsed.params) == set(params), op.key
+
+
+def test_the_request_model_refuses_a_value_too_long_to_be_a_parameter():
+    """The only validation at this layer. What a value may BE
+    belongs to the catalogue, which owns the pattern; two places
+    that both half-validate is how one of them drifts."""
+    import pydantic
+
+    from server.api.ops_api import Run
+
+    with pytest.raises(pydantic.ValidationError):
+        Run(kind="follow_creator", params={"handle": "x" * 500})
+
+
+# ---------------------------------------------------------------------------
+# what the evidence is short of
+# ---------------------------------------------------------------------------
+
+def test_the_threshold_comes_from_the_analysis_not_a_copy():
+    """The page says a creator under N posts is in the database
+    and in no finding. If the page's N and the analysis's N ever
+    differ, the page is lying about which creators count, and a
+    restated constant is how that happens."""
+    from server.ops import what_is_missing as wim
+    from server.research import virality as vir
+
+    assert wim.MIN_PER_CREATOR is vir.MIN_PER_CREATOR
+
+
+def test_every_suggested_job_names_a_real_button():
+    """A "do this next" that points at an operation the catalogue
+    does not have is worse than no suggestion."""
+    from server.ops import what_is_missing as wim
+
+    class _Dead:
+        def execute(self, *_a, **_k):
+            raise RuntimeError("no database here")
+
+        def scalar(self, *_a, **_k):
+            raise RuntimeError("no database here")
+
+    # With no database it returns {} rather than raising, so the
+    # Collect page still renders its buttons.
+    assert wim.summary(_Dead()) == {}
+
+    import inspect
+    src = inspect.getsource(wim.summary)
+    runs = set(re.findall(r'"run": "([a-z_]+)"', src))
+    assert runs
+    for key in runs:
+        cat.get(key)                     # KeyError if it is not real

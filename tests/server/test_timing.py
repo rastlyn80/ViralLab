@@ -220,3 +220,38 @@ def test_the_headline_lists_several_bands_on_one_side():
         {"when": "morning", "median_vs_your_usual": -0.36},
         {"when": "night", "median_vs_your_usual": -0.2}], 562)
     assert "morning and night ran below your usual" in head
+
+
+# ---------------------------------------------------------------------------
+# the measurements that are labels, not amounts
+# ---------------------------------------------------------------------------
+
+def test_the_clock_is_never_rank_correlated():
+    """`posted_hour_utc` was in the correlation pipeline as an
+    ordinary number. Spearman puts 23:00 and 00:00 at opposite
+    ends of a scale when they are an hour apart, so a real
+    late-night effect cancels against a real early-morning one.
+    `posted_weekday` is Monday = 0, which invents an ordering the
+    week does not have.
+
+    Neither ever appeared in a published finding - they did not
+    clear the threshold - so nothing wrong was shown. One lucky q
+    is not a safety margin.
+    """
+    from server.research import virality as vir
+
+    assert "posted_hour_utc" in vir.NOT_A_SCALE
+    assert "posted_weekday" in vir.NOT_A_SCALE
+    # A genuine yes/no stays in, because it is one.
+    assert "posted_is_weekend" not in vir.NOT_A_SCALE
+
+
+def test_the_exclusion_applies_to_both_analyses():
+    """`breakthroughs` is the worse of the two: it takes a mean,
+    and the mean of 23:00 and 01:00 is noon."""
+    import inspect
+
+    from server.research import virality as vir
+
+    assert "NOT_A_SCALE" in inspect.getsource(vir._build)
+    assert "NOT_A_SCALE" in inspect.getsource(vir._breakthroughs)

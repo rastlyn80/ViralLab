@@ -33,6 +33,7 @@ page.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 #: Where the scripts live on the server. Operations run from the
@@ -68,6 +69,88 @@ class Param:
         return max(self.minimum, min(self.maximum, n))
 
 
+#: The hosts a profile link may come from. Anything else with a
+#: slash in it is left alone and fails the pattern, which is the
+#: right outcome: taking the last path segment of any slashed
+#: string turned "../../etc/passwd" into the handle "passwd".
+#: Nothing bad followed from that - it reached a creator lookup and
+#: failed - but a value silently reinterpreted as something it does
+#: not say is the bug this class was written to prevent, and the
+#: first version had it.
+PROFILE_HOSTS = ("tiktok.com", "instagram.com")
+
+
+def _looks_like_a_profile_url(text: str) -> bool:
+    low = text.lower()
+    return any(h in low for h in PROFILE_HOSTS)
+
+
+@dataclass(frozen=True)
+class Words:
+    """One short piece of text the owner may type, heavily fenced.
+
+    Every other parameter in this file is a bounded integer, on
+    purpose: an operation whose arguments come from the caller is a
+    remote shell with extra steps. A handle is the first thing that
+    genuinely has to be a string - he wants to name a pianist he
+    admires, and no integer expresses that.
+
+    So the fence is a pattern this module owns, and `clean` either
+    returns something matching it or raises. There is no "near
+    enough": a value that does not match never reaches an argv.
+
+    Nothing is passed through a shell anyway - `argv` builds a
+    list - so this is the second line of defence rather than the
+    first. It exists because the first should never be the only
+    one, and because a handle that is quietly mangled into
+    something that collects the wrong account is its own kind of
+    bug.
+    """
+
+    key: str
+    label: str
+    #: Compiled once at import. See `_validate` at the foot of the
+    #: module: a pattern that is not anchored at both ends is
+    #: refused there, because an unanchored pattern fences nothing.
+    pattern: str
+    default: str = ""
+    help: str = ""
+    #: Punctuation a person pastes and does not mean. Stripped
+    #: before matching, never after: "@someone" and a profile URL
+    #: both mean `someone`, and three error messages for one
+    #: intention is bad manners.
+    tidy_url: bool = True
+
+    def clean(self, value) -> str:
+        text = str(value or "").strip()
+        if self.tidy_url and _looks_like_a_profile_url(text):
+            parts = [x for x in text.split("?")[0].rstrip("/").split("/")
+                     if x]
+            text = parts[-1] if parts else ""
+        text = text.lstrip("@").strip()
+        if not re.match(self.pattern, text):
+            raise ValueError(
+                f"{self.label} does not look right. Expected "
+                f"something like {self.default or 'somepianist'}.")
+        return text
+
+
+@dataclass(frozen=True)
+class Choice:
+    """One of a fixed set of words. The set lives here."""
+
+    key: str
+    label: str
+    options: tuple[str, ...]
+    default: str = ""
+    help: str = ""
+
+    def clean(self, value) -> str:
+        text = str(value or "").strip().lower()
+        return text if text in self.options else (
+            self.default or self.options[0])
+
+
 @dataclass(frozen=True)
 class Operation:
     key: str
@@ -81,7 +164,7 @@ class Operation:
     costs_money: bool = False
     cost_note: str = ""
     needs: tuple[str, ...] = ()
-    params: tuple[Param, ...] = ()
+    params: tuple[Param | Words | Choice, ...] = ()
     #: Shown after it finishes, pointing at where the result shows up.
     look_at: str = ""
 
@@ -114,6 +197,40 @@ CATALOGUE: tuple[Operation, ...] = (
         ),
         build=lambda p: [PYTHON, _script("discover_niche.py"),
                          "--limit", str(p["limit"]), "--yes"],
+    ),
+    Operation(
+        key="follow_creator",
+        title="Study a creator you name",
+        what_it_does=(
+            "Collects one creator's recent posts so they count "
+            "towards the evidence. Discovery finds accounts by "
+            "hashtag; this is for the ones you already know are "
+            "worth watching, which is usually a better list."),
+        how_long="about a minute",
+        costs_money=True,
+        cost_note=(
+            "Roughly $0.05 for 30 posts, from the discovery budget. "
+            "Asking again within a day costs nothing - the result "
+            "is reused."),
+        needs=("The account has to be public.",),
+        look_at="Creators we study",
+        params=(
+            Words("handle", "Their handle",
+                  pattern=r"^[A-Za-z0-9_.]{2,30}$",
+                  default="somepianist",
+                  help=("Paste the @name or the link to their "
+                        "profile - either works.")),
+            Choice("platform", "Where", ("tiktok", "instagram"),
+                   default="tiktok"),
+            Param("posts", "How much of their catalogue", 30, 10, 50,
+                  help=("Under about eight posts a creator cannot "
+                        "be scored against themselves, so they add "
+                        "nothing to the evidence.")),
+        ),
+        build=lambda p: [PYTHON, _script("follow_creator.py"),
+                         "--handle", p["handle"],
+                         "--platform", p["platform"],
+                         "--posts", str(p["posts"]), "--yes"],
     ),
     Operation(
         key="deepen_creators",
@@ -253,6 +370,13 @@ def clean_params(key: str, raw: dict | None) -> dict:
     the catalogue does not declare is dropped rather than passed
     on, so an unexpected field in a request cannot become an
     argument.
+
+    A number out of range is clamped; a `Words` value that does not
+    match its pattern raises. The difference is deliberate. "Collect
+    100000 creators" has an obvious right answer - collect the
+    maximum - and refusing it would be pedantry. "Collect the
+    creator called `; rm -rf /`" has no right answer at all, and
+    the nearest valid handle is not what he meant.
     """
     op = get(key)
     raw = raw or {}
@@ -273,8 +397,57 @@ def as_dict(op: Operation) -> dict:
         "cost_note": op.cost_note,
         "needs": list(op.needs),
         "look_at": op.look_at,
-        "params": [{"key": p.key, "label": p.label,
-                    "default": p.default, "minimum": p.minimum,
-                    "maximum": p.maximum, "help": p.help}
-                   for p in op.params],
+        "params": [_param_dict(p) for p in op.params],
     }
+
+
+def _param_dict(p) -> dict:
+    """One parameter, described so the page can render a control.
+
+    `kind` is what the interface switches on: a number box, a text
+    box or a set of buttons. It is derived from the type rather
+    than declared, so a new parameter cannot be added without the
+    interface learning how to draw it.
+    """
+    base = {"key": p.key, "label": p.label, "default": p.default,
+            "help": p.help}
+    if isinstance(p, Param):
+        return {**base, "kind": "number",
+                "minimum": p.minimum, "maximum": p.maximum}
+    if isinstance(p, Choice):
+        return {**base, "kind": "choice", "options": list(p.options)}
+    return {**base, "kind": "text"}
+
+
+def _validate() -> None:
+    """Checked at import, so a bad entry cannot reach a request.
+
+    The pattern anchoring is the one that matters. `re.match`
+    anchors only the start, so a `Words` pattern without a closing
+    `$` would accept anything beginning with a valid handle -
+    which is to say, it would fence nothing.
+    """
+    seen: set[str] = set()
+    for op in CATALOGUE:
+        if op.key in seen:
+            raise ValueError(f"two operations called {op.key!r}")
+        seen.add(op.key)
+        keys: set[str] = set()
+        for p in op.params:
+            if p.key in keys:
+                raise ValueError(f"{op.key}: two parameters "
+                                 f"called {p.key!r}")
+            keys.add(p.key)
+            if isinstance(p, Words):
+                if not (p.pattern.startswith("^")
+                        and p.pattern.endswith("$")):
+                    raise ValueError(
+                        f"{op.key}.{p.key}: a Words pattern must be "
+                        f"anchored at both ends, or it fences "
+                        f"nothing. Got {p.pattern!r}")
+                re.compile(p.pattern)
+            if isinstance(p, Choice) and not p.options:
+                raise ValueError(f"{op.key}.{p.key}: no options")
+
+
+_validate()

@@ -24,7 +24,16 @@ REMOTE_ROOT = "/home/rastlyn/virallab"
 #: Server-side only. The GPU worker's own deps and the probes stay local.
 #: webui/ is included because the SPA has no build step: deploying the
 #: interface is copying the files (ADR 0006).
-INCLUDE_DIRS = ["server", "shared", "config", "tests", "webui"]
+#: `scripts/provision` is here because the operations catalogue
+#: points at it. Every button on the Collect page runs a file from
+#: that directory, and until 2026-11-03 the directory was not
+#: deployed at all - scripts were uploaded by hand, one at a time,
+#: so adding an operation produced a button that failed with "No
+#: such file or directory" on a machine where the file plainly
+#: existed. The same shape as the `collect_own` exit-2 bug: the
+#: catalogue and the server disagreeing about what is installed.
+INCLUDE_DIRS = ["server", "shared", "config", "tests", "webui",
+                "scripts/provision"]
 #: gpu_worker is NOT synced: it runs on Windows only.
 INCLUDE_FILES = ["alembic.ini", "pytest.ini", "requirements-server.txt"]
 EXCLUDE_PARTS = {"__pycache__", ".pytest_cache", "node_modules"}
@@ -32,6 +41,25 @@ EXCLUDE_PARTS = {"__pycache__", ".pytest_cache", "node_modules"}
 #: runtime money authorisation for THAT machine; shipping it would
 #: either wipe an approved cap or grant one nobody approved.
 EXCLUDE_NAMES = {"spending.local.yaml"}
+
+
+def catalogue_scripts_exist() -> list[str]:
+    """Every script the Collect page can run, checked before sync.
+
+    A missing one is a button that fails at the moment it is
+    pressed rather than at the moment it is written, and the owner
+    finds out instead of me.
+    """
+    import re
+
+    root = Path(__file__).resolve().parent.parent
+    text = (root / "server" / "ops" / "catalogue.py").read_text(
+        encoding="utf-8")
+    missing = []
+    for name in sorted(set(re.findall(r'_script\("([^"]+)"\)', text))):
+        if not (root / "scripts" / "provision" / name).exists():
+            missing.append(name)
+    return missing
 
 
 def walk(root: Path):
@@ -56,6 +84,17 @@ def main() -> int:
     args = ap.parse_args()
 
     local_root = Path(__file__).resolve().parent.parent
+
+    missing = catalogue_scripts_exist()
+    if missing:
+        print("ABORT: the operations catalogue points at scripts that "
+              "do not exist:")
+        for name in missing:
+            print(f"  scripts/provision/{name}")
+        print("Deploying would give the owner buttons that fail when "
+              "pressed.")
+        return 1
+
     e = env()
     c = connect()
     try:

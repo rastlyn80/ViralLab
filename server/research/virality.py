@@ -93,6 +93,29 @@ TIME_PROXIES = frozenset({
     "publications_before_this", "is_first_post",
 })
 
+#: Measurements a rank correlation must never be run on, because
+#: their numbers are labels rather than amounts.
+#:
+#: `posted_hour_utc` is a clock. Spearman treats 23 and 0 as the
+#: two ends of a scale when they are an hour apart, so a real
+#: late-night effect would cancel against a real early-morning one
+#: and a spurious one could survive. It is also UTC, which is not
+#: anybody's local hour.
+#:
+#: `posted_weekday` is Monday = 0, which makes "later in the week"
+#: an ordering the week does not have.
+#:
+#: Neither has ever appeared in a finding - they did not clear the
+#: threshold - so nothing published was wrong. They were one
+#: lucky q away from it, which is not a safety margin.
+#: `research/timing.py` asks the same question properly: local
+#: hour, banded, each band against the rest.
+#:
+#: `posted_is_weekend` stays. That one really is a yes/no.
+NOT_A_SCALE = frozenset({
+    "posted_hour_utc", "posted_weekday",
+})
+
 
 @dataclass
 class Finding:
@@ -243,6 +266,8 @@ def _build(session: Session, *, own: bool = False) -> dict:
 
     candidates = []
     for feature, values in sorted(feats.items()):
+        if feature in NOT_A_SCALE:
+            continue
         paired = [(values[v], pop[v]["percentile"], pop[v]["log_age"])
                   for v in ids if v in values]
         if len(paired) < MIN_TOTAL:
@@ -668,6 +693,13 @@ def _breakthroughs(session: Session, *, own: bool = False,
     cands = []
     for feature, values in sorted(feats.items()):
         if feature in TIME_PROXIES:
+            continue
+        if feature in NOT_A_SCALE:
+            # Here the arithmetic is worse than a bad correlation:
+            # the mean of 23:00 and 01:00 is noon. A clock has no
+            # mean. `research/timing.py` bands the local hour and
+            # compares bands, which is the question this was
+            # reaching for.
             continue
         a = [values[v] for v in hits if v in values]
         b = [values[v] for v in rest if v in values]

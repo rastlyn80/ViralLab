@@ -45,6 +45,8 @@ async function draw(root) {
     <h1>Collect data</h1>
     <p class="lede">${esc(d.what_this_is || '')}</p>
 
+    ${needs(d.needs || {})}
+
     ${live.length ? `<section class="card">
       <h2>Happening now</h2>
       ${live.map(running).join('')}
@@ -93,12 +95,40 @@ async function draw(root) {
   }
 }
 
+/**
+ * One control per parameter, drawn from the `kind` the server
+ * sends rather than assumed to be a number.
+ *
+ * Every parameter was an integer until the owner asked how to
+ * add creators he already admires, which needs a handle. The
+ * server derives `kind` from the parameter's type, so a new kind
+ * of parameter cannot be added without this learning to draw it.
+ */
+function field(p) {
+  const label = `${esc(p.label)}${p.help
+    ? ` <span class="muted">${esc(p.help)}</span>` : ''}`;
+  if (p.kind === 'text') {
+    return `<label class="op-field">${label}
+      <input type="text" data-param="${esc(p.key)}" data-text="1"
+        placeholder="${esc(p.default || '')}" size="18">
+    </label>`;
+  }
+  if (p.kind === 'choice') {
+    return `<label class="op-field">${label}
+      <select data-param="${esc(p.key)}" data-text="1">
+        ${(p.options || []).map((x) => `<option value="${esc(x)}"${
+  x === p.default ? ' selected' : ''}>${esc(x)}</option>`).join('')}
+      </select>
+    </label>`;
+  }
+  return `<label class="op-field">${label}
+    <input type="number" data-param="${esc(p.key)}"
+      value="${p.default}" min="${p.minimum}" max="${p.maximum}">
+  </label>`;
+}
+
 function choice(o) {
-  const fields = (o.params || []).map((p) => `
-    <label class="op-field">${esc(p.label)}
-      <input type="number" data-param="${esc(p.key)}"
-        value="${p.default}" min="${p.minimum}" max="${p.maximum}">
-    </label>`).join('');
+  const fields = (o.params || []).map(field).join('');
   return `<div class="gl-entry" data-op="${esc(o.key)}">
     <h3 class="suggestion">${esc(o.title)}</h3>
     <p>${esc(o.what_it_does)}</p>
@@ -112,6 +142,42 @@ function choice(o) {
         ${o.is_running ? 'disabled' : ''}>${
   o.is_running ? 'Already running' : 'Start'}</button></p>
   </div>`;
+}
+
+/**
+ * What the evidence is short of, and which button fixes it.
+ *
+ * The owner asked how he could feed the system more work by
+ * other creators. Any paragraph I write to answer that is stale
+ * by the second reading, so the server works it out from the
+ * corpus and this renders it.
+ *
+ * The headline number is not "how many creators do we follow" —
+ * it is how many are deep enough to count. A creator with seven
+ * posts is in the database and in no finding, because every
+ * result compares a video against the others on the same
+ * account. That distinction was invisible, and it is the whole
+ * of what makes collection worth doing.
+ */
+function needs(n) {
+  if (!n.creators_followed) return '';
+  const jobs = (n.next || []).map((j) => `<li>
+    <b>${esc(j.do)}</b>${j.worth === 'high'
+    ? ' <span class="chip ok">worth it now</span>' : ''}
+    <br><span class="muted">${esc(j.because)}</span>
+  </li>`).join('');
+  return `<section class="card">
+    <h2>Where the evidence is thin</h2>
+    <p class="op-row">
+      <span class="chip ok">${n.creators_that_count} creators count</span>
+      <span class="chip ${n.creators_too_thin ? 'warn' : ''}">${
+  n.creators_too_thin} too thin to count</span>
+      <span class="chip">${n.publications_watched} of ${
+  n.publications_total} videos watched</span>
+    </p>
+    <p class="muted">${esc(n.how_to_read || '')}</p>
+    <ul class="plain">${jobs}</ul>
+  </section>`;
 }
 
 function running(h) {
@@ -149,7 +215,8 @@ async function go(root, btn) {
   const entry = btn.closest('[data-op]');
   const params = {};
   entry.querySelectorAll('[data-param]').forEach((input) => {
-    params[input.dataset.param] = Number(input.value);
+    params[input.dataset.param] = input.dataset.text
+      ? input.value.trim() : Number(input.value);
   });
   btn.disabled = true;
   btn.textContent = 'Starting';
@@ -159,8 +226,11 @@ async function go(root, btn) {
   } catch (err) {
     btn.disabled = false;
     btn.textContent = 'Start';
+    // `detail` is the server's own sentence, written for him -
+    // "Their handle does not look right" names the field to fix.
+    // `String(err)` would prefix it with "Error:" and help nobody.
     entry.insertAdjacentHTML('beforeend',
-      note(`Could not start: ${esc(String(err))}`, 'bad'));
+      note(`Could not start: ${esc(err.detail || String(err))}`, 'bad'));
   }
 }
 
