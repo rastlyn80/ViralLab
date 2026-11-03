@@ -1,0 +1,18 @@
+# Shell scripts run on the Ubuntu server and must keep LF endings.
+#
+# `competitor_visual_pass.sh` reached the server with CRLF on
+# 2026-11-03 — the day `scripts/provision` was first included in
+# the deploy — and bash answered:
+#
+#   set: pipefail: invalid option name
+#   syntax error near unexpected token `$'{\r''
+#
+# which the owner saw as "Did not finish, exited with code 2".
+# A carriage return is invisible in every editor and in every
+# diff, so this is enforced here rather than remembered.
+*.sh text eol=lf
+
+# Same reason: these are read by the server, not by Windows.
+*.py text eol=lf
+*.js text eol=lf
+*.service text eol=lf

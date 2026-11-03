@@ -688,3 +688,41 @@ def test_the_cohort_loop_stops_rather_than_trying_the_next_creator():
     # the identical refusal.
     assert "break" in src[at:at + 700]
     assert "continue" not in src[at:at + 700]
+
+
+def test_no_shell_script_the_server_runs_has_windows_line_endings():
+    """`core.autocrlf` is true on the owner's machine, so any
+    shell script git re-checks-out gets CRLF in the working tree.
+    `scripts/provision` was first included in the deploy on
+    2026-11-03 and `competitor_visual_pass.sh` went up with CRLF
+    the same afternoon:
+
+        set: pipefail: invalid option name
+        syntax error near unexpected token `$'{\r''
+
+    He saw "Did not finish, exited with code 2". A carriage
+    return is invisible in every editor and in every diff, so it
+    has to be a test rather than a thing to notice.
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    offenders = [p.relative_to(root).as_posix()
+                 for p in sorted(root.glob("scripts/provision/*.sh"))
+                 if b"\r\n" in p.read_bytes()]
+    assert not offenders, (
+        f"{offenders} would reach the server unparseable. "
+        f"`.gitattributes` pins these to LF; run "
+        f"`git add --renormalize .`")
+
+
+def test_the_deploy_refuses_to_ship_one():
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[2] / "scripts"
+           / "deploy.py").read_text(encoding="utf-8")
+    assert "def carriage_returns" in src
+    assert "ABORT: these run on the server" in src
+    gitattributes = (Path(__file__).resolve().parents[2]
+                     / ".gitattributes").read_text(encoding="utf-8")
+    assert "*.sh text eol=lf" in gitattributes

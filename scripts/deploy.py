@@ -62,6 +62,40 @@ def catalogue_scripts_exist() -> list[str]:
     return missing
 
 
+#: Files the server EXECUTES rather than imports. A carriage
+#: return in one of these is a syntax error, not a cosmetic
+#: difference.
+MUST_BE_LF = (".sh",)
+
+
+def carriage_returns(local_root: Path) -> list[str]:
+    """Shell scripts that would reach the server with CRLF.
+
+    `core.autocrlf` is true on this machine, so any shell script
+    git re-checks-out gets Windows line endings in the working
+    tree. `scripts/provision` was first included in the deploy on
+    2026-11-03, and `competitor_visual_pass.sh` went up with CRLF
+    the same afternoon. bash answered:
+
+        set: pipefail: invalid option name
+        syntax error near unexpected token `$'{
+''
+
+    The owner saw "Did not finish, exited with code 2".
+
+    `.gitattributes` now pins `eol=lf` for these, which fixes the
+    cause. This is the check that catches the next one: a
+    carriage return is invisible in every editor and in every
+    diff, so nobody will spot it by reading.
+    """
+    bad = []
+    for name in MUST_BE_LF:
+        for f in local_root.glob(f"scripts/provision/*{name}"):
+            if b"\r\n" in f.read_bytes():
+                bad.append(f.relative_to(local_root).as_posix())
+    return sorted(bad)
+
+
 def walk(root: Path):
     for p in sorted(root.rglob("*")):
         if any(part in EXCLUDE_PARTS for part in p.parts):
@@ -84,6 +118,16 @@ def main() -> int:
     args = ap.parse_args()
 
     local_root = Path(__file__).resolve().parent.parent
+
+    crlf = carriage_returns(local_root)
+    if crlf:
+        print("ABORT: these run on the server and have Windows line "
+              "endings, which bash cannot parse:")
+        for name in crlf:
+            print(f"  {name}")
+        print("Run: git add --renormalize . (`.gitattributes` pins "
+              "these to LF)")
+        return 1
 
     missing = catalogue_scripts_exist()
     if missing:
