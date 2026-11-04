@@ -415,6 +415,13 @@ def _findings(session: Session, *, whose: str = "both",
                   + list(their_breaks.get("differences", [])))
     agreed, contradicts = vir.directional_overlap(mine_all, theirs_all)
 
+    def rows_only(items):
+        return [{"measurement": d["display_name"],
+                 "direction": vir._direction_of(d),
+                 "grade": d.get("grade", "Observed"),
+                 "plain": d.get("plain", "")}
+                for d in items]
+
     def rows(items, source):
         # `grade` travels with every row because the system prompt
         # requires the answer to state one. The first live run
@@ -433,9 +440,21 @@ def _findings(session: Session, *, whose: str = "both",
                  "plain": d.get("plain", "")}
                 for d in items]
 
+    others_only = vir.only_on_others(mine_all, theirs_all)
     out: dict = {
         "replicated_on_both": sorted(agreed),
         "contradicts": contradicts,
+        "only_on_other_creators": rows_only(others_only),
+        "read_those_first_if_the_question_is_about_reach": (
+            "His 625 publications include nothing over 100,000 "
+            "views and nothing over a million. The other 9,203, "
+            "from 331 creators, include 1,955 and 654. So a "
+            "measurement that appears only on their side is not "
+            "necessarily weaker - it may simply be about reaching "
+            "past an existing audience, which his own corpus has "
+            "never done and therefore cannot show. Say that when "
+            "it is relevant, rather than reporting it as 'not "
+            "replicated'."),
         "every_grade_here_is": (
             "Observed. Nothing in this project holds a higher grade: "
             "Associated would need the ad-exposure covariate, which "

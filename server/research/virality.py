@@ -450,6 +450,56 @@ def directional_overlap(mine: list[dict], theirs: list[dict]
     return agree, disagree
 
 
+def only_on_others(mine: list[dict], theirs: list[dict]) -> list[dict]:
+    """Measurements other creators show and this account cannot.
+
+    ADR 0011 made replication the promotion bar: a measurement
+    counts when it holds on the owner's account AND independently
+    on the competitor corpus. That is the right bar for most
+    things and it has a blind spot, which the owner found before
+    the code did:
+
+        "Why are you always considering just my videos when in
+         fact the research should be broad and mostly consider
+         other people's videos? Because mine have a really went
+         viral."
+
+    He is right, and the numbers are not close. MEASURED
+    2026-11-04:
+
+    | | his | theirs |
+    |---|---|---|
+    | publications | 625 | 9,203 |
+    | creators | 2 | 331 |
+    | median views | 1,047 | 8,401 |
+    | best | 92,143 | 485,000,000 |
+    | over 100k | **0** | 1,955 |
+    | over 1M | **0** | 654 |
+    | breakouts | 97 | 1,070 |
+
+    **His corpus has no high end at all.** Learning from it means
+    learning what separates a two-thousand-view video from a
+    seven-hundred-view one, which need not resemble what
+    separates two million from two hundred thousand.
+
+    So requiring his agreement does not only make a claim
+    stronger; where his range cannot show a thing, it deletes it.
+    Eleven measurements are in that position today, including
+    cuts in the opening, scene changes and how recognisable the
+    piece is - all plausibly about reaching beyond an existing
+    audience, which is the thing his 625 publications have never
+    done.
+
+    These are returned as their own category rather than folded
+    into "not replicated". They are weaker evidence FOR HIM than
+    something that holds on both, because other people's
+    audiences are not his. They are stronger evidence ABOUT
+    PIANO VIDEOS than anything his account alone can produce.
+    """
+    seen = {d["display_name"] for d in mine}
+    return [d for d in theirs if d["display_name"] not in seen]
+
+
 def measurement_grade(feature: str) -> str:
     """How far a measurement can be trusted: the gate Phase 1 set.
 

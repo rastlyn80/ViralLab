@@ -478,3 +478,32 @@ def test_the_prompt_teaches_the_vocabulary_the_check_allows():
                for v in st.review("Shorter videos perform better", []))
     assert any(v.kind == "causal_language"
                for v in st.review("No length performs better", []))
+
+
+def test_what_only_other_creators_can_show_is_its_own_category():
+    """The owner: "Why are you always considering just my videos
+    when in fact the research should be broad and mostly consider
+    other people's videos? Because mine have a really went
+    viral."
+
+    He is right and the numbers are not close. His 625
+    publications: nothing over 100,000 views, nothing over a
+    million. The other 9,203, from 331 creators: 1,955 and 654.
+
+    So requiring his account to agree does not only make a claim
+    stronger. Where his range cannot show a thing — anything
+    about reaching past an audience he already has — it deletes
+    it. Eleven measurements are in that position, including cuts
+    in the opening and scene changes.
+    """
+    import inspect
+
+    from server.research import virality as vir
+
+    src = inspect.getsource(st._findings)
+    assert "only_on_other_creators" in src
+    assert "read_those_first_if_the_question_is_about_reach" in src
+
+    doc = inspect.getdoc(vir.only_on_others) or ""
+    assert "no high end" in doc
+    assert "deletes it" in doc

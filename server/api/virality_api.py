@@ -88,6 +88,33 @@ def compare(session: Session = Depends(get_session)) -> dict:
             "knowing before acting on it."
             if contradictions else ""),
         "only_theirs": _named(their_feats - my_feats),
+        # Computed since this endpoint was written and never put
+        # on the page, so eleven measurements from 331 creators
+        # sat in the payload while the interface showed his two
+        # accounts first and called the rest "not replicated".
+        #
+        # The owner: "Why are you always considering just my
+        # videos when in fact the research should be broad and
+        # mostly consider other people's videos? Because mine
+        # have a really went viral."
+        "only_theirs_note": (
+            "Found on other creators and not on your account - "
+            "and that is not the same as weak. Your 625 "
+            "publications include nothing above 100,000 views "
+            "and nothing above a million. Their 9,203 include "
+            "1,955 and 654. A pattern about reaching past an "
+            "audience you already have cannot appear in a corpus "
+            "that has never done it, so some of these are "
+            "missing from your side because your side cannot "
+            "show them, not because they are untrue."),
+        "the_reach_gap": {
+            "your_publications": 625, "their_publications": 9203,
+            "your_creators": 2, "their_creators": 331,
+            "your_best_views": 92143, "their_best_views": 485000000,
+            "yours_over_100k": 0, "theirs_over_100k": 1955,
+            "yours_over_1m": 0, "theirs_over_1m": 654,
+            "measured_on": "2026-11-04",
+        },
         "only_mine": _named(my_feats - their_feats),
         "the_gap": _gap(theirs, mine),
         "how_to_read": {

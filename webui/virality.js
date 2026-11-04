@@ -34,6 +34,7 @@ export const virality = {
     root.innerHTML = `
       <h1>What goes with more views</h1>
       ${card('Where they agree', agreement(d) + contradictions(d))}
+      ${onlyTheirs(d)}
       ${note(`<strong>${esc(h.not_causal || '')}</strong>`, 'warn')}
 
       <section class="card">
@@ -66,6 +67,41 @@ export const virality = {
         <p>${esc(h.same_test_both_sides || '')}</p>`)}`;
   },
 };
+
+/**
+ * What other creators show that this account cannot.
+ *
+ * The endpoint has computed `only_theirs` since it was written
+ * and nothing rendered it, so eleven measurements from 331
+ * creators sat in the payload while the page led with two
+ * accounts and filed the rest under "not replicated".
+ *
+ * The owner put it better than the code did: his videos have
+ * never gone viral, so a pattern about reaching past an existing
+ * audience cannot appear in his corpus at all. Requiring his
+ * account to agree does not only strengthen a claim — where his
+ * range cannot show a thing, it deletes it.
+ */
+function onlyTheirs(d) {
+  const rows = d.only_theirs || [];
+  if (!rows.length) return '';
+  const g = d.the_reach_gap || {};
+  return `<section class="card">
+    <h2>Only on other creators (${rows.length})</h2>
+    <p>${esc(d.only_theirs_note || '')}</p>
+    ${g.their_publications ? `<p class="muted">
+      You: ${g.your_publications} videos, ${g.your_creators} accounts,
+      best ${g.your_best_views.toLocaleString()} views,
+      <b>${g.yours_over_1m} over a million</b>.
+      Them: ${g.their_publications.toLocaleString()} videos,
+      ${g.their_creators} creators,
+      best ${g.their_best_views.toLocaleString()},
+      <b>${g.theirs_over_1m} over a million</b>.</p>` : ''}
+    <ul class="plain">${rows.map((f) => `<li>
+      <b>${esc(f.display_name)}</b>${f.describes
+    ? ` &mdash; ${esc(f.describes)}` : ''}</li>`).join('')}</ul>
+  </section>`;
+}
 
 function agreement(d) {
   if (d.in_both && d.in_both.length) {
