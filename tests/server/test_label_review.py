@@ -362,3 +362,38 @@ def test_the_review_records_what_it_does_not_establish():
     found = d["_owner_review"]["_what_it_found"].lower()
     assert "not generalise" in found or "do not generalise" in found
     assert "hardest" in found
+
+
+def test_frames_are_served_for_the_holdout_too():
+    """The holdout is 111 videos whose entire purpose is to be
+    judged from frames, and they 404ed on the frames endpoint
+    because its guard predated them. The restriction that does
+    the real work — own-account only, so this cannot become a
+    general media endpoint — is untouched."""
+    import inspect
+
+    from server.api import labels_api as la
+
+    src = inspect.getsource(la.review_frames)
+    assert "_blind()" in src
+    assert "is_own_account" in src
+
+
+def test_the_holdout_is_served_without_a_model_answer():
+    """Showing what the detector guessed would make the answer
+    agree with it, and agreement is the thing already measured."""
+    import inspect
+
+    from server.api import labels_api as la
+
+    src = inspect.getsource(la._blind)
+    assert '"model_label": None' in src
+    # And nothing in the fixture carries one either.
+    import json
+    from pathlib import Path
+    fx = (Path(__file__).resolve().parents[2] / "tests" / "fixtures"
+          / "vision" / "holdout_prospective.json")
+    if fx.exists():
+        d = json.loads(fx.read_text(encoding="utf-8"))
+        assert d.get("blind") is True
+        assert not d.get("labels")

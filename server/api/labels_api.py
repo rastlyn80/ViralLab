@@ -66,6 +66,23 @@ FIXTURES = (Path(__file__).resolve().parents[2]
 SOURCES = (("own", "holdout_labels_own.json"),
            ("competitor", "holdout_labels_competitor.json"))
 
+#: The prospective holdout, served BLIND.
+#:
+#: The two sources above are entries a model flagged as ambiguous,
+#: and the page shows what the model said so the owner can agree
+#: or overturn it. This one is the opposite exercise: it exists to
+#: measure the detector, so showing the detector's answer would
+#: destroy the thing being measured. No model label, no score, no
+#: stratum reaches the interface.
+#:
+#: It also exists because three of five fields could not be
+#: measured at all on the spent corpus - piano had 4 and 6
+#: negatives, hands 7 and 3, text overlay 11 and 1 - and a bar of
+#: 0.80 specificity on three negatives can only be met by a
+#: perfect score. This draw is stratified across the detector's
+#: whole confidence range on purpose.
+BLIND_SOURCE = ("holdout", "holdout_prospective.json")
+
 #: Plain-English form of each question. The RULE is not written
 #: here - it is read from the fixture, because the fixture is what
 #: the labels were actually made under and a second copy would drift.
@@ -130,6 +147,29 @@ def _rulebook() -> tuple[str, dict[str, str]]:
     for k, v in SUPPLIED_DEFINITIONS.items():
         defs.setdefault(k, v)
     return rule, defs
+
+
+def _blind() -> tuple[list[dict], dict]:
+    """The prospective holdout: questions with no answer attached.
+
+    Returns the entries and the fixture, because the rule and the
+    definitions this draw was made under live in the fixture and a
+    second copy in code would drift from it.
+    """
+    cohort, name = BLIND_SOURCE
+    path = FIXTURES / name
+    if not path.exists():
+        return [], {}
+    d = json.loads(path.read_text(encoding="utf-8"))
+    out = [{"video_id": int(u["video_id"]), "field": u["field"],
+            "cohort": cohort, "why_uncertain": "",
+            # Explicitly None, not absent. The interface branches
+            # on it, and a missing key would render as "the model
+            # said nothing", which is a different claim.
+            "model_label": None, "model_omitted": False,
+            "blind": True}
+           for u in d.get("to_label", [])]
+    return out, d
 
 
 def _uncertain() -> list[dict]:
@@ -234,6 +274,8 @@ def derive_verdict(model_label: str | None, answer: str) -> str:
 def review_queue(session: Session = Depends(get_session)) -> dict:
     """Every ambiguous label, with whatever can be shown of its video."""
     items = _uncertain()
+    blind_items, blind_fixture = _blind()
+    items = items + blind_items
     ids = sorted({i["video_id"] for i in items})
     videos = {v.id: v for v in session.scalars(
         select(Video).where(Video.id.in_(ids))).all()} if ids else {}
@@ -245,8 +287,11 @@ def review_queue(session: Session = Depends(get_session)) -> dict:
     } if ids else {}
 
     scope_rule, definitions = _rulebook()
+    blind_rule = blind_fixture.get("scope_rule") or scope_rule
+    blind_defs = blind_fixture.get("definitions") or {}
     out = []
     for it in items:
+        is_blind = bool(it.get("blind"))
         v = videos.get(it["video_id"])
         c = creators.get(v.creator_id) if v else None
         prior = done.get((it["video_id"], it["field"]))
@@ -261,11 +306,13 @@ def review_queue(session: Session = Depends(get_session)) -> dict:
             "ask": (ask if not it["model_omitted"]
                     else f"The model left this blank. Was that right? "
                          f"({ask})"),
-            "rule": definitions.get(it["field"], ""),
+            "rule": ((blind_defs.get(it["field"], "") if is_blind
+                      else definitions.get(it["field"], ""))
+                     or definitions.get(it["field"], "")),
             # The sentence whose absence caused the first pass to go
             # wrong. Shown on every question, not buried in a help
             # page.
-            "scope_rule": scope_rule,
+            "scope_rule": blind_rule if is_blind else scope_rule,
             "caption": (v.caption or "")[:200] if v else "",
             "platform": v.platform if v else None,
             "permalink": permalink.for_video(v, c) if v else None,
@@ -288,10 +335,35 @@ def review_queue(session: Session = Depends(get_session)) -> dict:
         })
 
     answered = sum(1 for o in out if o["already_reviewed"])
+    blind_total = sum(1 for o in out if o.get("blind"))
+    blind_done = sum(1 for o in out
+                     if o.get("blind") and o["already_reviewed"])
     return {
         "total": len(out),
         "answered": answered,
         "remaining": len(out) - answered,
+        "holdout": {
+            "total": blind_total,
+            "answered": blind_done,
+            "remaining": blind_total - blind_done,
+            "publications": len({o["video_id"] for o in out
+                                 if o.get("blind")}),
+            "what_it_is": (
+                "A fresh sample, drawn before anything was asked of "
+                "it, with no model answer shown. Three of five "
+                "visual measurements cannot currently be judged at "
+                "all because the old set had almost no negative "
+                "examples - 4 of one, 3 of another - and a concert "
+                "pianist's videos nearly all contain a piano and "
+                "hands. These are spread deliberately across cases "
+                "the detector is confident about and cases it is "
+                "not, which is where its mistakes hide."),
+            "why_no_model_answer": (
+                "Showing you what the model guessed would make your "
+                "answer agree with it, and agreement is the thing "
+                "already measured. Your answers become the answer "
+                "key."),
+        },
         "publications": len({o["video_id"] for o in out}),
         "why_this_matters": (
             "Every vision benchmark here was scored against labels "
@@ -424,10 +496,20 @@ def review_frames(video_id: int,
     `is_own_account` is what stops this becoming a general media
     endpoint by increment.
     """
-    if not any(i["video_id"] == video_id for i in _uncertain()):
+    # The flagged-ambiguous set OR the prospective holdout. The
+    # holdout is the reason this endpoint matters now: 111 videos
+    # whose whole purpose is to be judged from frames, and they
+    # 404ed here because the guard predated them.
+    #
+    # The restriction that does the work is `is_own_account`
+    # below, not this one. This only keeps the endpoint pointed at
+    # publications somebody is actually being asked about.
+    askable = ({i["video_id"] for i in _uncertain()}
+               | {i["video_id"] for i in _blind()[0]})
+    if video_id not in askable:
         raise HTTPException(
-            404, "frames are served here only for publications in the "
-                 "flagged-ambiguous set")
+            404, "frames are served here only for publications "
+                 "somebody is being asked to judge")
     video = session.get(Video, video_id)
     if video is None:
         raise HTTPException(404, "no such publication")

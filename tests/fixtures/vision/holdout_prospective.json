@@ -1,0 +1,1356 @@
+{
+ "_what": "The prospective holdout, drawn 2026-11-04 by `sample_holdout.py` under the protocol in docs/benchmarks/7b-holdout-protocol.md. Unlabelled: these are the questions, and the owner's answers are the answer key.",
+ "_why": "Every vision benchmark in this project was scored against labels a Claude model wrote. The strongest result, 40 of 40 for Claude Sonnet, was measured against an answer key written by another Claude model - which measures agreement at least as much as correctness, and the report says so. Nothing can be promoted until somebody independent has checked the answers, and the owner is the only somebody available.",
+ "_the_other_problem_this_fixes": "Three of five fields could not be measured at all on the spent corpus: piano had 4 and 6 negatives, hands 7 and 3, text overlay 11 and 1. A concert pianist's videos contain pianos and hands. With three negatives the only attainable specificities are 0, 0.33, 0.67 and 1.00, so a bar of 0.80 can be met only by a perfect score and one borderline video decides it. This draw is stratified across the detector's whole score range, deliberately including the strata where it is most confident, because that is where its false positives live.",
+ "blind": true,
+ "_blind_means": "No model answer is sent to the interface for these, and no score. A labeller who knows what the detector said is no longer an independent labeller.",
+ "seed": 20261027,
+ "drawn_on": "2026-11-04",
+ "stratify_on": "piano_or_keyboard_visible",
+ "fields": [
+  "piano_or_keyboard_visible",
+  "hands_visible",
+  "text_overlay_present"
+ ],
+ "scope_rule": "Judge only what you can see in the frames shown. Not what you know about the video, not what is probably just off screen - what is visible.",
+ "definitions": {
+  "piano_or_keyboard_visible": "The KEYS have to be visible. A piano lid, a stool, or a player obviously at an instrument whose keys are out of shot is a no.",
+  "hands_visible": "At least one hand, recognisably a hand. A forearm disappearing out of frame is a no.",
+  "text_overlay_present": "Words placed on the video, not words that are part of the scene - sheet music, a poster on the wall and a logo on a piano are all no."
+ },
+ "labels": {},
+ "to_label": [
+  {
+   "video_id": 8,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 8,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 8,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 18,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 18,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 18,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 19,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 19,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 19,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 22,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 22,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 22,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 28,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 28,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 28,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 32,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 32,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 32,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 34,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 34,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 34,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 43,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 43,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 43,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 46,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 46,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 46,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 53,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 53,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 53,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 54,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 54,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 54,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 63,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 63,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 63,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 65,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 65,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 65,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 66,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 66,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 66,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 67,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 67,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 67,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 69,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 69,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 69,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 72,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 72,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 72,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 81,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 81,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 81,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 82,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 82,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 82,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 84,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 84,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 84,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 90,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 90,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 90,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 93,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 93,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 93,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 94,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 94,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 94,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 95,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 95,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 95,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 97,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 97,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 97,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 99,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 99,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 99,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 111,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 111,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 111,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 113,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 113,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 113,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 118,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 118,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 118,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 119,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 119,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 119,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 122,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 122,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 122,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 133,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 133,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 133,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 145,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 145,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 145,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 150,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 150,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 150,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 157,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 157,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 157,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 158,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 158,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 158,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 159,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 159,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 159,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 175,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 175,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 175,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 179,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 179,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 179,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 199,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 199,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 199,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 200,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 200,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 200,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 211,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 211,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 211,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 224,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 224,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 224,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 226,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 226,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 226,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 227,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 227,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 227,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 230,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 230,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 230,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 231,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 231,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 231,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 233,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 233,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 233,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 235,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 235,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 235,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 237,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 237,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 237,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 239,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 239,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 239,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 246,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 246,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 246,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 248,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 248,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 248,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 249,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 249,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 249,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 255,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 255,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 255,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 266,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 266,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 266,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 268,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 268,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 268,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 269,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 269,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 269,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 280,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 280,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 280,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 281,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 281,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 281,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 295,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 295,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 295,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 297,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 297,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 297,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 301,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 301,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 301,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 307,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 307,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 307,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 319,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 319,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 319,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 336,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 336,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 336,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 337,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 337,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 337,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 343,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 343,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 343,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 349,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 349,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 349,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 352,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 352,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 352,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 355,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 355,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 355,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 361,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 361,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 361,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 363,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 363,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 363,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 372,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 372,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 372,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 375,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 375,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 375,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 378,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 378,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 378,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 387,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 387,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 387,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 388,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 388,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 388,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 391,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 391,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 391,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 394,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 394,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 394,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 395,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 395,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 395,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 396,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 396,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 396,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 400,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 400,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 400,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 402,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 402,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 402,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 409,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 409,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 409,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 410,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 410,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 410,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 412,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 412,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 412,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 418,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 418,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 418,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 424,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 424,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 424,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 431,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 431,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 431,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 434,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 434,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 434,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 439,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 439,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 439,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 440,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 440,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 440,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 443,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 443,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 443,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 452,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 452,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 452,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 454,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 454,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 454,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 455,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 455,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 455,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 456,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 456,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 456,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 460,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 460,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 460,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 466,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 466,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 466,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 473,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 473,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 473,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 474,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 474,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 474,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 479,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 479,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 479,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 494,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 494,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 494,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 503,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 503,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 503,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 505,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 505,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 505,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 512,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 512,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 512,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 513,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 513,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 513,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 518,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 518,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 518,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 523,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 523,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 523,
+   "field": "text_overlay_present"
+  },
+  {
+   "video_id": 524,
+   "field": "piano_or_keyboard_visible"
+  },
+  {
+   "video_id": 524,
+   "field": "hands_visible"
+  },
+  {
+   "video_id": 524,
+   "field": "text_overlay_present"
+  }
+ ]
+}
