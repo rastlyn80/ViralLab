@@ -248,9 +248,10 @@ def test_the_tool_surface_is_a_closed_list():
     that growing it stays deliberate.
     """
     assert set(st.TOOLS) == {"findings", "what_im_not_doing",
-                             "when_you_post", "creator_report",
-                             "compare", "publication",
-                             "feature_lookup", "evidence_for"}
+                             "when_you_post", "how_long",
+                             "creator_report", "compare",
+                             "publication", "feature_lookup",
+                             "evidence_for"}
 
 
 def test_every_tool_is_declared_to_the_model_with_a_schema():
@@ -457,3 +458,23 @@ def test_a_report_of_published_videos_is_not(text):
     """
     assert not [v for v in st.review(text, [])
                 if v.kind == "causal_language"]
+
+
+def test_the_prompt_teaches_the_vocabulary_the_check_allows():
+    """A first answer about video length was refused for saying
+    "no particular length band performs better than the others".
+    That asserts nothing causal — it is a NULL result — but the
+    check reads the phrase, not the intent, and `performs
+    better` is the phrase.
+
+    Weakening the guard to allow negations would let "no doubt
+    shorter videos perform better" through, which is the same
+    hole pointing the other way. Teaching the preferred wording
+    costs nothing and the tools already return it."""
+    assert "separates from the rest" in st.SYSTEM
+    assert "nothing performs better" in st.SYSTEM
+    # And the guard is untouched.
+    assert any(v.kind == "causal_language"
+               for v in st.review("Shorter videos perform better", []))
+    assert any(v.kind == "causal_language"
+               for v in st.review("No length performs better", []))

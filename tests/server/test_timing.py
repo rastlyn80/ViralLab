@@ -255,3 +255,57 @@ def test_the_exclusion_applies_to_both_analyses():
 
     assert "NOT_A_SCALE" in inspect.getsource(vir._build)
     assert "NOT_A_SCALE" in inspect.getsource(vir._breakthroughs)
+
+
+# ---------------------------------------------------------------------------
+# length, which a correlation cannot answer
+# ---------------------------------------------------------------------------
+
+def test_the_length_bands_cover_every_duration_once():
+    from server.research import length as ln
+
+    seen = [ln.band_of(s) for s in
+            (0, 5, 14.9, 15, 29.9, 30, 74.9, 75, 179.9, 180, 3600)]
+    assert None not in seen
+    assert len(set(seen)) == len(ln.BANDS)
+
+
+def test_the_bands_were_not_drawn_from_the_data():
+    """Edges placed where they maximise a difference are not
+    bands; they are the difference, drawn twice."""
+    from server.research import length as ln
+
+    import inspect
+
+    # The constant carries the reason, so deleting the comment to
+    # move an edge is a visible act.
+    src = inspect.getsource(ln)
+    bands = src[src.index("BANDS:"):src.index("MIN_PER_BAND")]
+    before = src[:src.index("BANDS:")]
+    assert "NOT from the data" in before
+    assert "maximise a difference" in before
+    assert "very short" in bands
+
+
+def test_length_is_asked_in_bands_because_ideal_is_not_a_trend():
+    """`duration_s` IS tested by `virality` — 86 measurements on
+    625 of his publications, 92 on 9,203 of other people's — and
+    is a finding on neither. That rules out "longer is better"
+    and "shorter is better" and says nothing about a middle,
+    which is what he asked for."""
+    from server.research import length as ln
+
+    doc = ln.__doc__ or ""
+    assert "monotonic" in doc
+    assert "cancel" in doc
+
+
+def test_length_can_meet_the_replication_bar_unlike_posting_time():
+    """Ninety seconds is ninety seconds on anybody's account.
+    Nine o'clock is not."""
+    import inspect
+
+    from server.research import length as ln
+
+    src = inspect.getsource(ln.build)
+    assert "holds_on_both" in src

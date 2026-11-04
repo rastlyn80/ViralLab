@@ -306,3 +306,17 @@ def when_to_post(session: Session = Depends(get_session)) -> dict:
 
     return memo.remember("creative.when_to_post",
                          lambda: timing.build(session), session=session)
+
+
+@router.get("/how-long", dependencies=[Depends(require_ui)])
+def how_long(session: Session = Depends(get_session)) -> dict:
+    """Which lengths went with doing better. Free, no model.
+
+    Asked in bands rather than as a trend: a correlation can see
+    "longer is better" and "shorter is better" and is blind to a
+    middle, which is what "ideal length" means.
+    """
+    from server.research import length, memo
+
+    return memo.remember("creative.how_long",
+                         lambda: length.build(session), session=session)

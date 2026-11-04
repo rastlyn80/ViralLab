@@ -208,6 +208,7 @@ export const api = {
       { method: 'POST', body }),
   didItWork: () => request('/api/creative/did-it-work'),
   whenToPost: () => request('/api/creative/when-to-post'),
+  howLong: () => request('/api/creative/how-long'),
   creativeGenerate: (body) => request('/api/creative/generate',
     { method: 'POST', body }),
   // A draft: the file goes up as the raw body, the caption in the

@@ -26,6 +26,7 @@ import { openings } from './openings.js';
 import { work } from './work.js';
 import { visualProfile } from './profile.js';
 import { guide } from './guide.js';
+import { howLong } from './howlong.js';
 import { virality } from './virality.js';
 import { strategist } from './strategist.js';
 import {
@@ -61,6 +62,8 @@ const ROUTES = [
     nav: 'cohort' },
   { pattern: /^\/look$/, view: visualProfile, nav: 'look' },
   { pattern: /^\/views$/, view: virality, nav: 'views' },
+  { pattern: /^\/howlong$/, view: howLong,
+    nav: 'research-hub' },
   // `#/make` is the hub. The three tools keep their own
   // routes so older links still resolve.
   { pattern: /^\/make$/, view: makeHub, nav: 'make' },

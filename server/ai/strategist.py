@@ -505,8 +505,24 @@ def _when_you_post(session: Session, *, weekday: str = "",
     return timing.advice(session, weekday=weekday, hour=hour)
 
 
+def _how_long(session: Session, **_: Any) -> dict:
+    """Which video lengths went with doing better.
+
+    Separate from `findings` because length is not a finding
+    there and the reason is interesting: `virality` asks it as a
+    rank correlation, which can only see "longer is better" or
+    "shorter is better". "What length should this be" is neither,
+    and a middle that beats both ends cancels to nothing under a
+    monotonic test.
+    """
+    from server.research import length
+
+    return length.build(session)
+
+
 TOOLS: dict[str, Callable[..., Any]] = {
     "findings": _findings,
+    "how_long": _how_long,
     "when_you_post": _when_you_post,
     "what_im_not_doing": _not_doing,
     "creator_report": _creator_report,
@@ -517,6 +533,14 @@ TOOLS: dict[str, Callable[..., Any]] = {
 }
 
 TOOL_SCHEMAS = [
+    {"name": "how_long",
+     "description": (
+         "Which video LENGTHS went with doing better, on the "
+         "owner's account and on other creators, in bands. Use "
+         "this for any question about how long a video should "
+         "be. Length is not in `findings` because the test there "
+         "can only see a trend, not a best length."),
+     "input_schema": {"type": "object", "properties": {}}},
     {"name": "when_you_post",
      "description": (
          "What the owner's own publications did by part of the day "
@@ -617,6 +641,16 @@ Rules you must not break:
 
 5. Always give the grade of anything you report - Observed,
    Hypothesised or Associated - and say what it means in one clause.
+
+6. Use the words the tools use. They say "went with doing
+   better", "separates from the rest", "ran above your usual",
+   "held on both sides" - and those phrasings are what the
+   enforcement below is built around. "X performs better" is
+   refused, and so is "nothing performs better", because the
+   check reads the phrase and not your intent. Say "no length
+   separates from the rest" rather than "no length performs
+   better" and you will be saying the same thing in the words
+   this project uses.
 
 Write plainly, in short paragraphs, for a concert pianist rather than
 a statistician. Prefer "about a third of your videos" to "33.3%" when

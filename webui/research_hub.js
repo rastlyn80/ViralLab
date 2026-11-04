@@ -23,6 +23,7 @@ import { esc, spinner } from './components.js';
 import { following } from './following.js';
 import { hookRetention, hooks } from './hooks.js';
 import { matchedPairs } from './pairs.js';
+import { howLong } from './howlong.js';
 import { when } from './when.js';
 import { visualProfile } from './profile.js';
 import { cohortCompare } from './views.js';
@@ -45,6 +46,9 @@ const TABS = [
     'Your hours and weekdays in your own local time, against how '
     + 'each publication did. The one thing here that cannot be '
     + "checked on other creators' accounts."],
+  ['howlong', 'How long', howLong,
+    'Which video lengths went with doing better, in bands — '
+    + 'because "ideal" is a middle, and a trend cannot see one.'],
   ['pairs', 'Two at a time', matchedPairs,
     'Two of your videos that should have done the same, and did not.'],
 ];

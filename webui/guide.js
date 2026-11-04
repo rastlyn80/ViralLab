@@ -78,10 +78,11 @@ const SECTIONS = [
         what: 'How your recent videos did, and anything that needs you.',
         when: 'First thing. If nothing here surprises you, carry on.' },
       { href: '#/research', name: 'Research',
-        what: `Seven views of what the evidence says — what works,
+        what: `Eight views of what the evidence says — what works,
           whether you are doing it, how your videos look, your
           openings, where people stop watching, you against other
-          creators, pairs of your own videos, and when you post.`,
+          creators, pairs of your own videos, when you post and
+          how long they are.`,
         when: 'When you want to know what is true rather than what to make.' },
       { href: '#/make', name: 'Make',
         what: `Five tools for producing the next video: write
@@ -135,6 +136,12 @@ const SECTIONS = [
           Your local time. It cannot tell you where your viewers
           are — only the platforms know that.`,
         when: 'When you are wondering whether timing matters. Mostly it does not.' },
+      { href: '#/howlong', name: 'How long',
+        what: `Which video lengths went with doing better, in
+          bands. Asked this way because the ordinary test can only
+          see "longer is better" or "shorter is better", and a
+          best length in the middle cancels to nothing under it.`,
+        when: 'When you are deciding how much to keep in.' },
       { href: '#/research?on=pairs', name: 'Two at a time',
         what: `Pairs of your own videos that should have done the
           same and did not — same length, same platform, same kind
