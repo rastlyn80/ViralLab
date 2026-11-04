@@ -451,13 +451,25 @@ def record_answer(video_id: int, field: str, body: Answer,
     row.reviewed_at = datetime.now(timezone.utc)
     session.commit()
 
-    total = len(known)
+    # Counted by the ANSWER, and within the queue being worked on.
+    #
+    # It counted rows with a VERDICT, across both queues. Blind
+    # answers deliberately have no verdict, so the holdout's
+    # counter read "333 left" however many he answered - after
+    # three separate fixes to let him answer at all. The second
+    # half matters too: finishing the holdout should not be
+    # reported against a total that includes the other queue.
+    blind = bool(item.get("blind"))
+    cohorts = (["holdout"] if blind else ["own", "competitor"])
+    total = sum(1 for i in known.values()
+                if (i["cohort"] == "holdout") == blind)
     answered = session.scalar(
         select(func.count(LabelReview.id))
-        .where(LabelReview.verdict.is_not(None))) or 0
+        .where(LabelReview.owner_label.is_not(None),
+               LabelReview.cohort.in_(cohorts))) or 0
     return {"saved": True, "video_id": video_id, "field": field,
             "you_said": answer, "model_said": item["model_label"],
-            "blind": bool(item.get("blind")),
+            "blind": blind,
             "agreement": row.verdict,
             "answered": answered, "total": total,
             "remaining": max(0, total - answered)}

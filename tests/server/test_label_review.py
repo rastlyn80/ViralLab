@@ -459,3 +459,21 @@ def test_an_answered_blind_question_is_not_offered_again():
 
     src = inspect.getsource(la.review_queue)
     assert "prior.owner_label" in src
+
+
+def test_the_counter_counts_answers_not_verdicts():
+    """"Recorded: Yes. 333 left." — after several answers.
+
+    It counted rows with a VERDICT, and blind answers
+    deliberately have none, so the holdout's counter could never
+    move. That was the fourth thing standing between him and a
+    job he had already been told twice was ready."""
+    import inspect
+
+    from server.api import labels_api as la
+
+    src = inspect.getsource(la.record_answer)
+    assert "LabelReview.owner_label.is_not(None)" in src
+    # And counted within the queue being worked on, so finishing
+    # the holdout is not reported against the other one's total.
+    assert "LabelReview.cohort.in_(cohorts)" in src
