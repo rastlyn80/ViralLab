@@ -257,16 +257,42 @@ def test_an_empty_or_nonsense_answer_is_refused():
     assert "400" in src
 
 
-def test_frames_are_served_for_own_publications_only():
-    """ADR 0009 deleted the competitor media after measurement. A
-    review screen must not become the path that re-acquires it, and
-    the check is on `is_own_account` rather than on a flag somebody
-    could set."""
+def test_third_party_frames_come_only_from_the_live_quarantine():
+    """CHANGED 2026-11-04, and the guarantee is unchanged.
+
+    This used to 403 every third-party request outright, on the
+    grounds that ADR 0009 deletes competitor media and a review
+    screen must not become the path that re-acquires it. That
+    concern is still right and still honoured: nothing here
+    acquires anything.
+
+    What changed is that the owner asked to judge other people's
+    videos, because on his own 87% show hands and the question
+    has almost one answer. ADR 0009 permits exactly that shape -
+    acquire, extract, label INSIDE the six-hour window, release -
+    so the endpoint now serves third-party frames from the
+    quarantine while the window is open.
+
+    The live `transient_media` row IS the window. Reading the
+    path from there rather than from `media_path` is what makes
+    the guarantee hold without anyone remembering to enforce it:
+    when the sweep deletes the row, this stops serving.
+    """
     import inspect
     src = inspect.getsource(lab.review_frames)
     assert "is_own_account" in src
-    assert "403" in src
-    assert "not retained" in src
+    # Own media from `media_path`; third-party never.
+    own, third = src.split("else:", 1)
+    assert "media_path" in own
+    # Code only — the comment in that branch names `media_path`
+    # precisely to say it is not used.
+    third_code = [ln for ln in third.splitlines()
+                  if not ln.strip().startswith("#")]
+    assert not [ln for ln in third_code if "media_path" in ln]
+    # Third-party requires a live row, and says so when there is
+    # not one rather than silently serving nothing.
+    assert "TransientMedia.deleted_at.is_(None)" in third
+    assert "409" in third
 
 
 def test_the_frames_endpoint_is_limited_to_the_flagged_set():
@@ -477,3 +503,30 @@ def test_the_counter_counts_answers_not_verdicts():
     # And counted within the queue being worked on, so finishing
     # the holdout is not reported against the other one's total.
     assert "LabelReview.cohort.in_(cohorts)" in src
+
+
+def test_other_creators_questions_vanish_when_their_media_does():
+    """ADR 0009: a frame strip is media bytes and is not
+    retained. The questions are answerable only inside the
+    six-hour window, so the queue filters them against
+    `transient_media` on every request rather than trusting the
+    fixture — which records what was fetched, not what is still
+    here."""
+    import inspect
+
+    from server.api import labels_api as la
+
+    src = inspect.getsource(la._live_competitor)
+    assert "TransientMedia.deleted_at.is_(None)" in src
+    assert "transient_media" in src.lower()
+
+
+def test_the_competitor_draw_spreads_across_creators():
+    """100 videos by one creator measures one creator's habits
+    100 times."""
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[2] / "scripts" / "provision"
+           / "competitor_holdout.py").read_text(encoding="utf-8")
+    assert "MAX_PER_CREATOR" in src
+    assert "round-robin" in src or "round robin" in src

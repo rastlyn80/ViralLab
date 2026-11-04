@@ -83,6 +83,16 @@ SOURCES = (("own", "holdout_labels_own.json"),
 #: whole confidence range on purpose.
 BLIND_SOURCE = ("holdout", "holdout_prospective.json")
 
+#: Other creators, judged while their media is still held.
+#:
+#: Separate from the own-account holdout because the evidence is
+#: perishable: ADR 0009 says a frame strip is media bytes and is
+#: not retained, so these are answerable only inside the
+#: six-hour window and the questions disappear when it closes.
+#: The labels persist, and re-fetching costs nothing through the
+#: free route.
+LIVE_SOURCE = ("competitor_live", "holdout_competitor_live.json")
+
 #: Plain-English form of each question. The RULE is not written
 #: here - it is read from the fixture, because the fixture is what
 #: the labels were actually made under and a second copy would drift.
@@ -147,6 +157,38 @@ def _rulebook() -> tuple[str, dict[str, str]]:
     for k, v in SUPPLIED_DEFINITIONS.items():
         defs.setdefault(k, v)
     return rule, defs
+
+
+def _live_competitor(session) -> tuple[list[dict], dict]:
+    """Other creators' questions, but only while the media is held.
+
+    Filtered against `transient_media` on every request rather
+    than trusted from the fixture. The fixture records what was
+    fetched; whether the bytes are still here is a fact about
+    now, and serving a question whose frames have expired would
+    offer him a judgement he cannot make.
+    """
+    from server.db.models import TransientMedia
+
+    cohort, name = LIVE_SOURCE
+    path = FIXTURES / name
+    if not path.exists():
+        return [], {}
+    d = json.loads(path.read_text(encoding="utf-8"))
+    asked = [u for u in d.get("to_label", [])]
+    if not asked:
+        return [], d
+    ids = {int(u["video_id"]) for u in asked}
+    live = set(session.scalars(
+        select(TransientMedia.video_id).where(
+            TransientMedia.video_id.in_(sorted(ids)),
+            TransientMedia.deleted_at.is_(None))).all())
+    out = [{"video_id": int(u["video_id"]), "field": u["field"],
+            "cohort": cohort, "why_uncertain": "",
+            "model_label": None, "model_omitted": False,
+            "blind": True}
+           for u in asked if int(u["video_id"]) in live]
+    return out, d
 
 
 def _blind() -> tuple[list[dict], dict]:
@@ -275,7 +317,8 @@ def review_queue(session: Session = Depends(get_session)) -> dict:
     """Every ambiguous label, with whatever can be shown of its video."""
     items = _uncertain()
     blind_items, blind_fixture = _blind()
-    items = items + blind_items
+    live_items, live_fixture = _live_competitor(session)
+    items = items + blind_items + live_items
     ids = sorted({i["video_id"] for i in items})
     videos = {v.id: v for v in session.scalars(
         select(Video).where(Video.id.in_(ids))).all()} if ids else {}
@@ -288,7 +331,8 @@ def review_queue(session: Session = Depends(get_session)) -> dict:
 
     scope_rule, definitions = _rulebook()
     blind_rule = blind_fixture.get("scope_rule") or scope_rule
-    blind_defs = blind_fixture.get("definitions") or {}
+    blind_defs = dict(blind_fixture.get("definitions") or {})
+    blind_defs.update(live_fixture.get("definitions") or {})
     out = []
     for it in items:
         is_blind = bool(it.get("blind"))
@@ -338,9 +382,12 @@ def review_queue(session: Session = Depends(get_session)) -> dict:
         })
 
     answered = sum(1 for o in out if o["already_reviewed"])
-    blind_total = sum(1 for o in out if o.get("blind"))
-    blind_done = sum(1 for o in out
-                     if o.get("blind") and o["already_reviewed"])
+    blind_total = sum(1 for o in out if o["cohort"] == "holdout")
+    blind_done = sum(1 for o in out if o["cohort"] == "holdout"
+                     and o["already_reviewed"])
+    live_total = sum(1 for o in out if o["cohort"] == "competitor_live")
+    live_done = sum(1 for o in out if o["cohort"] == "competitor_live"
+                    and o["already_reviewed"])
     return {
         "total": len(out),
         "answered": answered,
@@ -366,6 +413,28 @@ def review_queue(session: Session = Depends(get_session)) -> dict:
                 "answer agree with it, and agreement is the thing "
                 "already measured. Your answers become the answer "
                 "key."),
+        },
+        "other_creators": {
+            "total": live_total,
+            "answered": live_done,
+            "remaining": live_total - live_done,
+            "publications": len({o["video_id"] for o in out
+                                 if o["cohort"] == "competitor_live"}),
+            "what_it_is": (
+                "Other people's videos. On your own, 87 in every 100 "
+                "show hands and 76 show a piano, so a detector that "
+                "answers yes every time is right 87% of the time and "
+                "the best free one manages 85%. That is not a bad "
+                "detector; it is a question with almost one answer. "
+                "Other creators film in cars, to camera, with no "
+                "instrument in shot, and that is where the other "
+                "answer lives."),
+            "why_it_expires": (
+                "Their videos are not kept - fetched, measured, and "
+                "deleted within six hours. So these can only be "
+                "judged while the files are still here. Anything "
+                "left when the clock runs out can be fetched again "
+                "for nothing."),
         },
         "publications": len({o["video_id"] for o in out}),
         "why_this_matters": (
@@ -406,7 +475,8 @@ def record_answer(video_id: int, field: str, body: Answer,
     # pairs would let anything be written through a review
     # screen, which is the thing this guard is actually for.
     known = {(i["video_id"], i["field"]): i
-             for i in list(_uncertain()) + list(_blind()[0])}
+             for i in (list(_uncertain()) + list(_blind()[0])
+                       + list(_live_competitor(session)[0]))}
     item = known.get((video_id, field))
     if item is None:
         raise HTTPException(
@@ -460,9 +530,9 @@ def record_answer(video_id: int, field: str, body: Answer,
     # half matters too: finishing the holdout should not be
     # reported against a total that includes the other queue.
     blind = bool(item.get("blind"))
-    cohorts = (["holdout"] if blind else ["own", "competitor"])
+    cohorts = ([item["cohort"]] if blind else ["own", "competitor"])
     total = sum(1 for i in known.values()
-                if (i["cohort"] == "holdout") == blind)
+                if (i["cohort"] in cohorts))
     answered = session.scalar(
         select(func.count(LabelReview.id))
         .where(LabelReview.owner_label.is_not(None),
@@ -540,8 +610,10 @@ def review_frames(video_id: int,
     # The restriction that does the work is `is_own_account`
     # below, not this one. This only keeps the endpoint pointed at
     # publications somebody is actually being asked about.
+    live_items, _ = _live_competitor(session)
     askable = ({i["video_id"] for i in _uncertain()}
-               | {i["video_id"] for i in _blind()[0]})
+               | {i["video_id"] for i in _blind()[0]}
+               | {i["video_id"] for i in live_items})
     if video_id not in askable:
         raise HTTPException(
             404, "frames are served here only for publications "
@@ -550,14 +622,35 @@ def review_frames(video_id: int,
     if video is None:
         raise HTTPException(404, "no such publication")
     creator = session.get(Creator, video.creator_id)
-    if creator is None or not creator.is_own_account:
-        raise HTTPException(
-            403, "third-party media is not retained and is reviewed "
-                 "from the live post, not from frames")
-    if video.media_status != "available" or not video.media_path:
-        raise HTTPException(409, "no preserved file for this publication")
 
-    path = Path(video.media_path)
+    if creator is not None and creator.is_own_account:
+        if video.media_status != "available" or not video.media_path:
+            raise HTTPException(
+                409, "no preserved file for this publication")
+        path = Path(video.media_path)
+    else:
+        # Third-party media, and only from the quarantine, and
+        # only while it is still held.
+        #
+        # ADR 0009 permits exactly this and nothing more: acquire,
+        # extract, label INSIDE the six-hour window, release. The
+        # live `transient_media` row IS the window, so reading the
+        # path from there rather than from `media_path` is what
+        # makes the guarantee hold - when the sweep deletes the
+        # row, this stops serving, without anybody remembering to
+        # change it.
+        from server.db.models import TransientMedia
+
+        held = session.scalar(select(TransientMedia).where(
+            TransientMedia.video_id == video_id,
+            TransientMedia.deleted_at.is_(None)))
+        if held is None:
+            raise HTTPException(
+                409, "this one's file has already been deleted - "
+                     "other creators' videos are kept for six hours "
+                     "and then go. Fetch them again, it costs "
+                     "nothing.")
+        path = Path(held.path)
     if not path.exists():
         raise HTTPException(409, "the preserved file is missing on disk")
 
