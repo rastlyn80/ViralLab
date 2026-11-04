@@ -397,3 +397,65 @@ def test_the_holdout_is_served_without_a_model_answer():
         d = json.loads(fx.read_text(encoding="utf-8"))
         assert d.get("blind") is True
         assert not d.get("labels")
+
+
+def test_a_holdout_answer_can_actually_be_saved():
+    """The guard on the save endpoint was written when only the
+    flagged-ambiguous queue existed, so every one of the
+    holdout's 333 answers was refused — on the page he had just
+    been told to spend twenty minutes on. The queue and the
+    frames had both been widened; this had not."""
+    import inspect
+
+    from server.api import labels_api as la
+
+    src = inspect.getsource(la.record_answer)
+    assert "_blind()" in src
+    # And it is still a closed list, which is what the guard is
+    # for: arbitrary (video, field) pairs must not be writable.
+    assert "known.get((video_id, field))" in src
+    assert "is not a question" in src
+
+
+def test_the_holdout_is_a_cohort_the_table_accepts():
+    """Every answer to the holdout failed with a 500 — the check
+    constraint allowed `own` and `competitor` only. Storing them
+    as `own` would have worked and been wrong: scoring means
+    separating answers written against a model's guess from
+    answers written blind."""
+    from server.db.models import LabelReview
+
+    checks = [c for c in LabelReview.__table__.constraints
+              if getattr(c, "name", "") == "ck_label_reviews_cohort"]
+    assert checks, "the constraint has been renamed or removed"
+    assert "holdout" in str(checks[0].sqltext)
+
+
+def test_a_blind_answer_records_no_agreement():
+    """`derive_verdict` reads a None model label as a deliberate
+    omission the answer overrides — right for publication 403's
+    railway concourse, wrong for 333 questions that never had an
+    opinion attached. The first holdout answer saved came back
+    "overturned", which would have inflated the one figure this
+    whole exercise exists to measure."""
+    import inspect
+
+    from server.api import labels_api as la
+
+    src = inspect.getsource(la.record_answer)
+    assert 'None if item.get("blind")' in src
+
+    summary = inspect.getsource(la.summary)
+    assert 'cohort != "holdout"' in summary
+
+
+def test_an_answered_blind_question_is_not_offered_again():
+    """`already_reviewed` checked the verdict, and a blind answer
+    has none — so every holdout question he answered came back
+    looking untouched."""
+    import inspect
+
+    from server.api import labels_api as la
+
+    src = inspect.getsource(la.review_queue)
+    assert "prior.owner_label" in src

@@ -1690,7 +1690,12 @@ class LabelReview(Base):
             "verdict is null or verdict in "
             "('confirmed','overturned','cannot_tell')",
             name="ck_label_reviews_verdict"),
-        CheckConstraint("cohort in ('own','competitor')",
+        # `holdout` added 2026-11-04. It is a third SET, not a
+        # third kind of video - the holdout is all own-account -
+        # and the distinction has to survive, because scoring it
+        # means separating answers written against a model's
+        # guess from answers written blind.
+        CheckConstraint("cohort in ('own','competitor','holdout')",
                         name="ck_label_reviews_cohort"),
         CheckConstraint(
             "reviewed_from is null or reviewed_from in "

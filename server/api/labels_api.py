@@ -320,7 +320,10 @@ def review_queue(session: Session = Depends(get_session)) -> dict:
                 permalink.why_missing(v, c) if v else "no such publication"),
             "frames_available": has_frames,
             "review_from": "frames" if has_frames else "live_post",
-            "already_reviewed": bool(prior and prior.verdict),
+            # The ANSWER, not the verdict. A blind question is
+            # answered and has no verdict, and checking the
+            # verdict showed every one of them as still to do.
+            "already_reviewed": bool(prior and prior.owner_label),
             "your_verdict": prior.verdict if prior else None,
             "your_answer": prior.owner_label if prior else None,
             "your_note": prior.note if prior else None,
@@ -393,15 +396,22 @@ def record_answer(video_id: int, field: str, body: Answer,
     model's label can stay hidden until afterwards without making the
     question unanswerable.
     """
-    known = {(i["video_id"], i["field"]): i for i in _uncertain()}
+    # Both queues: the flagged-ambiguous set and the prospective
+    # holdout. The guard was written when only the first existed,
+    # so every one of the holdout's 333 answers was refused with
+    # "not one of the flagged-ambiguous labels" - on the page I
+    # had just told him to go and spend twenty minutes on.
+    #
+    # Still a closed list. Accepting arbitrary (video, field)
+    # pairs would let anything be written through a review
+    # screen, which is the thing this guard is actually for.
+    known = {(i["video_id"], i["field"]): i
+             for i in list(_uncertain()) + list(_blind()[0])}
     item = known.get((video_id, field))
     if item is None:
-        # Only the flagged set is reviewable here. Accepting arbitrary
-        # (video, field) pairs would let the holdout be edited through
-        # a review screen, which is a different and much larger thing.
         raise HTTPException(
-            404, f"{field} on publication {video_id} is not one of the "
-                 f"flagged-ambiguous labels")
+            404, f"{field} on publication {video_id} is not a question "
+                 f"anyone is being asked")
 
     answer = _normalise(body.answer)
     if field not in ENUM_FIELDS and answer not in (YES, NO, UNSURE):
@@ -426,7 +436,16 @@ def record_answer(video_id: int, field: str, body: Answer,
     # needed correcting is the measurement this whole exercise is for.
     row.model_label = item["model_label"]
     row.owner_label = answer
-    row.verdict = derive_verdict(item["model_label"], answer)
+    # A blind question has no model answer to agree or disagree
+    # with, so it gets no verdict. The first run recorded
+    # "overturned" for every holdout answer - `derive_verdict`
+    # reads a None model label as a deliberate omission that the
+    # answer overrides, which is right for publication 403's
+    # railway concourse and wrong for 333 questions that never
+    # had an opinion attached. Left alone it would have inflated
+    # the one figure this whole exercise exists to measure.
+    row.verdict = (None if item.get("blind")
+                   else derive_verdict(item["model_label"], answer))
     row.note = body.note
     row.reviewed_from = "frames" if has_frames else "live_post"
     row.reviewed_at = datetime.now(timezone.utc)
@@ -438,6 +457,7 @@ def record_answer(video_id: int, field: str, body: Answer,
         .where(LabelReview.verdict.is_not(None))) or 0
     return {"saved": True, "video_id": video_id, "field": field,
             "you_said": answer, "model_said": item["model_label"],
+            "blind": bool(item.get("blind")),
             "agreement": row.verdict,
             "answered": answered, "total": total,
             "remaining": max(0, total - answered)}
@@ -453,7 +473,11 @@ def summary(session: Session = Depends(get_session)) -> dict:
     vision benchmark has been scored against.
     """
     rows = list(session.scalars(select(LabelReview)).all())
-    done = [r for r in rows if r.verdict]
+    # Agreement only. Holdout rows carry an answer and no verdict
+    # by design, and counting them here would mix "how often the
+    # model was wrong" with "how much of the answer key is
+    # written" - two different questions with one number.
+    done = [r for r in rows if r.verdict and r.cohort != "holdout"]
     by = {"confirmed": 0, "overturned": 0, "cannot_tell": 0}
     for r in done:
         by[r.verdict] = by.get(r.verdict, 0) + 1
