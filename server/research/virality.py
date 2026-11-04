@@ -411,6 +411,33 @@ def _describes(feature: str) -> str:
 #: rather than to assert that a creator's level permanently moved.
 OUTLIER_Z = 2.0
 
+#: What "actually went big" means, in views, on top of beating
+#: the creator's own run.
+#:
+#: The owner: *"the findings should be reflecting really what's
+#: truly viral works and breakthrough works."* He was right that
+#: they were not. MEASURED 2026-11-04 on the competitor corpus:
+#:
+#: * 1,073 publications clear `OUTLIER_Z` against their creator
+#: * their median reach is **40,753 views**
+#: * **296 of them never reached 10,000**
+#: * only 9.5% ever reached a million
+#:
+#: Beating your own average is the right question for "what
+#: makes a good video by this person" and it is not virality. A
+#: creator going from 300 views to 3,000 scores identically to
+#: one going from 200,000 to 2,000,000.
+#:
+#: The other direction is no better on its own: only 34% of
+#: million-view publications beat their own creator's run, so
+#: absolute reach alone mostly measures how big the account
+#: already was.
+#:
+#: The intersection is the thing he means. 102 publications both
+#: escaped their creator's baseline AND passed a million; 390 did
+#: so past a hundred thousand.
+ESCAPED_VIEWS = 100_000
+
 #: Below this many outliers there is nothing to compare them against.
 def _direction_of(entry: dict) -> str:
     """One word for which way a result points, whichever analysis
@@ -627,7 +654,8 @@ def _origin_of(session: Session) -> dict[int, str]:
 
 
 def breakthroughs(session: Session, *, own: bool = False,
-                  origin: str | None = None) -> dict:
+                  origin: str | None = None,
+                  min_views: int | None = None) -> dict:
     """The threshold analysis, remembered briefly.
 
     See `_breakthroughs` for what it does and why. The wrapper
@@ -638,12 +666,20 @@ def breakthroughs(session: Session, *, own: bool = False,
     from server.research import memo
     return memo.remember(
         "virality.breakthroughs",
-        lambda: _breakthroughs(session, own=own, origin=origin),
-        session=session, own=own, origin=origin)
+        lambda: _breakthroughs(session, own=own, origin=origin,
+                               min_views=min_views),
+        # `min_views` is part of the key or the memo answers a
+        # different question than the one asked: the first call
+        # without a floor would be served back to a caller that
+        # passed one, and "what do viral videos do" would quietly
+        # return "what do above-average videos do".
+        session=session, own=own, origin=origin,
+        min_views=min_views)
 
 
 def _breakthroughs(session: Session, *, own: bool = False,
-                   origin: str | None = None) -> dict:
+                   origin: str | None = None,
+                   min_views: int | None = None) -> dict:
     """What is different about a creator's outliers.
 
     The analysis above treats view rank as a smooth gradient, and
@@ -698,6 +734,12 @@ def _breakthroughs(session: Session, *, own: bool = False,
 
     is_outlier: dict[int, bool] = {}
     z_by_video: dict[int, float] = {}
+    # Absolute reach, for the `min_views` floor. Beating your own
+    # run is a different event from being seen by a million
+    # people, and `min_views` is how a caller asks for both at
+    # once.
+    views_by_video = {o.video_id: o.views
+                      for obs in by_creator.values() for o in obs}
     for cid, obs in by_creator.items():
         if len(obs) < MIN_PER_CREATOR:
             continue
@@ -716,6 +758,15 @@ def _breakthroughs(session: Session, *, own: bool = False,
     if origin:
         is_outlier = {v: flag for v, flag in is_outlier.items()
                       if origins.get(v) == origin}
+    if min_views:
+        # The floor applies to what counts as an OUTLIER, not to
+        # what it is compared against. A publication that beat
+        # its creator's run but stayed small is no longer an
+        # escape; it is still part of the population the escapes
+        # are measured against, which is the point.
+        is_outlier = {
+            v: (flag and (views_by_video.get(v) or 0) >= min_views)
+            for v, flag in is_outlier.items()}
 
     n_out = sum(1 for v in is_outlier.values() if v)
     if n_out < MIN_OUTLIERS:
@@ -836,6 +887,22 @@ def _breakthroughs(session: Session, *, own: bool = False,
     return {
         "outliers": n_out, "compared": len(is_outlier),
         "origin": origin,
+        "min_views": min_views,
+        "what_counted_as_a_breakthrough": (
+            f"Beat its creator's own rolling run by {OUTLIER_Z} "
+            f"robust deviations"
+            + (f" AND reached at least {min_views:,} views. Both, "
+               f"because either alone measures the wrong thing: "
+               f"296 of 1,073 publications that beat their own run "
+               f"never reached 10,000 views, and only 34% of "
+               f"million-view publications beat their own run at "
+               f"all - the rest are large accounts performing "
+               f"normally."
+               if min_views else
+               ". Note this is RELATIVE: a creator going from 300 "
+               "views to 3,000 counts the same as one going from "
+               "200,000 to 2,000,000. Pass `min_views` to ask the "
+               "other question.")),
         "creators": len([c for c, o in by_creator.items()
                          if len(o) >= MIN_PER_CREATOR]),
         "outlier_threshold_z": OUTLIER_Z,

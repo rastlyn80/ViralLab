@@ -97,6 +97,7 @@ def compare(session: Session = Depends(get_session)) -> dict:
         # videos when in fact the research should be broad and
         # mostly consider other people's videos? Because mine
         # have a really went viral."
+        "what_actually_went_big": _reach(session),
         "only_theirs_note": (
             "Found on other creators and not on your account - "
             "and that is not the same as weak. Your 625 "
@@ -169,6 +170,55 @@ def _named(features) -> list[dict]:
                     "describes": lex.as_dict(f)["measures"]}
                    for f in features),
                   key=lambda d: d["display_name"])
+
+
+def _reach(session) -> dict:
+    """What separates publications that actually reached people.
+
+    A "breakthrough" everywhere else on this page means beating
+    the creator's OWN rolling run by 2 robust deviations. That is
+    the right normalisation for comparing a 400-follower account
+    with a 2-million-follower one, and it is not virality:
+    MEASURED 2026-11-04, the median such publication reached
+    40,753 views and 296 of 1,073 never reached 10,000.
+
+    So this asks the other question - escaped its creator's run
+    AND reached at least `ESCAPED_VIEWS` - and the answer is that
+    nothing survives correction, which is worth saying out loud
+    rather than leaving as an empty section.
+    """
+    from server.research import virality as vir
+
+    try:
+        b = vir.breakthroughs(session, own=False,
+                              min_views=vir.ESCAPED_VIEWS)
+    except Exception:                       # noqa: BLE001 - reported
+        logger.exception("the reach analysis failed")
+        return {}
+    return {
+        "floor_views": vir.ESCAPED_VIEWS,
+        "publications": b.get("outliers", 0),
+        "out_of": b.get("compared", 0),
+        "survived": [
+            {"display_name": d["display_name"],
+             "direction": d["direction"]}
+            for d in (b.get("differences") or [])],
+        "closest": [
+            {"display_name": d["display_name"],
+             "direction": d["direction"], "q_value": d.get("q_value")}
+            for d in (b.get("weak_signals") or [])[:4]],
+        "note": (
+            "Everything else on this page counts a breakthrough as "
+            "beating the creator's own usual. That is deliberate - "
+            "otherwise every finding would be 'have more followers' "
+            "- but it is not the same as reaching a lot of people: "
+            "296 of 1,073 such publications never passed 10,000 "
+            "views. This section asks the other question, and "
+            "nothing survives correction. The four findings above "
+            "describe a better video for an audience you already "
+            "have. What makes one reach past that audience is not "
+            "something this evidence can currently answer."),
+    }
 
 
 def _gap(theirs: dict, mine: dict) -> str:

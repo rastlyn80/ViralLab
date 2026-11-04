@@ -49,8 +49,13 @@ def test_trap_one_reach_is_never_promised(question):
     out = st.precheck(question)
     assert out is not None
     assert "can't" in out.lower() or "cannot" in out.lower()
-    # The refusal must say what CAN be done, or it is just a wall.
-    assert "experiment" in out.lower() or "differ" in out.lower()
+    # The refusal must say what CAN be done, or it is just a
+    # wall. Asserted on the offer, not on particular words: the
+    # text used to point at "which of your openings differ from
+    # your usual ones", which was the whole product when it was
+    # written and is now a fraction of it.
+    assert "ask me" in out.lower() or "i can tell you" in out.lower()
+    assert "what i can" in out.lower() or "i can tell you" in out.lower()
 
 
 @pytest.mark.parametrize("question", [
@@ -507,3 +512,86 @@ def test_what_only_other_creators_can_show_is_its_own_category():
     doc = inspect.getdoc(vir.only_on_others) or ""
     assert "no high end" in doc
     assert "deletes it" in doc
+
+
+@pytest.mark.parametrize("question", [
+    "Will this video go viral?",
+    "Can you guarantee I blow up?",
+    "How do I get millions of views?",
+    "Is this going to blow up?",
+])
+def test_a_request_for_a_prediction_is_still_refused_free(question):
+    assert st.precheck(question) is not None
+
+
+@pytest.mark.parametrize("question", [
+    "Do the findings tell me what makes a video go viral, "
+    "or just what makes a slightly better video?",
+    "What does the evidence show about going viral?",
+    "Does the data say anything about virality?",
+])
+def test_a_question_about_the_evidence_is_not_a_request_for_one(question):
+    """The owner asked the first of these and it was refused
+    unanswered — the word "viral" was in it, and the guard fires
+    before any model is called.
+
+    It is a question about what the project knows, and the
+    honest answer had just been built: nothing separates the 390
+    publications that reached a hundred thousand people from the
+    rest. Refusing it taught him the product could not discuss
+    its own limits, which is the opposite of true.
+
+    The difference is whether the question is about the FINDINGS
+    or about a VIDEO."""
+    assert st.precheck(question) is None
+
+
+def test_the_refusal_says_what_can_be_asked_instead():
+    """It offered "which of your openings differ from your usual
+    ones", which was the whole product when it was written and is
+    now a fraction of it."""
+    said = st.precheck("Will this go viral?")
+    assert "331 other creators" in said
+    assert "hundred thousand" in said
+
+
+def test_a_thousands_separator_is_not_an_invented_number():
+    """"7,879" matched as "7" and "879", and neither appears in a
+    tool result that said 7879 — so a correctly quoted figure was
+    shown to the owner as unverified. Every large number the
+    model formatted readably had this problem."""
+    assert st._numbers("Out of 7,879 publications, 1,070 beat it") == [
+        "7879", "1070"]
+    assert st._numbers("390 of 7879") == ["390", "7879"]
+
+
+def test_the_prompt_forbids_the_word_rather_than_the_claim():
+    """The guard reads phrases, not intent, so a DENIAL trips it
+    exactly as an assertion does: "the findings do not tell you
+    what makes a video go viral" was refused as a virality
+    promise.
+
+    Weakening the guard to allow negations is the wrong fix —
+    "no doubt this will go viral" is a negation too. Telling the
+    model not to use the word costs nothing, and the tools
+    already return better phrasing."""
+    assert "Never write" in st.SYSTEM
+    assert "go viral" in st.SYSTEM
+    # The phrase wraps in the prompt, so match it unwrapped.
+    assert "reached a lot of" in " ".join(st.SYSTEM.split())
+    # The guard itself is untouched.
+    assert any(v.kind == "virality_promise" for v in st.review(
+        "This does not tell you what makes a video go viral", []))
+
+
+def test_a_tool_that_formats_a_number_still_verifies_it():
+    """The comma trap, on the other side of the comparison. A
+    tool saying "at least 100,000 views" offered "100" and
+    "000" to the checker, so an answer quoting 100,000
+    correctly was shown to the owner as invented."""
+    call = st.ToolCall(name="x", arguments={},
+                       result={"definition": "at least 100,000 views"})
+    assert st.unverified_numbers("They passed 100,000.", [call]) == []
+    # And a figure the tool really did not return is still caught.
+    assert st.unverified_numbers("390 of them passed 100,000.",
+                                 [call]) == ["390"]

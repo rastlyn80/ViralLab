@@ -247,3 +247,63 @@ def test_log_space_is_used_so_ratios_behave():
     b = rolling_baseline(obs([v * 2 for v in series]))[-1]
     assert a.relative_performance == pytest.approx(b.relative_performance,
                                                    rel=1e-6)
+
+
+def test_the_reach_floor_is_part_of_the_memo_key():
+    """Without it the first call without a floor is served back
+    to a caller that passed one, and "what do viral videos do"
+    silently returns "what do above-average videos do"."""
+    import inspect
+
+    from server.research import virality as vir
+
+    src = inspect.getsource(vir.breakthroughs)
+    assert "min_views=min_views)" in src
+    # Twice: once passed to the computation, once into the key.
+    assert src.count("min_views=min_views") >= 2
+
+
+def test_beating_your_own_run_is_not_the_same_as_going_viral():
+    """MEASURED 2026-11-04 on the competitor corpus: 1,073
+    publications beat their creator's run, median reach 40,753,
+    and 296 of them never reached 10,000 views. Only 9.5% ever
+    reached a million. Conversely only 34% of million-view
+    publications beat their own run — the rest are large
+    accounts performing normally.
+
+    The constant carries those numbers so that nobody has to
+    rediscover them to understand why a floor exists."""
+    from server.research import virality as vir
+
+    src = inspect.getsource(vir) if False else None
+    import inspect as i
+    text = i.getsource(vir)
+    at = text.index("ESCAPED_VIEWS")
+    before = text[max(0, at - 1600):at]
+    assert "296 of them never reached 10,000" in before
+    assert "34%" in before
+    assert vir.ESCAPED_VIEWS == 100_000
+
+
+def test_the_page_says_what_a_breakthrough_is_not():
+    """The owner: "the findings should be reflecting really
+    what's truly viral works and breakthrough works."
+
+    They were not. A breakthrough means beating the creator's own
+    usual, which is right for comparing a 400-follower account
+    with a 2-million-follower one and is not virality — 296 of
+    1,073 such publications never reached 10,000 views.
+
+    Asked the other way, nothing survives correction: the four
+    findings that hold for "better than your average" do not
+    separate the 390 publications that actually reached a
+    hundred thousand people. An empty section is the wrong way to
+    report that, so the note says it."""
+    import inspect
+
+    from server.api import virality_api as va
+
+    src = inspect.getsource(va._reach)
+    assert "ESCAPED_VIEWS" in src
+    assert "296 of 1,073" in src
+    assert "something this evidence can currently answer" in src

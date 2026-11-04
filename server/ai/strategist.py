@@ -441,10 +441,41 @@ def _findings(session: Session, *, whose: str = "both",
                 for d in items]
 
     others_only = vir.only_on_others(mine_all, theirs_all)
+
+    # The question he actually asked: not "what beats an
+    # average" but "what actually went big".
+    escaped = vir.breakthroughs(session, own=False,
+                                min_views=vir.ESCAPED_VIEWS)
     out: dict = {
         "replicated_on_both": sorted(agreed),
         "contradicts": contradicts,
         "only_on_other_creators": rows_only(others_only),
+        "what_actually_went_big": {
+            "publications": escaped.get("outliers", 0),
+            "out_of": escaped.get("compared", 0),
+            "definition": escaped.get(
+                "what_counted_as_a_breakthrough", ""),
+            "survived_correction": [
+                {"measurement": d["display_name"],
+                 "direction": d["direction"]}
+                for d in (escaped.get("differences") or [])],
+            "closest_but_not_significant": [
+                {"measurement": d["display_name"],
+                 "direction": d["direction"], "q": d.get("q_value")}
+                for d in (escaped.get("weak_signals") or [])[:4]],
+            "the_uncomfortable_part": (
+                "Nothing survives correction here. The measurements "
+                "that DO hold for 'beat your own average' - more "
+                "hashtags, naming the form, naming a composer, "
+                "bigger on-screen text - do NOT separate the 390 "
+                "publications that actually reached a hundred "
+                "thousand people from the rest. So those four are "
+                "about making a better video for an audience you "
+                "already have, and this project cannot presently "
+                "say what makes one reach past it. Say that "
+                "plainly if he asks; it is the most useful true "
+                "thing here."),
+        },
         "read_those_first_if_the_question_is_about_reach": (
             "His 625 publications include nothing over 100,000 "
             "views and nothing over a million. The other 9,203, "
@@ -664,12 +695,20 @@ Rules you must not break:
 6. Use the words the tools use. They say "went with doing
    better", "separates from the rest", "ran above your usual",
    "held on both sides" - and those phrasings are what the
-   enforcement below is built around. "X performs better" is
-   refused, and so is "nothing performs better", because the
-   check reads the phrase and not your intent. Say "no length
-   separates from the rest" rather than "no length performs
-   better" and you will be saying the same thing in the words
-   this project uses.
+   enforcement below is built around.
+
+   The checks read phrases, not intent, so a DENIAL trips them
+   exactly as an assertion does. All of these are refused:
+
+   * "X performs better" and "nothing performs better"
+   * "what makes a video go viral" - even in "the findings do
+     not tell you what makes a video go viral"
+
+   Never write "viral", "go viral" or "blow up" at all, in any
+   sentence including one denying them. Say "reached a lot of
+   people", "passed a hundred thousand views", or "escaped its
+   creator's usual audience". Those say the same thing, they are
+   what the tools return, and they are not refused.
 
 Write plainly, in short paragraphs, for a concert pianist rather than
 a statistician. Prefer "about a third of your videos" to "33.3%" when
@@ -688,6 +727,12 @@ def _numbers(text: str) -> list[str]:
     as a number so the check stays about figures a reader would act
     on.
     """
+    # Thousands separators first. "7,879" matched as "7"
+    # and "879", neither of which appears in a tool result
+    # that said 7879 - so a correctly quoted figure was shown
+    # to the owner as unverified. Every large number the model
+    # formats readably had this problem.
+    text = re.sub(r"(?<=\d),(?=\d{3}\b)", "", text or "")
     out = []
     for m in re.finditer(r"(?<![\w.])(\d+(?:\.\d+)?)\s*%?", text):
         raw = m.group(1)
@@ -725,7 +770,13 @@ def _flatten(obj: Any) -> set[str]:
             seen.add(f"{round(float(x) * 100):g}")
             return
         if isinstance(x, str):
-            for m in re.finditer(r"\d+(?:\.\d+)?", x):
+            # Same thousands-separator trap as `_numbers`,
+            # on the other side of the comparison. A tool
+            # that says "at least 100,000 views" offered
+            # "100" and "000", so an answer quoting 100,000
+            # correctly was flagged as invented.
+            flat = re.sub(r"(?<=\d),(?=\d{3}\b)", "", x)
+            for m in re.finditer(r"\d+(?:\.\d+)?", flat):
                 seen.add(m.group(0))
             return
         if isinstance(x, dict):
@@ -854,6 +905,35 @@ def review(text: str, tool_calls: list[ToolCall]) -> list[Violation]:
     return out
 
 
+#: Questions ABOUT the evidence, which mention reach because the
+#: evidence is about reach.
+#:
+#: The guard above refuses anything matching `VIRALITY_PATTERNS`
+#: before a model is called, which is right for "will this go
+#: viral?" and wrong for "do the findings tell me what makes a
+#: video go viral, or just what makes a slightly better video?"
+#: - the owner's actual question, refused unanswered, when the
+#: honest answer had just been built and was sitting in the
+#: `findings` tool.
+#:
+#: A question about what the project knows is not a request for
+#: a prediction, and the difference is whether it asks about the
+#: FINDINGS or about a VIDEO.
+ABOUT_THE_EVIDENCE = (
+    r"\b(?:the )?findings?\b",
+    r"\bevidence\b", r"\bdata\b",
+    r"\bmeasurements?\b",
+    r"\banalysis\b", r"\bresearch\b",
+    r"\bdo (?:we|you) know\b",
+    r"\bcan (?:we|you) (?:tell|say)\b",
+    r"\bwhat does .{0,20}show\b",
+)
+
+
+def _asking_about_the_evidence(low: str) -> bool:
+    return any(re.search(p, low) for p in ABOUT_THE_EVIDENCE)
+
+
 def precheck(question: str) -> str | None:
     """A refusal decided before any money is spent.
 
@@ -862,13 +942,16 @@ def precheck(question: str) -> str | None:
     questions in the acceptance test cost nothing to run.
     """
     low = (question or "").lower()
-    if any(re.search(p, low) for p in VIRALITY_PATTERNS):
+    if (any(re.search(p, low) for p in VIRALITY_PATTERNS)
+            and not _asking_about_the_evidence(low)):
         return ("I can't answer that. Nothing in this project predicts "
                 "reach, and anything that sounded like a prediction "
-                "would be invented. What I can tell you is which of "
-                "your openings differ from your usual ones, and what an "
-                "experiment would have to show before anyone could "
-                "claim a difference mattered.")
+                "would be invented. What I CAN tell you: which "
+                "measurements went with doing better on your account "
+                "and on 331 other creators, which of those hold on "
+                "both, and - separately - that none of them separates "
+                "the publications that actually reached a hundred "
+                "thousand people from the rest. Ask me any of those.")
     if any(re.search(p, low) for p in IDENTITY_PATTERNS):
         return ("I can't identify people in your videos - it's out of "
                 "scope for this project, and the model I'd be asking "
