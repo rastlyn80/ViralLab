@@ -122,9 +122,32 @@ def looks_hallucinated(text: str) -> tuple[bool, str | None]:
 
 
 def _load():
+    """Load the ASR model. **Only ever on the GPU worker.**
+
+    `faster-whisper` is installed on the Windows worker and deliberately
+    not on the Ubuntu server: ASR is a worker modality (CLAUDE.md §5),
+    and the server imports this module only to read `METHOD_VERSION`,
+    `MODEL_SIZE` and the other constants that go into stored
+    measurements.
+
+    The import is therefore allowed to be missing, but a server code
+    path that got this far would otherwise die with a bare
+    `ModuleNotFoundError: No module named 'faster_whisper'` - which is
+    the same shape of failure as the Pillow outage of 12 November 2026,
+    and just as uninformative about the cause. Raised explicitly instead.
+    """
     global _model
     if _model is None:
-        from faster_whisper import WhisperModel
+        try:
+            from faster_whisper import WhisperModel
+        except ModuleNotFoundError as exc:
+            raise RuntimeError(
+                "faster-whisper is not installed here. ASR runs on the GPU "
+                "worker, not on the server: if this was reached from a "
+                "server request, the caller is wrong, not the environment. "
+                "The server imports shared/hookspeech.py for its method "
+                "constants only."
+            ) from exc
         logger.info("loading faster-whisper %s (%s)", MODEL_SIZE,
                     COMPUTE_TYPE)
         _model = WhisperModel(MODEL_SIZE, device="cpu",
