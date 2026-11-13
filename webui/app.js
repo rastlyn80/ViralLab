@@ -121,7 +121,7 @@ const NAV = [
 const MORE = [
   { group: 'Needs you' },
   { id: 'labelreview', href: '#/review/labels',
-    label: 'Check uncertain labels' },
+    label: 'Answer the video questions' },
   { id: 'review-masters', href: '#/review/masters', label: 'Match my files',
     count: (o) => o?.review.master_links_pending },
   { id: 'review-pairs', href: '#/review/pairs',

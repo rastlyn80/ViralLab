@@ -306,6 +306,23 @@ CATALOGUE: tuple[Operation, ...] = (
                          str(p["cycles"]), str(p["batch"]), "0"],
     ),
     Operation(
+        key="questions_about_others",
+        title="Get other creators' videos ready to judge",
+        what_it_does=(
+            "Fetches other pianists' public videos, pulls out the "
+            "frames, and adds them to your questions next to your "
+            "own. Answer them the same day: nothing of theirs is "
+            "kept, and after six hours the questions disappear. "
+            "Starting it again costs nothing."),
+        how_long="about fifteen minutes for 80 videos",
+        look_at="Answer the video questions",
+        params=(
+            Param("count", "How many videos", 80, 10, 120),
+        ),
+        build=lambda p: [PYTHON, _script("competitor_holdout.py"),
+                         "--count", str(p["count"]), "--yes"],
+    ),
+    Operation(
         key="watch_competitors_closely",
         title="Watch other creators' videos, and look closely",
         what_it_does=(

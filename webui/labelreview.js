@@ -54,9 +54,9 @@ function label(choice) {
 const PER_PAGE = 6;
 
 export const labelReview = {
-  title: 'Check the uncertain labels',
+  title: 'Answer the video questions',
   async render(root) {
-    root.innerHTML = `<h1>Check what the system saw</h1>${spinner()}`;
+    root.innerHTML = `<h1>What can you see?</h1>${spinner()}`;
     const d = await api.labelQueue();
     const all = d.items || [];
     // Unanswered first, holdout before the older queue: the
