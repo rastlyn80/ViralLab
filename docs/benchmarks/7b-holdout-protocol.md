@@ -172,3 +172,130 @@ first use, as the M3 fixtures are.
   near the bar. It does not buy a tight estimate, and a field landing
   between 0.80 and 0.85 should be read as "not clearly above the bar"
   rather than as a pass.
+
+---
+
+## 7. Addendum, 2026-11-13 — pre-registration of the scoring run
+
+**Written before the holdout was scored, and committed on its own so
+that "before" is checkable in the history rather than asserted.** The
+answer key was completed by the owner on 2026-11-12: 111 publications
+x 3 fields = 333 answers. Nothing below was chosen with any knowledge
+of how the detector does against them.
+
+Five things sections 1-6 left open, fixed now.
+
+### 7.1 The frame set — a defect found and corrected before scoring
+
+The stratification scores in `holdout_scores.json` were computed on
+**4 frames** (`sample_holdout.py frames --frames 4`, timestamps 0, 1,
+2, 3 s). The owner labelled from what `/api/labels/frames/{id}`
+serves, which is `FramePlan().timestamps(duration)[:MAX_FRAMES]` —
+**up to 6 frames**, adding 5 s and 12 s. The M3 corpus that fixed
+every threshold was scored on that same 6-frame set.
+
+An OWLv2 score is the highest box confidence **maximised over
+frames**, so a 4-frame score is systematically lower than a 6-frame
+score on the same video. Scoring the holdout from
+`holdout_scores.json` would therefore compare a threshold fixed in one
+frame regime against scores taken in another, and would break section
+4's requirement that the labeller and the detector look at the same
+images. The partial read in `score_holdout_partial.py` did exactly
+this and its figures are withdrawn on that ground, independently of
+what they said.
+
+**The arm under test is therefore re-scored on the frames the owner
+judged** — `FramePlan[:MAX_FRAMES]`, width 512, same encoder. The
+4-frame scores keep the one role they were ever given: forming strata.
+
+This does not invalidate the design. Selection depended only on the
+stratum, the selection probability per stratum is known and positive
+everywhere, so inverse-probability weighting stays unbiased however
+weakly the stratum variable correlates with the arm. A noisier
+stratum variable spreads the negatives less efficiently; it does not
+bias anything.
+
+### 7.2 Which threshold, fixed now
+
+Thresholds come from the spent M3 corpus, per section 5, and
+`tests/fixtures/vision/detector_comparison.json` holds three per
+field. The choice is declared here:
+
+| field | primary (decides promotion) | pre-declared secondary |
+|---|---|---|
+| `piano_or_keyboard_visible` | **0.3778** (tuned on competitor) | 0.3117 (tuned on own) |
+| `hands_visible` | **0.1285** (tuned on competitor) | 0.0755 (tuned on own) |
+
+The primary is the competitor-tuned threshold because it is the only
+one no own-account footage helped choose, and this holdout is
+own-account (7.4). The own-tuned threshold is reported beside it as a
+declared sensitivity, not as a second chance: **promotion is decided
+on the primary alone**, and both are reported whatever they say. The
+`in_sample_optimistic` thresholds are not eligible.
+
+### 7.3 `cannot_tell` answers
+
+The owner answered `cannot_tell` on 6 of the 333 — 4 hands, 2 piano.
+These are section 4's flagged-ambiguous cases arriving as a
+non-answer rather than a flagged answer, so section 5's "with and
+without" becomes:
+
+- **primary**: `cannot_tell` videos excluded from that field.
+- **sensitivity**: each `cannot_tell` assigned the label that hurts
+  the detector most, given what it predicted. The bar must clear
+  this too.
+
+A worst-case assignment is used rather than a best-case one because
+the question is whether the bar is cleared, not whether it can be.
+
+### 7.4 One cohort, and what that costs
+
+The eligible pool is 443 publications, **all the owner's own**:
+`sample_holdout.py frames` selects on `is_own_account is true`,
+because ADR 0009 deletes competitor media and a holdout cannot be
+drawn from files that no longer exist. Section 2's "both cohorts are
+sampled" was not met and cannot be met from this draw.
+
+Consequence, stated before the result: **a field clearing both bars
+here is promoted for own-account use only.** It says nothing about
+unseen creators, and under ADR 0011's replication bar it is
+`Observed`, not `Validated`. A competitor half costs a fresh
+acquisition run and is a separate decision.
+
+### 7.5 The both-halves rule, now written down
+
+Carried over from `DEVELOPMENT_PLAN.md` section 11, which required
+this before M4's first measurement: **from M4 onwards a field is
+promoted only if it clears the bar on each cohort separately, not
+pooled.** A field passing pooled while failing the unseen-creator
+half has not shown it generalises; one passing pooled while failing
+the own-account half is useless for recommendations. It is not
+applied retroactively (CLAUDE.md 3.13).
+
+On this holdout the rule has one half to apply to, which is 7.4's cap
+and not a way around it.
+
+### 7.6 Fields actually under test
+
+OWLv2 scores four queries — piano, hands, sheet music, face — and
+**no text-overlay query**. `text_overlay_present` therefore has no
+arm on this holdout at all, and the owner answered yes on 107 of 111,
+leaving 4 negatives. It is reported as **unmeasured**, which is what
+it is, and not as a failure. `sheet_music_visible` and `face_visible`
+were not asked of the owner here and are untouched by this run.
+
+So: **two fields are under test, piano and hands.**
+
+### 7.7 Estimator, as implemented
+
+- Weights are regenerated from `holdout_scores.json` by
+  `sample_holdout.py draw`, which is seeded (20261027) and reproduces
+  the labelled set of 111 exactly — verified before scoring.
+- Specificity and recall: unweighted, Wilson 95% intervals.
+- Base rate, precision, accuracy, lift: weighted by stratum.
+- Lift is weighted accuracy minus the weighted accuracy of answering
+  the majority class every time — the constant answerer a detector
+  has to beat before it is worth loading.
+- Intervals on the weighted quantities come from a stratified
+  bootstrap, resampling within strata, 2000 replicates, percentile
+  interval.
