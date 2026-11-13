@@ -87,6 +87,21 @@ def cmd_frames(args) -> int:
             "where c.is_own_account is true and v.media_path is not null "
             "order by v.id")).scalars().all()
         eligible = [i for i in rows if i not in spent]
+        if args.only:
+            # Re-scoring the drawn holdout on the frames the owner
+            # actually judged. See 7b section 7.1: the stratification
+            # pass took 4 frames, the review screen serves up to 6,
+            # and an OWLv2 score is a maximum over frames, so the two
+            # are not the same quantity.
+            keep = {int(x) for x in
+                    json.loads(Path(args.only).read_text(
+                        encoding="utf-8"))}
+            missing = keep - set(eligible)
+            if missing:
+                raise SystemExit(
+                    f"--only names {len(missing)} publications that are "
+                    f"not eligible: {sorted(missing)[:10]}")
+            eligible = [i for i in eligible if i in keep]
         for vid in eligible:
             v = s.get(Video, vid)
             p = Path(v.media_path) if v.media_path else None
@@ -232,6 +247,10 @@ def main() -> int:
     f.add_argument("--out", required=True)
     f.add_argument("--width", type=int, default=512)
     f.add_argument("--frames", type=int, default=4)
+    f.add_argument("--only", default="",
+                   help="JSON file holding the publication ids to "
+                        "encode, for re-scoring a drawn holdout on a "
+                        "different frame set (7b section 7.1)")
     f.set_defaults(fn=cmd_frames)
 
     s = sub.add_parser("score")

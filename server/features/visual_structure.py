@@ -109,10 +109,22 @@ WITHHELD_VISION: dict[str, str] = {
         "in shot, and a piano filmed from above its open soundboard. A "
         "prompt naming those cases moved specificity only to 0.200, and "
         "the one case it fixed was the garden - the example the prompt "
-        "itself contained",
+        "itself contained. Those are the VLM's figures. On the "
+        "2026-11-13 prospective holdout the OWLv2-base detector - a "
+        "different producer of the same field - reaches specificity "
+        "0.926 on 27 negatives with lift +0.060 against the +0.10 "
+        "bar: it denies well, and still cannot beat answering yes "
+        "every time, because 85% of his openings show the keyboard "
+        "(docs/benchmarks/7e-holdout-result.md)",
     "vision_hands_visible":
         "specificity 0.100 (1 of 10), lift +0.012 - the same base-rate "
-        "answering as the keyboard field",
+        "answering as the keyboard field. Those are the VLM's "
+        "figures. On the 2026-11-13 prospective holdout OWLv2-base "
+        "reaches specificity 1.000 on 15 negatives with lift -0.011, "
+        "and the +0.10 lift bar is unreachable for this field by any "
+        "detector whatever: a flawless one scores +0.088, because 91% "
+        "of his openings show hands "
+        "(docs/benchmarks/7e-holdout-result.md)",
     "vision_sheet_music_visible":
         "specificity 0.193 (11 of 57), lift -0.288 under the production "
         "prompt: reports notation on blank stands, art books and "

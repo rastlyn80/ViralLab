@@ -1,0 +1,681 @@
+{
+ "_what": "OWLv2-base scores for the prospective holdout, on the frames the owner judged (FramePlan[:MAX_FRAMES], width 512). This is the arm under test. The 4-frame stratification pass is a different file and a different quantity - see 7b section 7.1.",
+ "_contains_no_media": "scores only; no frames, no bytes",
+ "_why_committed": "so the published cells can be recomputed without the GPU, the server, or the media",
+ "model": "google/owlv2-base-patch16-ensemble",
+ "meta": {
+  "seconds": 169.5,
+  "load_seconds": 2.1,
+  "vram_mib": 1422,
+  "model": "google/owlv2-base-patch16-ensemble",
+  "score_semantics": "highest box confidence for the object's text query, maximum over frames. Ranked, NOT calibrated."
+ },
+ "scores": {
+  "8": {
+   "piano_or_keyboard_visible": 0.31358131766319275,
+   "hands_visible": 0.0758594200015068,
+   "sheet_music_visible": 0.3086563050746918,
+   "face_visible": 0.03159456327557564
+  },
+  "18": {
+   "piano_or_keyboard_visible": 0.46428799629211426,
+   "hands_visible": 0.3450377583503723,
+   "sheet_music_visible": 0.5377110242843628,
+   "face_visible": 0.3402530550956726
+  },
+  "19": {
+   "piano_or_keyboard_visible": 0.3426716923713684,
+   "hands_visible": 0.11260981857776642,
+   "sheet_music_visible": 0.28515389561653137,
+   "face_visible": 0.18925058841705322
+  },
+  "22": {
+   "piano_or_keyboard_visible": 0.21402859687805176,
+   "hands_visible": 0.07983312010765076,
+   "sheet_music_visible": 0.1638984978199005,
+   "face_visible": 0.07299118489027023
+  },
+  "28": {
+   "piano_or_keyboard_visible": 0.20447146892547607,
+   "hands_visible": 0.16026456654071808,
+   "sheet_music_visible": 0.27116715908050537,
+   "face_visible": 0.24682405591011047
+  },
+  "32": {
+   "piano_or_keyboard_visible": 0.17521445453166962,
+   "hands_visible": 0.12152420729398727,
+   "sheet_music_visible": 0.16920386254787445,
+   "face_visible": 0.14460033178329468
+  },
+  "34": {
+   "piano_or_keyboard_visible": 0.024138834327459335,
+   "hands_visible": 0.09746477752923965,
+   "sheet_music_visible": 0.033522214740514755,
+   "face_visible": 0.047846876084804535
+  },
+  "43": {
+   "piano_or_keyboard_visible": 0.4714072346687317,
+   "hands_visible": 0.20653222501277924,
+   "sheet_music_visible": 0.5260435938835144,
+   "face_visible": 0.20495463907718658
+  },
+  "46": {
+   "piano_or_keyboard_visible": 0.020563142374157906,
+   "hands_visible": 0.05826215073466301,
+   "sheet_music_visible": 0.015323222614824772,
+   "face_visible": 0.33094707131385803
+  },
+  "53": {
+   "piano_or_keyboard_visible": 0.27881136536598206,
+   "hands_visible": 0.0447353795170784,
+   "sheet_music_visible": 0.5846375823020935,
+   "face_visible": 0.056116025894880295
+  },
+  "54": {
+   "piano_or_keyboard_visible": 0.39313316345214844,
+   "hands_visible": 0.11318705976009369,
+   "sheet_music_visible": 0.28860533237457275,
+   "face_visible": 0.10948061943054199
+  },
+  "63": {
+   "piano_or_keyboard_visible": 0.15266399085521698,
+   "hands_visible": 0.5954403877258301,
+   "sheet_music_visible": 0.05733600631356239,
+   "face_visible": 0.08126772195100784
+  },
+  "65": {
+   "piano_or_keyboard_visible": 0.5089287757873535,
+   "hands_visible": 0.2899423837661743,
+   "sheet_music_visible": 0.42419055104255676,
+   "face_visible": 0.3187204599380493
+  },
+  "66": {
+   "piano_or_keyboard_visible": 0.7937294840812683,
+   "hands_visible": 0.4268505275249481,
+   "sheet_music_visible": 0.3576304316520691,
+   "face_visible": 0.05515799671411514
+  },
+  "67": {
+   "piano_or_keyboard_visible": 0.5922141671180725,
+   "hands_visible": 0.5151917338371277,
+   "sheet_music_visible": 0.2813820540904999,
+   "face_visible": 0.04422716051340103
+  },
+  "69": {
+   "piano_or_keyboard_visible": 0.39787814021110535,
+   "hands_visible": 0.4104044437408447,
+   "sheet_music_visible": 0.18506383895874023,
+   "face_visible": 0.03656138852238655
+  },
+  "72": {
+   "piano_or_keyboard_visible": 0.8332973718643188,
+   "hands_visible": 0.4110938310623169,
+   "sheet_music_visible": 0.6024748682975769,
+   "face_visible": 0.38715118169784546
+  },
+  "81": {
+   "piano_or_keyboard_visible": 0.041837677359580994,
+   "hands_visible": 0.09381450712680817,
+   "sheet_music_visible": 0.05157339200377464,
+   "face_visible": 0.2403775453567505
+  },
+  "82": {
+   "piano_or_keyboard_visible": 0.20110061764717102,
+   "hands_visible": 0.148214653134346,
+   "sheet_music_visible": 0.08816036581993103,
+   "face_visible": 0.17238005995750427
+  },
+  "84": {
+   "piano_or_keyboard_visible": 0.444366455078125,
+   "hands_visible": 0.14237713813781738,
+   "sheet_music_visible": 0.32383012771606445,
+   "face_visible": 0.16214178502559662
+  },
+  "90": {
+   "piano_or_keyboard_visible": 0.18192420899868011,
+   "hands_visible": 0.34190452098846436,
+   "sheet_music_visible": 0.06995560973882675,
+   "face_visible": 0.14896877110004425
+  },
+  "93": {
+   "piano_or_keyboard_visible": 0.7357282042503357,
+   "hands_visible": 0.42970943450927734,
+   "sheet_music_visible": 0.6245534420013428,
+   "face_visible": 0.09703492373228073
+  },
+  "94": {
+   "piano_or_keyboard_visible": 0.596264123916626,
+   "hands_visible": 0.34105104207992554,
+   "sheet_music_visible": 0.26691585779190063,
+   "face_visible": 0.037612225860357285
+  },
+  "95": {
+   "piano_or_keyboard_visible": 0.2542838454246521,
+   "hands_visible": 0.08175178617238998,
+   "sheet_music_visible": 0.18810464441776276,
+   "face_visible": 0.07854626327753067
+  },
+  "97": {
+   "piano_or_keyboard_visible": 0.03854891285300255,
+   "hands_visible": 0.016710327938199043,
+   "sheet_music_visible": 0.01678238995373249,
+   "face_visible": 0.3944661617279053
+  },
+  "99": {
+   "piano_or_keyboard_visible": 0.35836678743362427,
+   "hands_visible": 0.09975205361843109,
+   "sheet_music_visible": 0.6300508379936218,
+   "face_visible": 0.0758008360862732
+  },
+  "111": {
+   "piano_or_keyboard_visible": 0.48245716094970703,
+   "hands_visible": 0.37612593173980713,
+   "sheet_music_visible": 0.12667597830295563,
+   "face_visible": 0.3846632242202759
+  },
+  "113": {
+   "piano_or_keyboard_visible": 0.220038041472435,
+   "hands_visible": 0.11345828324556351,
+   "sheet_music_visible": 0.2099246382713318,
+   "face_visible": 0.20821914076805115
+  },
+  "118": {
+   "piano_or_keyboard_visible": 0.18586958944797516,
+   "hands_visible": 0.1131247952580452,
+   "sheet_music_visible": 0.08097506314516068,
+   "face_visible": 0.05343591794371605
+  },
+  "119": {
+   "piano_or_keyboard_visible": 0.7425387501716614,
+   "hands_visible": 0.09771756082773209,
+   "sheet_music_visible": 0.18831093609333038,
+   "face_visible": 0.11543487757444382
+  },
+  "122": {
+   "piano_or_keyboard_visible": 0.7425387501716614,
+   "hands_visible": 0.15438790619373322,
+   "sheet_music_visible": 0.19665773212909698,
+   "face_visible": 0.12501266598701477
+  },
+  "133": {
+   "piano_or_keyboard_visible": 0.6995850205421448,
+   "hands_visible": 0.3231622278690338,
+   "sheet_music_visible": 0.20398952066898346,
+   "face_visible": 0.381433367729187
+  },
+  "145": {
+   "piano_or_keyboard_visible": 0.5853602290153503,
+   "hands_visible": 0.41825175285339355,
+   "sheet_music_visible": 0.6417220830917358,
+   "face_visible": 0.3754015862941742
+  },
+  "150": {
+   "piano_or_keyboard_visible": 0.6099575161933899,
+   "hands_visible": 0.39288321137428284,
+   "sheet_music_visible": 0.6332815289497375,
+   "face_visible": 0.17896173894405365
+  },
+  "157": {
+   "piano_or_keyboard_visible": 0.3016238510608673,
+   "hands_visible": 0.05174592509865761,
+   "sheet_music_visible": 0.2700401842594147,
+   "face_visible": 0.03338019177317619
+  },
+  "158": {
+   "piano_or_keyboard_visible": 0.2641373872756958,
+   "hands_visible": 0.16465844213962555,
+   "sheet_music_visible": 0.13196595013141632,
+   "face_visible": 0.33705395460128784
+  },
+  "159": {
+   "piano_or_keyboard_visible": 0.6481736898422241,
+   "hands_visible": 0.34963950514793396,
+   "sheet_music_visible": 0.19522728025913239,
+   "face_visible": 0.0291230920702219
+  },
+  "175": {
+   "piano_or_keyboard_visible": 0.5673708319664001,
+   "hands_visible": 0.430189311504364,
+   "sheet_music_visible": 0.22191300988197327,
+   "face_visible": 0.11200584471225739
+  },
+  "179": {
+   "piano_or_keyboard_visible": 0.5194445848464966,
+   "hands_visible": 0.42556124925613403,
+   "sheet_music_visible": 0.2227148860692978,
+   "face_visible": 0.11079377681016922
+  },
+  "199": {
+   "piano_or_keyboard_visible": 0.5283080339431763,
+   "hands_visible": 0.3130318224430084,
+   "sheet_music_visible": 0.1943935602903366,
+   "face_visible": 0.14791473746299744
+  },
+  "200": {
+   "piano_or_keyboard_visible": 0.5266742706298828,
+   "hands_visible": 0.3115135133266449,
+   "sheet_music_visible": 0.20751185715198517,
+   "face_visible": 0.15381421148777008
+  },
+  "211": {
+   "piano_or_keyboard_visible": 0.46022966504096985,
+   "hands_visible": 0.3029124140739441,
+   "sheet_music_visible": 0.1787867546081543,
+   "face_visible": 0.13703714311122894
+  },
+  "224": {
+   "piano_or_keyboard_visible": 0.09332585334777832,
+   "hands_visible": 0.2712472677230835,
+   "sheet_music_visible": 0.18390625715255737,
+   "face_visible": 0.33303549885749817
+  },
+  "226": {
+   "piano_or_keyboard_visible": 0.7523927688598633,
+   "hands_visible": 0.3443892300128937,
+   "sheet_music_visible": 0.22809237241744995,
+   "face_visible": 0.033850304782390594
+  },
+  "227": {
+   "piano_or_keyboard_visible": 0.7756766676902771,
+   "hands_visible": 0.40321847796440125,
+   "sheet_music_visible": 0.24243982136249542,
+   "face_visible": 0.025467274710536003
+  },
+  "230": {
+   "piano_or_keyboard_visible": 0.6978757381439209,
+   "hands_visible": 0.43391698598861694,
+   "sheet_music_visible": 0.44218990206718445,
+   "face_visible": 0.03736332431435585
+  },
+  "231": {
+   "piano_or_keyboard_visible": 0.7395402193069458,
+   "hands_visible": 0.4590587317943573,
+   "sheet_music_visible": 0.4012078642845154,
+   "face_visible": 0.040796805173158646
+  },
+  "233": {
+   "piano_or_keyboard_visible": 0.5654693841934204,
+   "hands_visible": 0.2527308464050293,
+   "sheet_music_visible": 0.171187162399292,
+   "face_visible": 0.19586513936519623
+  },
+  "235": {
+   "piano_or_keyboard_visible": 0.6023740768432617,
+   "hands_visible": 0.35526350140571594,
+   "sheet_music_visible": 0.231366366147995,
+   "face_visible": 0.05488341674208641
+  },
+  "237": {
+   "piano_or_keyboard_visible": 0.286997526884079,
+   "hands_visible": 0.10450540482997894,
+   "sheet_music_visible": 0.2769903838634491,
+   "face_visible": 0.14590947329998016
+  },
+  "239": {
+   "piano_or_keyboard_visible": 0.4032987058162689,
+   "hands_visible": 0.20209170877933502,
+   "sheet_music_visible": 0.47173622250556946,
+   "face_visible": 0.2679659426212311
+  },
+  "246": {
+   "piano_or_keyboard_visible": 0.5842288732528687,
+   "hands_visible": 0.15858903527259827,
+   "sheet_music_visible": 0.2310379147529602,
+   "face_visible": 0.08354935050010681
+  },
+  "248": {
+   "piano_or_keyboard_visible": 0.5144187211990356,
+   "hands_visible": 0.2809704542160034,
+   "sheet_music_visible": 0.5080180764198303,
+   "face_visible": 0.454062819480896
+  },
+  "249": {
+   "piano_or_keyboard_visible": 0.45598405599594116,
+   "hands_visible": 0.1895524263381958,
+   "sheet_music_visible": 0.40617817640304565,
+   "face_visible": 0.3623460829257965
+  },
+  "255": {
+   "piano_or_keyboard_visible": 0.3428473174571991,
+   "hands_visible": 0.40731388330459595,
+   "sheet_music_visible": 0.23962867259979248,
+   "face_visible": 0.44474318623542786
+  },
+  "266": {
+   "piano_or_keyboard_visible": 0.5297616124153137,
+   "hands_visible": 0.3441464304924011,
+   "sheet_music_visible": 0.5708253383636475,
+   "face_visible": 0.2203032374382019
+  },
+  "268": {
+   "piano_or_keyboard_visible": 0.220704585313797,
+   "hands_visible": 0.12720887362957,
+   "sheet_music_visible": 0.10180945694446564,
+   "face_visible": 0.19868329167366028
+  },
+  "269": {
+   "piano_or_keyboard_visible": 0.574819028377533,
+   "hands_visible": 0.328091561794281,
+   "sheet_music_visible": 0.14121408760547638,
+   "face_visible": 0.10241664946079254
+  },
+  "280": {
+   "piano_or_keyboard_visible": 0.5529299974441528,
+   "hands_visible": 0.3315869867801666,
+   "sheet_music_visible": 0.5511931777000427,
+   "face_visible": 0.0812513679265976
+  },
+  "281": {
+   "piano_or_keyboard_visible": 0.5006639957427979,
+   "hands_visible": 0.147807776927948,
+   "sheet_music_visible": 0.6211358904838562,
+   "face_visible": 0.05947837978601456
+  },
+  "295": {
+   "piano_or_keyboard_visible": 0.7618275880813599,
+   "hands_visible": 0.3932284116744995,
+   "sheet_music_visible": 0.6789316534996033,
+   "face_visible": 0.30353397130966187
+  },
+  "297": {
+   "piano_or_keyboard_visible": 0.2287176549434662,
+   "hands_visible": 0.04730135202407837,
+   "sheet_music_visible": 0.5901800394058228,
+   "face_visible": 0.058223310858011246
+  },
+  "301": {
+   "piano_or_keyboard_visible": 0.5311398506164551,
+   "hands_visible": 0.09092868119478226,
+   "sheet_music_visible": 0.5438620448112488,
+   "face_visible": 0.284299373626709
+  },
+  "307": {
+   "piano_or_keyboard_visible": 0.290254682302475,
+   "hands_visible": 0.07534059137105942,
+   "sheet_music_visible": 0.1850084811449051,
+   "face_visible": 0.06387346237897873
+  },
+  "319": {
+   "piano_or_keyboard_visible": 0.009438451379537582,
+   "hands_visible": 0.011355969123542309,
+   "sheet_music_visible": 0.038506098091602325,
+   "face_visible": 0.33768823742866516
+  },
+  "336": {
+   "piano_or_keyboard_visible": 0.2748517096042633,
+   "hands_visible": 0.033462055027484894,
+   "sheet_music_visible": 0.6130988001823425,
+   "face_visible": 0.041826773434877396
+  },
+  "337": {
+   "piano_or_keyboard_visible": 0.38593316078186035,
+   "hands_visible": 0.12180044502019882,
+   "sheet_music_visible": 0.3738161623477936,
+   "face_visible": 0.11221103370189667
+  },
+  "343": {
+   "piano_or_keyboard_visible": 0.5033872723579407,
+   "hands_visible": 0.2177446037530899,
+   "sheet_music_visible": 0.45399031043052673,
+   "face_visible": 0.13013723492622375
+  },
+  "349": {
+   "piano_or_keyboard_visible": 0.791557788848877,
+   "hands_visible": 0.4241373836994171,
+   "sheet_music_visible": 0.3305341303348541,
+   "face_visible": 0.04792053624987602
+  },
+  "352": {
+   "piano_or_keyboard_visible": 0.37908533215522766,
+   "hands_visible": 0.4105595350265503,
+   "sheet_music_visible": 0.19890674948692322,
+   "face_visible": 0.03604625537991524
+  },
+  "355": {
+   "piano_or_keyboard_visible": 0.8201346397399902,
+   "hands_visible": 0.48331788182258606,
+   "sheet_music_visible": 0.6252166628837585,
+   "face_visible": 0.33587923645973206
+  },
+  "361": {
+   "piano_or_keyboard_visible": 0.04262919723987579,
+   "hands_visible": 0.11038562655448914,
+   "sheet_music_visible": 0.049136001616716385,
+   "face_visible": 0.23841887712478638
+  },
+  "363": {
+   "piano_or_keyboard_visible": 0.5217310786247253,
+   "hands_visible": 0.17172938585281372,
+   "sheet_music_visible": 0.2237216979265213,
+   "face_visible": 0.09139731526374817
+  },
+  "372": {
+   "piano_or_keyboard_visible": 0.5206946134567261,
+   "hands_visible": 0.19323350489139557,
+   "sheet_music_visible": 0.21613354980945587,
+   "face_visible": 0.15786957740783691
+  },
+  "375": {
+   "piano_or_keyboard_visible": 0.28225094079971313,
+   "hands_visible": 0.10656923800706863,
+   "sheet_music_visible": 0.14544056355953217,
+   "face_visible": 0.07518219202756882
+  },
+  "378": {
+   "piano_or_keyboard_visible": 0.4060947299003601,
+   "hands_visible": 0.015962418168783188,
+   "sheet_music_visible": 0.5941302180290222,
+   "face_visible": 0.36221519112586975
+  },
+  "387": {
+   "piano_or_keyboard_visible": 0.5740863084793091,
+   "hands_visible": 0.19735361635684967,
+   "sheet_music_visible": 0.19327302277088165,
+   "face_visible": 0.10697450488805771
+  },
+  "388": {
+   "piano_or_keyboard_visible": 0.43803438544273376,
+   "hands_visible": 0.1917155236005783,
+   "sheet_music_visible": 0.5036476254463196,
+   "face_visible": 0.1946355402469635
+  },
+  "391": {
+   "piano_or_keyboard_visible": 0.4201776385307312,
+   "hands_visible": 0.21559849381446838,
+   "sheet_music_visible": 0.39216944575309753,
+   "face_visible": 0.1710720956325531
+  },
+  "394": {
+   "piano_or_keyboard_visible": 0.026863329112529755,
+   "hands_visible": 0.009852828457951546,
+   "sheet_music_visible": 0.0356459766626358,
+   "face_visible": 0.29479682445526123
+  },
+  "395": {
+   "piano_or_keyboard_visible": 0.2509741485118866,
+   "hands_visible": 0.11084382236003876,
+   "sheet_music_visible": 0.17919333279132843,
+   "face_visible": 0.20590563118457794
+  },
+  "396": {
+   "piano_or_keyboard_visible": 0.3384222686290741,
+   "hands_visible": 0.11018054187297821,
+   "sheet_music_visible": 0.28573375940322876,
+   "face_visible": 0.23495174944400787
+  },
+  "400": {
+   "piano_or_keyboard_visible": 0.1781044453382492,
+   "hands_visible": 0.07840179651975632,
+   "sheet_music_visible": 0.10804451256990433,
+   "face_visible": 0.04058414325118065
+  },
+  "402": {
+   "piano_or_keyboard_visible": 0.4291585683822632,
+   "hands_visible": 0.2387547492980957,
+   "sheet_music_visible": 0.29127758741378784,
+   "face_visible": 0.23799476027488708
+  },
+  "409": {
+   "piano_or_keyboard_visible": 0.5887858271598816,
+   "hands_visible": 0.36691391468048096,
+   "sheet_music_visible": 0.22395548224449158,
+   "face_visible": 0.06705769151449203
+  },
+  "410": {
+   "piano_or_keyboard_visible": 0.5930472612380981,
+   "hands_visible": 0.38505101203918457,
+   "sheet_music_visible": 0.2849304974079132,
+   "face_visible": 0.06137332320213318
+  },
+  "412": {
+   "piano_or_keyboard_visible": 0.5827259421348572,
+   "hands_visible": 0.3699934780597687,
+   "sheet_music_visible": 0.372298926115036,
+   "face_visible": 0.02419663779437542
+  },
+  "418": {
+   "piano_or_keyboard_visible": 0.6013014316558838,
+   "hands_visible": 0.33247214555740356,
+   "sheet_music_visible": 0.274201363325119,
+   "face_visible": 0.420625239610672
+  },
+  "424": {
+   "piano_or_keyboard_visible": 0.6657687425613403,
+   "hands_visible": 0.3697027862071991,
+   "sheet_music_visible": 0.2736888825893402,
+   "face_visible": 0.04129505157470703
+  },
+  "431": {
+   "piano_or_keyboard_visible": 0.7142378687858582,
+   "hands_visible": 0.3735608756542206,
+   "sheet_music_visible": 0.2264423668384552,
+   "face_visible": 0.0350424088537693
+  },
+  "434": {
+   "piano_or_keyboard_visible": 0.08909974247217178,
+   "hands_visible": 0.08710482716560364,
+   "sheet_music_visible": 0.08774722367525101,
+   "face_visible": 0.031809091567993164
+  },
+  "439": {
+   "piano_or_keyboard_visible": 0.2962084710597992,
+   "hands_visible": 0.05873989686369896,
+   "sheet_music_visible": 0.2969973683357239,
+   "face_visible": 0.03714330866932869
+  },
+  "440": {
+   "piano_or_keyboard_visible": 0.24629943072795868,
+   "hands_visible": 0.08522507548332214,
+   "sheet_music_visible": 0.11553815752267838,
+   "face_visible": 0.3246268033981323
+  },
+  "443": {
+   "piano_or_keyboard_visible": 0.5613524913787842,
+   "hands_visible": 0.35805875062942505,
+   "sheet_music_visible": 0.21806758642196655,
+   "face_visible": 0.3385789394378662
+  },
+  "452": {
+   "piano_or_keyboard_visible": 0.5388328433036804,
+   "hands_visible": 0.41714295744895935,
+   "sheet_music_visible": 0.2913988530635834,
+   "face_visible": 0.10561347752809525
+  },
+  "454": {
+   "piano_or_keyboard_visible": 0.5516541004180908,
+   "hands_visible": 0.4396311044692993,
+   "sheet_music_visible": 0.20089690387248993,
+   "face_visible": 0.22748397290706635
+  },
+  "455": {
+   "piano_or_keyboard_visible": 0.5105939507484436,
+   "hands_visible": 0.42122700810432434,
+   "sheet_music_visible": 0.23789149522781372,
+   "face_visible": 0.3978455662727356
+  },
+  "456": {
+   "piano_or_keyboard_visible": 0.5828837156295776,
+   "hands_visible": 0.42742735147476196,
+   "sheet_music_visible": 0.2130984365940094,
+   "face_visible": 0.3599475622177124
+  },
+  "460": {
+   "piano_or_keyboard_visible": 0.5514401793479919,
+   "hands_visible": 0.3574928641319275,
+   "sheet_music_visible": 0.2007763683795929,
+   "face_visible": 0.21087419986724854
+  },
+  "466": {
+   "piano_or_keyboard_visible": 0.5631641149520874,
+   "hands_visible": 0.4564422070980072,
+   "sheet_music_visible": 0.20185887813568115,
+   "face_visible": 0.2583007514476776
+  },
+  "473": {
+   "piano_or_keyboard_visible": 0.7345321178436279,
+   "hands_visible": 0.43164563179016113,
+   "sheet_music_visible": 0.40316739678382874,
+   "face_visible": 0.1133706346154213
+  },
+  "474": {
+   "piano_or_keyboard_visible": 0.07754712551832199,
+   "hands_visible": 0.007035096641629934,
+   "sheet_music_visible": 0.03138637915253639,
+   "face_visible": 0.4524088203907013
+  },
+  "479": {
+   "piano_or_keyboard_visible": 0.5606613755226135,
+   "hands_visible": 0.33733880519866943,
+   "sheet_music_visible": 0.1723538190126419,
+   "face_visible": 0.15107983350753784
+  },
+  "494": {
+   "piano_or_keyboard_visible": 0.6163297891616821,
+   "hands_visible": 0.36685192584991455,
+   "sheet_music_visible": 0.3509926497936249,
+   "face_visible": 0.24333155155181885
+  },
+  "503": {
+   "piano_or_keyboard_visible": 0.023641638457775116,
+   "hands_visible": 0.1316794902086258,
+   "sheet_music_visible": 0.05989893898367882,
+   "face_visible": 0.22004391252994537
+  },
+  "505": {
+   "piano_or_keyboard_visible": 0.5228917598724365,
+   "hands_visible": 0.22990171611309052,
+   "sheet_music_visible": 0.2682841122150421,
+   "face_visible": 0.2931424677371979
+  },
+  "512": {
+   "piano_or_keyboard_visible": 0.16770195960998535,
+   "hands_visible": 0.07471262663602829,
+   "sheet_music_visible": 0.15894752740859985,
+   "face_visible": 0.11169598251581192
+  },
+  "513": {
+   "piano_or_keyboard_visible": 0.4969973862171173,
+   "hands_visible": 0.21161948144435883,
+   "sheet_music_visible": 0.3524428904056549,
+   "face_visible": 0.20149093866348267
+  },
+  "518": {
+   "piano_or_keyboard_visible": 0.5150574445724487,
+   "hands_visible": 0.10066460818052292,
+   "sheet_music_visible": 0.24575185775756836,
+   "face_visible": 0.055479783564805984
+  },
+  "523": {
+   "piano_or_keyboard_visible": 0.8694407939910889,
+   "hands_visible": 0.38753288984298706,
+   "sheet_music_visible": 0.2824920117855072,
+   "face_visible": 0.021610243245959282
+  },
+  "524": {
+   "piano_or_keyboard_visible": 0.43539512157440186,
+   "hands_visible": 0.21426774561405182,
+   "sheet_music_visible": 0.18694742023944855,
+   "face_visible": 0.23352409899234772
+  }
+ }
+}

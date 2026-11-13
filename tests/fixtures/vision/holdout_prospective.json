@@ -1352,5 +1352,6 @@
    "video_id": 524,
    "field": "text_overlay_present"
   }
- ]
+ ],
+ "_spent_by": "docs/benchmarks/7e-holdout-result.md, 2026-11-13 - used to decide promotion for piano_or_keyboard_visible and hands_visible, which promoted neither. A set used to decide cannot measure generalisation of what it decided. Any further model or threshold choice needs a new prospective holdout."
 }

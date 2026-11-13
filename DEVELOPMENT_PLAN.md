@@ -2226,7 +2226,13 @@ block it (2026-10-27)**
   has been solved and what remains is that nobody independent has
   checked the answers. The owner confirming the ~20
   flagged-ambiguous labels is the single highest-value action
-  available. **[OPEN]**
+  available. **[CLOSED 2026-11-12]** He reviewed all 21: 14
+  confirmed, **5 overturned**, 2 called undecidable. Roughly a
+  quarter of the hardest cases needed correcting, which is the first
+  independent evidence about the answer key every vision benchmark
+  has been scored against. It does not generalise to the labels
+  nobody flagged, and it is not a correction to any published
+  figure.
 - **The denominators are still tiny** — 6 negatives for piano, 3 for
   hands, 1 for text overlay. A perfect 3-of-3 carries a 95% interval
   of roughly [0.29, 1.00]. The fields with real denominators (sheet
@@ -2256,8 +2262,10 @@ block it (2026-10-27)**
   `docs/benchmarks/7-detector-comparison.md` is therefore **unmeasured,
   not failed** — a distinction that changes what the next holdout has
   to look like. `text_overlay_present` rests on a single negative in
-  the own cohort. **[OPEN — resolved only by a holdout carrying
-  deliberate negatives in both cohorts]**
+  the own cohort. **[PARTLY CLOSED 2026-11-13]** The prospective
+  holdout measured both on the owner's account: piano on 27
+  negatives, hands on 15. The competitor half was never drawn, so
+  the unseen-creator question is untouched.
 - **No approach clears both bars in both directions.** OWLv2-base on
   sheet music comes closest at 0.90/+0.20 and 0.79/+0.10, missing the
   specificity bar in the second direction by less than one video.
@@ -2272,6 +2280,42 @@ block it (2026-10-27)**
   OWLv2 scores both phrasings on the same box. Kept behind
   `--owl-discriminative`, off by default, so the negative result is
   reproducible rather than retried. **[CLOSED — recorded]**
+
+**Visual intelligence — Phase 2: the holdout, scored (2026-11-13)**
+- **The holdout promoted nothing, and the reason is new.** Both
+  fields under test clear the specificity bar — piano 0.926 on 27
+  negatives, hands 1.000 on 15 — and both fail on lift: +0.060 and
+  −0.011 against +0.10. The detector denies well. It cannot beat
+  answering "yes" every time, because there is almost nothing to
+  beat. Written up in `docs/benchmarks/7e-holdout-result.md`.
+  **[CLOSED — the holdout is spent]**
+- **The lift bar is unreachable for two of the three fields, by any
+  detector that could exist.** Weighted to the 443 eligible
+  publications the base rates are 0.851 piano, 0.912 hands and
+  0.988 text overlay, so a *flawless* answerer scores lift +0.149,
+  +0.088 and +0.013. A bar of +0.10 is mathematically out of reach
+  for hands and for text overlay. **The bar needs rethinking before
+  the next holdout is drawn, not after** — keeping a bar a perfect
+  detector fails is how a project spends holdouts to learn nothing.
+  **[OPEN — a design decision, not a measurement]**
+- **`vision_text_overlay_present` is promoted and 98.8% constant on
+  the owner's account.** It cleared its M3 bar on a pooled corpus
+  whose competitor half carried the negatives. Not a contradiction,
+  but it can contribute almost nothing to own-account
+  recommendation. Recorded rather than demoted unilaterally.
+  **[OPEN]**
+- **A frame-set defect was caught before scoring, not after.** The
+  stratification pass scored 4 frames; the owner labelled from up to
+  6, and the M3 thresholds were fixed on 6. An OWLv2 score is a
+  maximum over frames, so 8% of the holdout would have been scored
+  on the wrong side of the threshold, against images the detector
+  never saw. The arm was re-scored on the labelled frames and
+  `score_holdout_partial.py`'s figures are withdrawn. **[CLOSED]**
+- **One cohort only.** All 443 eligible publications are the
+  owner's, because ADR 0009 deletes competitor media. Had a field
+  passed it would have been `Observed` under ADR 0011 and promoted
+  for own-account use alone. A competitor half costs a fresh
+  acquisition run under ADR 0010. **[OPEN]**
 
 **Vision — opened and partly closed by M3 (2026-10-27)**
 - **The 80 held-out labels are now SPENT.** They promoted
@@ -2293,7 +2337,10 @@ block it (2026-10-27)**
   faces in an art book, rendered Synthesia keyboards. The owner
   confirming or overturning those is the cheapest thing that would
   strengthen every figure in `docs/benchmarks/6c-vision-benchmark.md`.
-  **[OPEN]**
+  **[CLOSED 2026-11-12]** Done: 5 of 21 overturned. The fixtures
+  keep `labels` as published and apply the verdicts additively
+  through `labels_api.corrected_labels`, so reproducing a published
+  figure and improving on it stay different reads of one file.
 - **`vision_face_visible` clears the pooled bar but fails the half that
   matters.** 0.808 specificity over all 80; 0.857 on competitor
   publications and 0.750 on the owner's own. It is promoted because
@@ -2305,7 +2352,9 @@ block it (2026-10-27)**
   own-account half is not usable for recommendations. This was noticed
   *during* M3 scoring and deliberately not applied retroactively
   (CLAUDE.md §3.13). It must be written down before M4's first
-  measurement, not after. **[OPEN]**
+  measurement, not after. **[CLOSED 2026-11-13]** Written into
+  `docs/benchmarks/7b-holdout-protocol.md` §7.5, and committed
+  before the holdout was scored rather than after.
 - **`sheet_music_visible` is fixable and is not fixed.** A
   negative-example prompt takes it from specificity 0.193 to 0.807
   (p = 0.0004), but shifts the model's whole operating point towards

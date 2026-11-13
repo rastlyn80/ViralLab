@@ -1,0 +1,566 @@
+{
+ "_what": "The owner's answers to the prospective holdout. Written blind: no model label, no score and no stratum reached the interface.",
+ "_source": "label_reviews where cohort = 'holdout'",
+ "_counts": {
+  "publications": 111,
+  "answers": 333
+ },
+ "answers": {
+  "8": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "18": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "19": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "22": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "28": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "32": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "34": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "no"
+  },
+  "43": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "46": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "53": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "54": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "63": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "65": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "66": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "67": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "69": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "72": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "81": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "82": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "84": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "90": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "93": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "94": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "95": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "97": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "99": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "111": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "113": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "118": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "119": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "122": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "133": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "145": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "150": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "157": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "158": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "159": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "175": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "179": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "199": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "200": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "211": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "224": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "226": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "no"
+  },
+  "227": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "no"
+  },
+  "230": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "231": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "233": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "235": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "237": {
+   "hands_visible": "cannot_tell",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "239": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "246": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "248": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "249": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "255": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "266": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "268": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "269": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "280": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "281": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "295": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "297": {
+   "hands_visible": "cannot_tell",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "301": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "307": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "319": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "336": {
+   "hands_visible": "cannot_tell",
+   "piano_or_keyboard_visible": "cannot_tell",
+   "text_overlay_present": "yes"
+  },
+  "337": {
+   "hands_visible": "cannot_tell",
+   "piano_or_keyboard_visible": "cannot_tell",
+   "text_overlay_present": "yes"
+  },
+  "343": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "349": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "352": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "355": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "361": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "363": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "372": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "375": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "378": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "387": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "388": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "391": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "394": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "395": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "396": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "400": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "402": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "409": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "410": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "412": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "418": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "424": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "431": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "434": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "439": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "440": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "443": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "452": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "454": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "455": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "456": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "460": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "466": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "473": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "474": {
+   "hands_visible": "no",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "479": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "494": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "503": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "505": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "512": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "no",
+   "text_overlay_present": "yes"
+  },
+  "513": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "518": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  },
+  "523": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "no"
+  },
+  "524": {
+   "hands_visible": "yes",
+   "piano_or_keyboard_visible": "yes",
+   "text_overlay_present": "yes"
+  }
+ },
+ "_contains_no_media": "answers only"
+}

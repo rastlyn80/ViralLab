@@ -1,0 +1,1010 @@
+{
+ "_what": "The prospective holdout, scored under docs/benchmarks/7b-holdout-protocol.md and its 2026-11-13 addendum.",
+ "_spent_by": "docs/benchmarks/7e-holdout-result.md - this holdout has now been used to decide promotion and may not decide anything else.",
+ "_cohort": "own account only; 443 eligible publications, none of them a competitor's (protocol 7.4)",
+ "_frames": "arm scored on FramePlan[:MAX_FRAMES] width 512, the frames the owner judged (protocol 7.1)",
+ "bars": {
+  "specificity": 0.8,
+  "lift": 0.1
+ },
+ "model": "google/owlv2-base-patch16-ensemble",
+ "meta": {
+  "seconds": 169.5,
+  "load_seconds": 2.1,
+  "vram_mib": 1422,
+  "model": "google/owlv2-base-patch16-ensemble",
+  "score_semantics": "highest box confidence for the object's text query, maximum over frames. Ranked, NOT calibrated."
+ },
+ "design": [
+  {
+   "stratum": 0,
+   "score_range": [
+    0.0085,
+    0.1807
+   ],
+   "eligible": 61,
+   "sampled": 24,
+   "weight": 2.5417,
+   "shortfall": 0
+  },
+  {
+   "stratum": 1,
+   "score_range": [
+    0.1807,
+    0.3529
+   ],
+   "eligible": 35,
+   "sampled": 24,
+   "weight": 1.4583,
+   "shortfall": 0
+  },
+  {
+   "stratum": 2,
+   "score_range": [
+    0.3529,
+    0.525
+   ],
+   "eligible": 201,
+   "sampled": 24,
+   "weight": 8.375,
+   "shortfall": 0
+  },
+  {
+   "stratum": 3,
+   "score_range": [
+    0.525,
+    0.6972
+   ],
+   "eligible": 131,
+   "sampled": 24,
+   "weight": 5.4583,
+   "shortfall": 0
+  },
+  {
+   "stratum": 4,
+   "score_range": [
+    0.6972,
+    0.8694
+   ],
+   "eligible": 15,
+   "sampled": 15,
+   "weight": 1.0,
+   "shortfall": 9
+  }
+ ],
+ "n_publications": 111,
+ "sample": [
+  {
+   "video_id": 8,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 18,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 19,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 22,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 28,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 32,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 34,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 43,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 46,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 53,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 54,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 63,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 65,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 66,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 67,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 69,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 72,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 81,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 82,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 84,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 90,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 93,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 94,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 95,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 97,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 99,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 111,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 113,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 118,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 119,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 122,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 133,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 145,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 150,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 157,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 158,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 159,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 175,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 179,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 199,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 200,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 211,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 224,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 226,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 227,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 230,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 231,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 233,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 235,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 237,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 239,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 246,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 248,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 249,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 255,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 266,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 268,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 269,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 280,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 281,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 295,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 297,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 301,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 307,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 319,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 336,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 337,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 343,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 349,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 352,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 355,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 361,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 363,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 372,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 375,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 378,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 387,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 388,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 391,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 394,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 395,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 396,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 400,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 402,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 409,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 410,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 412,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 418,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 424,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 431,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 434,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 439,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 440,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  },
+  {
+   "video_id": 443,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 452,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 454,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 455,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 456,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 460,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 466,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 473,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 474,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 479,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 494,
+   "stratum": 3,
+   "weight": 5.458333333333333
+  },
+  {
+   "video_id": 503,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 505,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 512,
+   "stratum": 0,
+   "weight": 2.5416666666666665
+  },
+  {
+   "video_id": 513,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 518,
+   "stratum": 2,
+   "weight": 8.375
+  },
+  {
+   "video_id": 523,
+   "stratum": 4,
+   "weight": 1.0
+  },
+  {
+   "video_id": 524,
+   "stratum": 1,
+   "weight": 1.4583333333333333
+  }
+ ],
+ "frame_set_effect": {
+  "piano_or_keyboard_visible": {
+   "mean_delta_6_minus_4_frames": 0.0412,
+   "publications_changing_side_of_threshold": 9,
+   "of": 111
+  },
+  "hands_visible": {
+   "mean_delta_6_minus_4_frames": 0.0291,
+   "publications_changing_side_of_threshold": 8,
+   "of": 111
+  }
+ },
+ "fields": {
+  "piano_or_keyboard_visible": {
+   "answers": {
+    "yes": 82,
+    "no": 27,
+    "cannot_tell": 2
+   },
+   "cannot_tell_ids": [
+    336,
+    337
+   ],
+   "arms": {
+    "primary": {
+     "threshold": 0.3778,
+     "threshold_source": "tuned_on_competitor_tested_on_own",
+     "primary_analysis": {
+      "n": 109,
+      "positives": 82,
+      "negatives": 27,
+      "tp": 69,
+      "fp": 2,
+      "tn": 25,
+      "fn": 13,
+      "specificity": 0.9259,
+      "specificity_ci95": [
+       0.7663,
+       0.9794
+      ],
+      "recall": 0.8415,
+      "recall_ci95": [
+       0.7474,
+       0.9049
+      ],
+      "base_rate": 0.8513,
+      "majority_class_accuracy": 0.8513,
+      "accuracy": 0.9107,
+      "precision": 0.9619,
+      "lift": 0.0595,
+      "max_attainable_lift": 0.1487,
+      "accuracy_ci95": [
+       0.8569,
+       0.9562
+      ],
+      "lift_ci95": [
+       0.0042,
+       0.1123
+      ],
+      "replicates": 2000,
+      "clears_specificity": true,
+      "clears_lift": false,
+      "clears_both": false,
+      "lift_bar_attainable": true
+     },
+     "cannot_tell_adversarial": {
+      "n": 111,
+      "positives": 83,
+      "negatives": 28,
+      "tp": 69,
+      "fp": 3,
+      "tn": 25,
+      "fn": 14,
+      "specificity": 0.8929,
+      "specificity_ci95": [
+       0.728,
+       0.9629
+      ],
+      "recall": 0.8313,
+      "recall_ci95": [
+       0.7366,
+       0.8968
+      ],
+      "base_rate": 0.8489,
+      "majority_class_accuracy": 0.8489,
+      "accuracy": 0.9047,
+      "precision": 0.958,
+      "lift": 0.0558,
+      "max_attainable_lift": 0.1511,
+      "accuracy_ci95": [
+       0.8489,
+       0.9499
+      ],
+      "lift_ci95": [
+       0.0008,
+       0.1067
+      ],
+      "replicates": 2000,
+      "clears_specificity": true,
+      "clears_lift": false,
+      "clears_both": false,
+      "lift_bar_attainable": true
+     }
+    },
+    "secondary": {
+     "threshold": 0.3117,
+     "threshold_source": "tuned_on_own_tested_on_competitor",
+     "primary_analysis": {
+      "n": 109,
+      "positives": 82,
+      "negatives": 27,
+      "tp": 73,
+      "fp": 3,
+      "tn": 24,
+      "fn": 9,
+      "specificity": 0.8889,
+      "specificity_ci95": [
+       0.7194,
+       0.9615
+      ],
+      "recall": 0.8902,
+      "recall_ci95": [
+       0.8044,
+       0.9412
+      ],
+      "base_rate": 0.8513,
+      "majority_class_accuracy": 0.8513,
+      "accuracy": 0.9231,
+      "precision": 0.9588,
+      "lift": 0.0719,
+      "max_attainable_lift": 0.1487,
+      "accuracy_ci95": [
+       0.871,
+       0.9661
+      ],
+      "lift_ci95": [
+       0.0182,
+       0.1206
+      ],
+      "replicates": 2000,
+      "clears_specificity": true,
+      "clears_lift": false,
+      "clears_both": false,
+      "lift_bar_attainable": true
+     },
+     "cannot_tell_adversarial": {
+      "n": 111,
+      "positives": 83,
+      "negatives": 28,
+      "tp": 73,
+      "fp": 4,
+      "tn": 24,
+      "fn": 10,
+      "specificity": 0.8571,
+      "specificity_ci95": [
+       0.6851,
+       0.943
+      ],
+      "recall": 0.8795,
+      "recall_ci95": [
+       0.7922,
+       0.9332
+      ],
+      "base_rate": 0.8489,
+      "majority_class_accuracy": 0.8489,
+      "accuracy": 0.917,
+      "precision": 0.9551,
+      "lift": 0.0681,
+      "max_attainable_lift": 0.1511,
+      "accuracy_ci95": [
+       0.862,
+       0.9606
+      ],
+      "lift_ci95": [
+       0.0181,
+       0.1164
+      ],
+      "replicates": 2000,
+      "clears_specificity": true,
+      "clears_lift": false,
+      "clears_both": false,
+      "lift_bar_attainable": true
+     }
+    }
+   },
+   "promoted": false,
+   "promotion_scope": "not promoted"
+  },
+  "hands_visible": {
+   "answers": {
+    "yes": 92,
+    "no": 15,
+    "cannot_tell": 4
+   },
+   "cannot_tell_ids": [
+    237,
+    297,
+    336,
+    337
+   ],
+   "arms": {
+    "primary": {
+     "threshold": 0.1285,
+     "threshold_source": "tuned_on_competitor_tested_on_own",
+     "primary_analysis": {
+      "n": 107,
+      "positives": 92,
+      "negatives": 15,
+      "tp": 74,
+      "fp": 0,
+      "tn": 15,
+      "fn": 18,
+      "specificity": 1.0,
+      "specificity_ci95": [
+       0.7961,
+       1.0
+      ],
+      "recall": 0.8043,
+      "recall_ci95": [
+       0.7118,
+       0.8725
+      ],
+      "base_rate": 0.9118,
+      "majority_class_accuracy": 0.9118,
+      "accuracy": 0.9012,
+      "precision": 1.0,
+      "lift": -0.0107,
+      "max_attainable_lift": 0.0882,
+      "accuracy_ci95": [
+       0.8454,
+       0.9461
+      ],
+      "lift_ci95": [
+       -0.0869,
+       0.0634
+      ],
+      "replicates": 2000,
+      "clears_specificity": true,
+      "clears_lift": false,
+      "clears_both": false,
+      "lift_bar_attainable": false
+     },
+     "cannot_tell_adversarial": {
+      "n": 111,
+      "positives": 96,
+      "negatives": 15,
+      "tp": 74,
+      "fp": 0,
+      "tn": 15,
+      "fn": 22,
+      "specificity": 1.0,
+      "specificity_ci95": [
+       0.7961,
+       1.0
+      ],
+      "recall": 0.7708,
+      "recall_ci95": [
+       0.6773,
+       0.8435
+      ],
+      "base_rate": 0.913,
+      "majority_class_accuracy": 0.913,
+      "accuracy": 0.8893,
+      "precision": 1.0,
+      "lift": -0.0237,
+      "max_attainable_lift": 0.087,
+      "accuracy_ci95": [
+       0.8309,
+       0.9347
+      ],
+      "lift_ci95": [
+       -0.1009,
+       0.0519
+      ],
+      "replicates": 2000,
+      "clears_specificity": true,
+      "clears_lift": false,
+      "clears_both": false,
+      "lift_bar_attainable": false
+     }
+    },
+    "secondary": {
+     "threshold": 0.0755,
+     "threshold_source": "tuned_on_own_tested_on_competitor",
+     "primary_analysis": {
+      "n": 107,
+      "positives": 92,
+      "negatives": 15,
+      "tp": 90,
+      "fp": 6,
+      "tn": 9,
+      "fn": 2,
+      "specificity": 0.6,
+      "specificity_ci95": [
+       0.3575,
+       0.8018
+      ],
+      "recall": 0.9783,
+      "recall_ci95": [
+       0.9242,
+       0.994
+      ],
+      "base_rate": 0.9118,
+      "majority_class_accuracy": 0.9118,
+      "accuracy": 0.9609,
+      "precision": 0.9679,
+      "lift": 0.0491,
+      "max_attainable_lift": 0.0882,
+      "accuracy_ci95": [
+       0.9352,
+       0.985
+      ],
+      "lift_ci95": [
+       0.0083,
+       0.1006
+      ],
+      "replicates": 2000,
+      "clears_specificity": false,
+      "clears_lift": false,
+      "clears_both": false,
+      "lift_bar_attainable": false
+     },
+     "cannot_tell_adversarial": {
+      "n": 111,
+      "positives": 94,
+      "negatives": 17,
+      "tp": 90,
+      "fp": 8,
+      "tn": 9,
+      "fn": 4,
+      "specificity": 0.5294,
+      "specificity_ci95": [
+       0.3096,
+       0.7384
+      ],
+      "recall": 0.9574,
+      "recall_ci95": [
+       0.8956,
+       0.9833
+      ],
+      "base_rate": 0.9064,
+      "majority_class_accuracy": 0.9064,
+      "accuracy": 0.9483,
+      "precision": 0.961,
+      "lift": 0.0419,
+      "max_attainable_lift": 0.0936,
+      "accuracy_ci95": [
+       0.9212,
+       0.9745
+      ],
+      "lift_ci95": [
+       0.0016,
+       0.0944
+      ],
+      "replicates": 2000,
+      "clears_specificity": false,
+      "clears_lift": false,
+      "clears_both": false,
+      "lift_bar_attainable": false
+     }
+    }
+   },
+   "promoted": false,
+   "promotion_scope": "not promoted"
+  },
+  "text_overlay_present": {
+   "answers": {
+    "yes": 107,
+    "no": 4,
+    "cannot_tell": 0
+   },
+   "arms": {},
+   "promoted": false,
+   "promotion_scope": "not promoted",
+   "unmeasured": "OWLv2 scores no text-overlay query, so there is no arm to score. Unmeasured, not failed."
+  }
+ }
+}
