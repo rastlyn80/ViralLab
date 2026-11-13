@@ -79,9 +79,19 @@ SOURCES = (("own", "holdout_labels_own.json"),
 #: measured at all on the spent corpus - piano had 4 and 6
 #: negatives, hands 7 and 3, text overlay 11 and 1 - and a bar of
 #: 0.80 specificity on three negatives can only be met by a
-#: perfect score. This draw is stratified across the detector's
-#: whole confidence range on purpose.
-BLIND_SOURCE = ("holdout", "holdout_prospective.json")
+#: perfect score.
+#:
+#: **Now pointing at holdout 2.** Holdout 1 is answered in full,
+#: scored and spent (docs/benchmarks/7e-holdout-result.md). It
+#: promoted nothing, and two of its three questions turned out to
+#: be unanswerable on his account at any level of skill: 91% of his
+#: openings show hands and 99% carry text, so a flawless answerer
+#: could not have cleared the bar either. Holdout 2 asks the only
+#: two visual questions that vary on his publications - a face in
+#: shot, and sheet music - and is drawn at random rather than
+#: stratified, because at 30-40% there are no scarce negatives to
+#: hunt. See docs/benchmarks/7f-holdout-2-protocol.md.
+BLIND_SOURCE = ("holdout2_own", "holdout2_own.json")
 
 #: Other creators, judged while their media is still held.
 #:
@@ -91,7 +101,7 @@ BLIND_SOURCE = ("holdout", "holdout_prospective.json")
 #: six-hour window and the questions disappear when it closes.
 #: The labels persist, and re-fetching costs nothing through the
 #: free route.
-LIVE_SOURCE = ("competitor_live", "holdout_competitor_live.json")
+LIVE_SOURCE = ("holdout2_competitor", "holdout2_competitor.json")
 
 #: Plain-English form of each question. The RULE is not written
 #: here - it is read from the fixture, because the fixture is what
@@ -602,8 +612,8 @@ def review_frames(video_id: int,
     `is_own_account` is what stops this becoming a general media
     endpoint by increment.
     """
-    # The flagged-ambiguous set OR the prospective holdout. The
-    # holdout is the reason this endpoint matters now: 111 videos
+    # The flagged-ambiguous set OR whichever holdout is open. The
+    # holdout is the reason this endpoint matters: the videos
     # whose whole purpose is to be judged from frames, and they
     # 404ed here because the guard predated them.
     #

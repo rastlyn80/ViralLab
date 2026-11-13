@@ -57,15 +57,23 @@ sys.path.insert(0, "/home/rastlyn/virallab")
 from sqlalchemy import create_engine, func, select  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
+from scripts.provision.sample_holdout import (  # noqa: E402
+    DEFINITIONS_2, FIELDS_2, SCOPE_RULE_2)
 from server.collectors import competitor_archive as ca  # noqa: E402
 from server.db.models import (Creator, TransientMedia,  # noqa: E402
                               Video)
 
 FIXTURE = Path("/home/rastlyn/virallab/tests/fixtures/vision"
-               "/holdout_competitor_live.json")
+               "/holdout2_competitor.json")
 
-FIELDS = ("piano_or_keyboard_visible", "hands_visible",
-          "text_overlay_present")
+#: Holdout 2's two questions. The three this script originally
+#: asked are retired: holdout 1 measured them on the owner's
+#: account and found that 91% of his openings show hands and 99%
+#: carry text, so a flawless answerer could not have cleared the
+#: lift bar either. Face and sheet music are the two that vary, on
+#: his cohort and on this one.
+#: See docs/benchmarks/7f-holdout-2-protocol.md.
+FIELDS = FIELDS_2
 
 #: At most this many per creator, so 100 videos are 100 different
 #: situations rather than one creator's habits measured 100 times.
@@ -102,7 +110,7 @@ def pick(session, count: int) -> list[int]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--count", type=int, default=100)
+    ap.add_argument("--count", type=int, default=80)
     ap.add_argument("--yes", action="store_true")
     args = ap.parse_args()
 
@@ -161,35 +169,24 @@ def main() -> int:
                   "their media is still held. Drawn "
                   f"{datetime.now(timezone.utc):%Y-%m-%d}."),
         "_why": (
-            "On the owner's own videos 87% show hands and 76% show a "
-            "piano, so a detector answering 'yes' every time is right "
-            "87% of the time and the best free detector manages 85%. "
-            "The question is nearly always answered the same way, "
-            "which is a property of a concert pianist's corpus and "
-            "cannot be sampled away. Other people's videos are where "
-            "the negatives live."),
+            "The half that holdout 1 never had. A field measured on "
+            "one account describes that account; promotion needs "
+            "both halves, scored separately and never pooled "
+            "(7b addendum 7.5). These two questions sit near 30% on "
+            "both cohorts, so unlike piano and hands there is "
+            "something here for a detector to be right or wrong "
+            "about."),
         "_window": (
             "These are labellable only while the media is held. ADR "
             "0009: frames are media bytes and are not retained. The "
             "labels persist; re-fetching costs nothing."),
         "blind": True,
         "fields": list(FIELDS),
-        "scope_rule": (
-            "Judge only what you can see in the frames shown. Not "
-            "what you know about the video, not what is probably "
-            "just off screen - what is visible."),
-        "definitions": {
-            "piano_or_keyboard_visible": (
-                "The KEYS have to be visible. A piano lid, a stool, "
-                "or a player obviously at an instrument whose keys "
-                "are out of shot is a no."),
-            "hands_visible": (
-                "At least one hand, recognisably a hand. A forearm "
-                "disappearing out of frame is a no."),
-            "text_overlay_present": (
-                "Words placed on the video, not words that are part "
-                "of the scene."),
-        },
+        "scope_rule": SCOPE_RULE_2,
+        # Imported, not restated. Two halves judged under two
+        # rulebooks would not be comparable, which is the whole
+        # point of drawing both.
+        "definitions": dict(DEFINITIONS_2),
         "labels": {},
         "to_label": [{"video_id": v, "field": f}
                      for v in sorted(got) for f in FIELDS],

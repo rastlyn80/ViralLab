@@ -1,0 +1,664 @@
+{
+ "_what": "Holdout 2, own half: drawn at random under docs/benchmarks/7f-holdout-2-protocol.md.",
+ "_why_no_strata": "Both fields sit near 30-40% on this cohort, so negatives are not scarce. Nothing is enriched and nothing is weighted.",
+ "_blind_means": "No model answer and no score is sent to the interface for these. A labeller who knows what the detector said is no longer an independent labeller.",
+ "_spent_by": null,
+ "blind": true,
+ "cohort": "own",
+ "seed": 20261113,
+ "drawn_on": "2026-11-13",
+ "eligible": 443,
+ "drawn": 80,
+ "fields": [
+  "face_visible",
+  "sheet_music_visible"
+ ],
+ "scope_rule": "Judge only what you can see in the frames shown. Not what you know about the video, not what is probably just off screen - what is visible.",
+ "definitions": {
+  "face_visible": "A human face, recognisable as a face, in any of the frames shown. A face turned away or cropped to the point where you could not say it is a face is not one. A face on a poster or a screen within the shot counts, and say so in the note.",
+  "sheet_music_visible": "Written musical notation, visible as notation. Paper on a stand, a tablet showing a score, notation composited onto the video as a graphic. A blank stand is not notation, and neither is a book you cannot see the pages of."
+ },
+ "labels": {},
+ "to_label": [
+  {
+   "video_id": 4,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 4,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 8,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 8,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 11,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 11,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 13,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 13,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 19,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 19,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 21,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 21,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 32,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 32,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 33,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 33,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 34,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 34,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 42,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 42,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 46,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 46,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 49,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 49,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 60,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 60,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 62,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 62,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 69,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 69,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 82,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 82,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 84,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 84,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 85,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 85,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 86,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 86,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 99,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 99,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 103,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 103,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 104,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 104,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 111,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 111,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 157,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 157,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 163,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 163,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 165,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 165,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 169,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 169,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 172,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 172,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 179,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 179,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 181,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 181,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 182,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 182,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 187,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 187,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 198,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 198,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 209,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 209,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 211,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 211,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 215,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 215,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 231,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 231,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 233,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 233,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 234,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 234,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 247,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 247,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 260,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 260,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 263,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 263,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 275,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 275,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 281,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 281,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 285,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 285,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 292,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 292,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 297,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 297,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 307,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 307,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 310,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 310,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 317,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 317,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 319,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 319,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 324,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 324,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 333,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 333,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 339,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 339,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 367,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 367,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 392,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 392,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 400,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 400,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 405,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 405,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 411,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 411,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 412,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 412,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 414,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 414,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 418,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 418,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 419,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 419,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 426,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 426,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 445,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 445,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 450,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 450,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 452,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 452,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 453,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 453,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 458,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 458,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 464,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 464,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 477,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 477,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 484,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 484,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 487,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 487,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 488,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 488,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 505,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 505,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 506,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 506,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 513,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 513,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 514,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 514,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 521,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 521,
+   "field": "sheet_music_visible"
+  },
+  {
+   "video_id": 523,
+   "field": "face_visible"
+  },
+  {
+   "video_id": 523,
+   "field": "sheet_music_visible"
+  }
+ ]
+}

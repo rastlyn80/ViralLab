@@ -239,6 +239,96 @@ def cmd_draw(args) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# holdout 2: a plain random draw, and why it is allowed to be plain
+# ---------------------------------------------------------------------------
+
+#: The two questions that vary on his account. See
+#: docs/benchmarks/7f-holdout-2-protocol.md.
+FIELDS_2 = ("face_visible", "sheet_music_visible")
+
+#: Fixed so holdout 2 is reproducible from its manifest alone.
+SEED_2 = 20261113
+
+#: The rulebook, defined ONCE and imported by the competitor half.
+#:
+#: Two halves labelled under two sets of words are not comparable,
+#: and comparing them is the entire point of drawing both. A second
+#: copy in `competitor_holdout.py` would read identically on the day
+#: it was written and drift the first time either was edited, so
+#: there is no second copy.
+SCOPE_RULE_2 = ("Judge only what you can see in the frames shown. "
+                "Not what you know about the video, not what is "
+                "probably just off screen - what is visible.")
+
+DEFINITIONS_2 = {
+    "face_visible": (
+        "A human face, recognisable as a face, in any of the frames "
+        "shown. A face turned away or cropped to the point where you "
+        "could not say it is a face is not one. A face on a poster "
+        "or a screen within the shot counts, and say so in the "
+        "note."),
+    "sheet_music_visible": (
+        "Written musical notation, visible as notation. Paper on a "
+        "stand, a tablet showing a score, notation composited onto "
+        "the video as a graphic. A blank stand is not notation, and "
+        "neither is a book you cannot see the pages of."),
+}
+
+
+def cmd_draw2(args) -> int:
+    """Draw holdout 2 at random - no strata, no weights.
+
+    Holdout 1 stratified on the detector's score because a concert
+    pianist's videos are nearly all positives and the negatives had
+    to be hunted for. That is a remedy for scarcity, and it costs
+    weights on every prevalence-dependent figure.
+
+    Face and sheet music sit near 30-40% on both cohorts, so there is
+    no scarcity to remedy. A plain random draw is then both honest
+    and simpler: nothing is enriched, so nothing needs dividing back
+    out. Protocol section 4.
+    """
+    raw = json.loads(Path(args.eligible).read_text(encoding="utf-8"))
+    pool = sorted(int(k) for k in raw["scores"])
+    rng = random.Random(SEED_2)
+    take = min(args.count, len(pool))
+    chosen = sorted(rng.sample(pool, take))
+
+    manifest = {
+        "_what": ("Holdout 2, own half: drawn at random under "
+                  "docs/benchmarks/7f-holdout-2-protocol.md."),
+        "_why_no_strata": ("Both fields sit near 30-40% on this "
+                           "cohort, so negatives are not scarce. "
+                           "Nothing is enriched and nothing is "
+                           "weighted."),
+        "_blind_means": ("No model answer and no score is sent to "
+                         "the interface for these. A labeller who "
+                         "knows what the detector said is no longer "
+                         "an independent labeller."),
+        "_spent_by": None,
+        "blind": True,
+        "cohort": "own",
+        "seed": SEED_2,
+        "drawn_on": args.drawn_on,
+        "eligible": len(pool),
+        "drawn": len(chosen),
+        "fields": list(FIELDS_2),
+        "scope_rule": SCOPE_RULE_2,
+        "definitions": dict(DEFINITIONS_2),
+        "labels": {},
+        "to_label": [{"video_id": v, "field": f}
+                     for v in chosen for f in FIELDS_2],
+    }
+    Path(args.out).write_text(json.dumps(manifest, indent=1),
+                              encoding="utf-8")
+    Path(args.ids_out).write_text(json.dumps(chosen), encoding="utf-8")
+    print(json.dumps({"eligible": len(pool), "drawn": len(chosen),
+                      "questions": len(chosen) * len(FIELDS_2),
+                      "out": args.out, "ids": args.ids_out}, indent=1))
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -258,6 +348,16 @@ def main() -> int:
     s.add_argument("--out", required=True)
     s.add_argument("--model", default="google/owlv2-base-patch16-ensemble")
     s.set_defaults(fn=cmd_score)
+
+    d2 = sub.add_parser("draw2")
+    d2.add_argument("--eligible", required=True,
+                    help="a scores file; its keys are the eligible "
+                         "publication ids")
+    d2.add_argument("--out", required=True)
+    d2.add_argument("--ids-out", required=True)
+    d2.add_argument("--count", type=int, default=80)
+    d2.add_argument("--drawn-on", default="2026-11-13")
+    d2.set_defaults(fn=cmd_draw2)
 
     d = sub.add_parser("draw")
     d.add_argument("--scores", required=True)
