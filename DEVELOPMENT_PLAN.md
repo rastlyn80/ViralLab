@@ -2281,6 +2281,59 @@ block it (2026-10-27)**
   `--owl-discriminative`, off by default, so the negative result is
   reproducible rather than retried. **[CLOSED — recorded]**
 
+**Fixed-age comparison is scarce, and that is the larger finding
+(2026-11-13)**
+- **12 of his 629 publications have a fixed-age view count.** Checked
+  with `analytics.fixed_age.metric_at_age`: views@7d on 12, @30d on 8,
+  @90d on 12. 520 of the 629 are backfill-only — found after the fact,
+  so the first snapshot is a lifetime total at an arbitrary age and
+  §5.4 forbids comparing it to anything. This is not repairable
+  retroactively: nobody can learn what a 2024 post had at day 7. It
+  accrues going forward as the snapshot schedule covers new
+  publications. **[OPEN — a collection limit, not a bug]**
+- **Consequence for every outcome question, not just the visual ones.**
+  The length, timing and virality findings all rest on
+  `virality.build`'s second best — rank within the creator with
+  log(age) partialled out — because the anchor CLAUDE.md §3.8a asks
+  for exists for 2% of his catalogue. That is recorded in the module
+  and is not a new compromise, but the size of the gap was not
+  measured until now. **[OPEN]**
+
+**Is another vision labelling round worth it? A flicker, on 40
+publications (2026-11-13)**
+- The holdout killed piano, hands and text overlay as questions about
+  *his* account: 85%, 91% and 99% constant. The two visual questions
+  that do vary on his own publications are **face in shot** (40%) and
+  **sheet music visible** (30%), and neither has ever been tested
+  against performance.
+- On the 40 M3 publications with his own corrected labels, split by
+  platform, lifetime views with log(age) partialled out:
+
+  | question | TikTok median views | Instagram median views |
+  |---|---|---|
+  | face in shot | 2,648 vs 706 | 3,509 vs 1,254 |
+  | sheet music visible | 2,648 vs 542 | 5,861 vs 1,851 |
+
+  Age-adjusted rho: face +0.26 (TikTok, p 0.29) and +0.18 (Instagram,
+  p 0.48); sheet music +0.46 (TikTok, p 0.045) and +0.25 (Instagram,
+  p 0.31). **The same direction on both platforms for both
+  questions.**
+- **This is a flicker and nothing more.** 20 publications per
+  platform, 5 of them with sheet music; ten comparisons, so the one
+  p under 0.05 does not survive any correction; lifetime views with
+  age adjusted statistically rather than anchored; and the obvious
+  confound stands — the publications where he showed sheet music may
+  be the ones he cared most about. `Observed` at best, and really
+  only a reason to look properly.
+- **Instagram is the dirtier half** (ADR 0008: the \$1/day rotating ad
+  contaminates own-account Instagram metrics), so the TikTok column
+  is the one carrying the weight, and it is the stronger of the two.
+- **Decision it supports:** the next labelling round is scoped to
+  **face and sheet music only**, drawn across his publications *and*
+  other creators' so the both-halves rule of §7.5 of the protocol can
+  actually be applied. Piano, hands and text overlay are not worth
+  another question. **[OPEN — awaiting the owner's go-ahead]**
+
 **Visual intelligence — Phase 2: the holdout, scored (2026-11-13)**
 - **The holdout promoted nothing, and the reason is new.** Both
   fields under test clear the specificity bar — piano 0.926 on 27
