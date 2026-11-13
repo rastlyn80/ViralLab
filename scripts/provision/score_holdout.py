@@ -67,6 +67,43 @@ THRESHOLDS = {
 #: is no arm to score. Reported as unmeasured rather than failed.
 NO_ARM = ("text_overlay_present",)
 
+#: Base rates measured on the 80 M3 publications, used only to decide
+#: in advance whether a question is worth asking. Not evidence about
+#: anything else - that corpus is spent.
+M3_BASE_RATES = {
+    "face_visible": {"own": 0.40, "competitor": 0.30},
+    "sheet_music_visible": {"own": 0.30, "competitor": 0.28},
+    "piano_or_keyboard_visible": {"own": 0.85, "competitor": 0.90},
+    "hands_visible": {"own": 0.92, "competitor": 0.82},
+    "text_overlay_present": {"own": 0.98, "competitor": 0.72},
+}
+
+
+def attainable_lift(base_rate: float) -> float:
+    """The best lift a FLAWLESS answerer could score.
+
+    Lift is measured against answering the majority class every
+    time, so a question answered the same way nearly always leaves
+    almost nothing to win. This is arithmetic, not a property of any
+    detector.
+    """
+    return 1.0 - max(base_rate, 1.0 - base_rate)
+
+
+def lift_bar_is_attainable(base_rate: float,
+                           bar: float = BAR_LIFT) -> bool:
+    """May this question enter a holdout at all?
+
+    Holdout 1 spent 333 of the owner's answers establishing that two
+    of its three questions could not have passed whatever the
+    detector did: a flawless answerer scores +0.088 on hands and
+    +0.013 on text overlay, against a +0.10 bar. The check that
+    would have caught it beforehand is one line, and this is it.
+    See docs/benchmarks/7f-holdout-2-protocol.md section 2.
+    """
+    return attainable_lift(base_rate) >= bar
+
+
 BOOTSTRAP_REPS = 2000
 BOOTSTRAP_SEED = 20261113
 
